@@ -1,0 +1,19 @@
+site_name: pyRadtran
+site_description: A complete Python wrapper for libRadtran radiative transfer
+theme:
+  name: material
+nav:
+  - Home: index.md
+  - API Reference:
+      - Models: api/models.md
+      - Scene: api/scene.md
+      - Runner: api/runner.md
+      - Convenience: api/convenience.md
+      - Presets: api/presets.md
+plugins:
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
