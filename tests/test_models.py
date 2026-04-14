@@ -132,6 +132,48 @@ class TestAtmosphereConfig:
         with pytest.raises(Exception):
             AtmosphereConfig(profile="us", fake_option=1)
 
+    # --- Phase 2 tests ---
+
+    def test_crs_model(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(
+            profile="us",
+            crs_model={"species": "o3", "model": "Serdyuchenko"},
+        )
+        lines = a.to_uvspec_lines()
+        assert "crs_model o3 Serdyuchenko" in lines
+
+    def test_crs_model_multiple(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(
+            profile="us",
+            crs_model=[
+                {"species": "o3", "model": "Serdyuchenko"},
+                {"species": "no2", "model": "Bogumil"},
+            ],
+        )
+        lines = a.to_uvspec_lines()
+        assert "crs_model o3 Serdyuchenko" in lines
+        assert "crs_model no2 Bogumil" in lines
+
+    def test_mol_abs_param_all_variants(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        for param in [
+            "reptran", "reptran fine", "reptran coarse", "reptran medium",
+            "lowtran", "kato", "kato2", "fu", "crs",
+        ]:
+            a = AtmosphereConfig(profile="us", mol_abs_param=param)
+            lines = a.to_uvspec_lines()
+            assert f"mol_abs_param {param}" in lines
+
+    def test_crs_model_invalid_species(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        with pytest.raises(Exception):
+            AtmosphereConfig(
+                profile="us",
+                crs_model={"species": "bogus", "model": "Serdyuchenko"},
+            )
+
 
 # ---------------------------------------------------------------------------
 # Task 4: SourceConfig tests

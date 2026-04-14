@@ -45,12 +45,21 @@ class AtmosphereConfig(UvspecOption):
     pressure: float | None = Field(default=None, ge=0, le=1e6)
     mol_modify: list[tuple[str, float, str]] = Field(default_factory=list)
     mol_abs_param: str | None = None
+    crs_model: dict[str, str] | list[dict[str, str]] | None = None
 
     _VALID_MOL_SPECIES = frozenset({
         "O3", "O2", "H2O", "CO2", "NO2", "BRO", "OCLO",
         "HCHO", "O4", "SO2", "CH4", "N2O", "CO", "N2",
     })
     _VALID_MOL_UNITS = frozenset({"DU", "CM_2", "MM"})
+    _VALID_CRS_SPECIES = frozenset({
+        "rayleigh", "o3", "no2", "o4",
+    })
+    _VALID_CRS_MODELS = frozenset({
+        "Bass_and_Paur", "Bodhaine", "Bodhaine29", "Bogumil", "Burrows",
+        "Daumont", "Greenblatt", "Molina", "Nicolet", "Penndorf",
+        "Serdyuchenko", "Thalman", "Vandaele",
+    })
 
     @model_validator(mode="after")
     def validate_mol_modify_entries(self) -> AtmosphereConfig:
@@ -70,6 +79,25 @@ class AtmosphereConfig(UvspecOption):
                 )
         return self
 
+    @model_validator(mode="after")
+    def validate_crs_model(self) -> AtmosphereConfig:
+        if self.crs_model is not None:
+            entries = self.crs_model if isinstance(self.crs_model, list) else [self.crs_model]
+            for entry in entries:
+                sp = entry.get("species", "")
+                md = entry.get("model", "")
+                if sp not in self._VALID_CRS_SPECIES:
+                    raise ValueError(
+                        f"Invalid crs_model species '{sp}'. "
+                        f"Valid: {sorted(self._VALID_CRS_SPECIES)}"
+                    )
+                if md not in self._VALID_CRS_MODELS:
+                    raise ValueError(
+                        f"Invalid crs_model model '{md}'. "
+                        f"Valid: {sorted(self._VALID_CRS_MODELS)}"
+                    )
+        return self
+
     def _resolve_profile(self) -> str:
         name = self.profile.strip()
         return PROFILE_ALIASES.get(name, name)
@@ -86,4 +114,8 @@ class AtmosphereConfig(UvspecOption):
             lines.append(f"mol_modify {species} {value} {unit}")
         if self.mol_abs_param is not None:
             lines.append(f"mol_abs_param {self.mol_abs_param}")
+        if self.crs_model is not None:
+            entries = self.crs_model if isinstance(self.crs_model, list) else [self.crs_model]
+            for entry in entries:
+                lines.append(f"crs_model {entry['species']} {entry['model']}")
         return lines
