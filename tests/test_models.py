@@ -455,6 +455,81 @@ class TestAerosolConfig:
         with pytest.raises(Exception):
             AerosolConfig(visibility=-1.0)
 
+    # --- Phase 2 tests ---
+
+    def test_aerosol_modify_scale(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        a = AerosolConfig(
+            default=True,
+            modify=[{"variable": "ssa", "action": "scale", "value": 0.85}],
+        )
+        lines = a.to_uvspec_lines()
+        assert "aerosol_modify ssa scale 0.85" in lines
+
+    def test_aerosol_modify_set(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        a = AerosolConfig(
+            default=True,
+            modify=[{"variable": "gg", "action": "set", "value": 0.70}],
+        )
+        lines = a.to_uvspec_lines()
+        assert "aerosol_modify gg set 0.70" in lines
+
+    def test_aerosol_refrac_index(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        a = AerosolConfig(refrac_index=(1.75, 0.45))
+        lines = a.to_uvspec_lines()
+        assert "aerosol_refrac_index 1.75 0.45" in lines
+
+    def test_aerosol_refrac_file(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        a = AerosolConfig(refrac_file="/data/soot_refr.dat")
+        lines = a.to_uvspec_lines()
+        assert "aerosol_refrac_file /data/soot_refr.dat" in lines
+
+    def test_aerosol_sizedist_file(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        a = AerosolConfig(sizedist_file="/data/lognormal.dat")
+        lines = a.to_uvspec_lines()
+        assert "aerosol_sizedist_file /data/lognormal.dat" in lines
+
+    def test_aerosol_species_file(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        a = AerosolConfig(species_file="/data/continental_average.dat")
+        lines = a.to_uvspec_lines()
+        assert "aerosol_species_file /data/continental_average.dat" in lines
+
+    def test_aerosol_species_file_with_list(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        a = AerosolConfig(
+            species_file="/data/continental_average.dat",
+            species_names=["inso", "soot"],
+        )
+        lines = a.to_uvspec_lines()
+        assert "aerosol_species_file /data/continental_average.dat inso soot" in lines
+
+    def test_aerosol_species_library(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        a = AerosolConfig(species_library="/data/opac_optprop/")
+        lines = a.to_uvspec_lines()
+        assert "aerosol_species_library /data/opac_optprop/" in lines
+
+    def test_aerosol_modify_invalid_variable(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        with pytest.raises(Exception):
+            AerosolConfig(
+                default=True,
+                modify=[{"variable": "bogus", "action": "scale", "value": 1.0}],
+            )
+
+    def test_aerosol_modify_invalid_action(self):
+        from pyradtran.models.aerosol import AerosolConfig
+        with pytest.raises(Exception):
+            AerosolConfig(
+                default=True,
+                modify=[{"variable": "ssa", "action": "bogus", "value": 1.0}],
+            )
+
 
 # ---------------------------------------------------------------------------
 # Placeholder models
