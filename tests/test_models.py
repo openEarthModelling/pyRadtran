@@ -10,6 +10,7 @@ Covers Tasks 2, 3, and 4 of Phase 1:
 
 import pytest
 
+from pyradtran.models.advanced import AdvancedConfig
 from pyradtran.models.base import UvspecOption
 from pyradtran.models.mc import McConfig
 from pyradtran.models.output import OutputConfig
@@ -839,19 +840,6 @@ class TestCloudConfig:
 
 
 # ---------------------------------------------------------------------------
-# Placeholder models
-# ---------------------------------------------------------------------------
-
-
-class TestPlaceholderModels:
-    def test_advanced_config(self):
-        from pyradtran.models.advanced import AdvancedConfig
-
-        a = AdvancedConfig()
-        assert a.to_uvspec_lines() == []
-
-
-# ---------------------------------------------------------------------------
 # Phase 3: McConfig tests
 # ---------------------------------------------------------------------------
 
@@ -997,3 +985,42 @@ class TestMcConfig:
     def test_extra_field_forbidden(self):
         with pytest.raises(Exception):
             McConfig(nonexistent_option=1)
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: AdvancedConfig tests
+# ---------------------------------------------------------------------------
+
+
+class TestAdvancedConfig:
+    def test_fluorescence(self):
+        a = AdvancedConfig(fluorescence=0.5)
+        lines = a.to_uvspec_lines()
+        assert "fluorescence 0.5" in lines
+
+    def test_fluorescence_file(self):
+        a = AdvancedConfig(fluorescence_file="/data/fluor.dat")
+        lines = a.to_uvspec_lines()
+        assert "fluorescence_file /data/fluor.dat" in lines
+
+    def test_raman(self):
+        a = AdvancedConfig(raman=True)
+        lines = a.to_uvspec_lines()
+        assert "raman" in lines
+
+    def test_raman_original(self):
+        a = AdvancedConfig(raman=True, raman_variant="original")
+        lines = a.to_uvspec_lines()
+        assert "raman original" in lines
+
+    def test_fluorescence_valid_range(self):
+        with pytest.raises(Exception):
+            AdvancedConfig(fluorescence=-1.0)
+
+    def test_fluorescence_mutual_exclusion(self):
+        with pytest.raises(Exception):
+            AdvancedConfig(fluorescence=0.5, fluorescence_file="/data/f.dat")
+
+    def test_extra_field_forbidden(self):
+        with pytest.raises(Exception):
+            AdvancedConfig(invalid=1)
