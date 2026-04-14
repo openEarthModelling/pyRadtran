@@ -165,3 +165,90 @@ def test_immutable_set_aerosol_modify():
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     assert len(scene.aerosol.modify) == 0
     assert len(scene2.aerosol.modify) == 1
+
+
+# --- Phase 3 tests ---
+
+
+def test_set_mc():
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_source_solar(sza=30.0)
+        .set_mc(photons=100000)
+    )
+    assert scene.mc.photons == 100000
+
+
+def test_set_mc_returns_new_scene():
+    s1 = Scene().set_atmosphere(profile="us")
+    s2 = s1.set_mc(photons=100000)
+    assert s1 is not s2
+    assert s1.mc is None
+
+
+def test_set_sslidar():
+    scene = Scene().set_sslidar(area=1.0, E0=0.1)
+    assert scene.sslidar.area == 1.0
+    assert scene.sslidar.E0 == 0.1
+
+
+def test_set_advanced():
+    scene = Scene().set_advanced(fluorescence=0.5)
+    assert scene.advanced.fluorescence == 0.5
+
+
+def test_set_heating_rate():
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_source_solar(sza=30.0)
+        .set_wavelength(250.0, 1200.0)
+        .set_solver()
+        .set_output(heating_rate="local")
+    )
+    assert scene.output.heating_rate == "local"
+
+
+def test_mc_in_build_input():
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_source_solar(sza=30.0)
+        .set_wavelength(300.0, 400.0)
+        .set_solver()
+        .set_mc(photons=100000, backward=True)
+        .set_output(quiet=True)
+    )
+    text = scene.build_input()
+    assert "mc_photons 100000" in text
+    assert "mc_backward" in text
+
+
+def test_sslidar_in_build_input():
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_source_solar(sza=0.0)
+        .set_wavelength(300.0, 400.0)
+        .set_solver(method="sslidar", streams=8)
+        .set_sslidar(area=1.0, E0=0.1)
+        .set_output(quiet=True)
+    )
+    text = scene.build_input()
+    assert "sslidar area 1.0" in text
+    assert "sslidar E0 0.1" in text
+
+
+def test_advanced_in_build_input():
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_source_solar(sza=30.0)
+        .set_wavelength(300.0, 400.0)
+        .set_solver()
+        .set_advanced(raman=True)
+        .set_output(quiet=True)
+    )
+    text = scene.build_input()
+    assert "raman" in text

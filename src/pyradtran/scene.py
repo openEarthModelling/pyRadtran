@@ -18,6 +18,7 @@ from pyradtran.models.mc import McConfig
 from pyradtran.models.output import OutputConfig
 from pyradtran.models.solver import SolverConfig
 from pyradtran.models.source import SourceConfig
+from pyradtran.models.sslidar import SslidarConfig
 from pyradtran.models.surface import SurfaceConfig
 from pyradtran.models.wavelength import WavelengthConfig
 
@@ -51,6 +52,7 @@ class Scene:
         aerosol: AerosolConfig | None = None,
         cloud: CloudConfig | None = None,
         mc: McConfig | None = None,
+        sslidar: SslidarConfig | None = None,
         advanced: AdvancedConfig | None = None,
         raw_keywords: list[tuple[str, str]] | None = None,
     ):
@@ -63,6 +65,7 @@ class Scene:
         self.aerosol = aerosol
         self.cloud = cloud
         self.mc = mc
+        self.sslidar = sslidar
         self.advanced = advanced
         self.raw_keywords = raw_keywords or []
 
@@ -174,6 +177,32 @@ class Scene:
             new.cloud = CloudConfig(**kwargs)
         return new
 
+    # --- Monte Carlo (Phase 3) ---
+
+    def set_mc(self, **kwargs) -> Scene:
+        new = self.clone()
+        if new.mc is not None:
+            new.mc = new.mc.model_copy(update=kwargs)
+        else:
+            new.mc = McConfig(**kwargs)
+        return new
+
+    def set_sslidar(self, **kwargs) -> Scene:
+        new = self.clone()
+        if new.sslidar is not None:
+            new.sslidar = new.sslidar.model_copy(update=kwargs)
+        else:
+            new.sslidar = SslidarConfig(**kwargs)
+        return new
+
+    def set_advanced(self, **kwargs) -> Scene:
+        new = self.clone()
+        if new.advanced is not None:
+            new.advanced = new.advanced.model_copy(update=kwargs)
+        else:
+            new.advanced = AdvancedConfig(**kwargs)
+        return new
+
     # --- Raw keywords (escape hatch) ---
 
     def add_raw_keyword(self, key: str, value: str = "") -> Scene:
@@ -218,6 +247,7 @@ class Scene:
             aerosol=self.aerosol,
             cloud=self.cloud,
             mc=self.mc,
+            sslidar=self.sslidar,
             advanced=self.advanced,
             raw_keywords=self.raw_keywords or None,
             data_files_path=data_files_path,
@@ -241,6 +271,12 @@ class Scene:
             components.append("aerosol")
         if self.cloud:
             components.append("cloud")
+        if self.mc:
+            components.append("mc")
+        if self.sslidar:
+            components.append("sslidar")
+        if self.advanced:
+            components.append("advanced")
         n_raw = len(self.raw_keywords) if self.raw_keywords else 0
         if n_raw:
             components.append(f"{n_raw} raw keywords")
