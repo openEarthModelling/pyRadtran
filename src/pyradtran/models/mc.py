@@ -4,7 +4,9 @@ Maps to uvspec keywords: mc_photons, mc_backward, mc_escape, mc_vroom,
 mc_polarisation, mc_randomseed, mc_minphotons, mc_maxscatters, mc_spectral_is,
 mc_delta_scaling, mc_rad_alpha, mc_backward_output,
 mc_forward_output, mc_backward_heat, mc_std, mc_jacobian, mc_progressbar,
-mc_surface_reflectalways.
+mc_surface_reflectalways, mc_spherical, mc_tenstream, mc_ipa, mc_tipa,
+mc_sensordirection, mc_sensorposition, mc_spherical3D_scene, mc_cloud_grid,
+mc_basename, mc_minscatters, mc_sun_angular_size.
 
 Reference: libRadtran src_py/mc_options.py
 """
@@ -28,6 +30,10 @@ VALID_OUTPUT_UNITS = frozenset({
     "W_per_m2_and_dz",
     "W_per_m3",
     "K_per_day",
+})
+
+VALID_BPDF_MODELS = frozenset({
+    "litvinov", "maignan", "tsang_u10",
 })
 
 
@@ -59,6 +65,17 @@ class McConfig(UvspecOption):
         progressbar: MC progress bar mode (0=off, 2, 3).
         surface_reflect_always: Always reflect at surface, weight via albedo.
         photons_file: Path to photon distribution file.
+        spherical: 3D geometry mode - "1D" or "3D".
+        tenstream: Enable tenstream approximation.
+        ipa: Importance photon acceleration.
+        tipa: Tracked importance photon acceleration - "dir" or "dir3d".
+        sensor_direction: Sensor viewing direction (dx, dy, dz).
+        sensor_position: Sensor position (x, y, z).
+        spherical3d_scene: Spherical 3D scene bounds (lon_min, lat_min, lon_max, lat_max).
+        cloud_grid: Cloud grid dimensions (nx, ny, nz).
+        basename: Basename for output files.
+        min_scatters: Minimum number of scatters before stopping.
+        sun_angular_size: Sun angular size in degrees.
     """
 
     photons: int | None = Field(default=None, ge=0)
@@ -85,6 +102,31 @@ class McConfig(UvspecOption):
     progressbar: int | None = Field(default=None, ge=0, le=3)
     surface_reflect_always: bool = False
     photons_file: str | None = None
+
+    # --- Surface files (Phase 4) ---
+    albedo_file: str | None = None
+    albedo_spectral_file: str | None = None
+    rossli_file: str | None = None
+    ambrals_spectral_file: str | None = None
+    rpv_file: str | None = None
+    bpdf: str | None = None
+    surface_parallel: bool = False
+    elevation_file: str | None = None
+    lidar_file: str | None = None
+    triangular_surface_file: str | None = None
+
+    # --- 3D geometry (Phase 4) ---
+    spherical: str | None = None  # "1D" or "3D"
+    tenstream: bool = False
+    ipa: bool = False
+    tipa: str | None = None  # "dir" or "dir3d"
+    sensor_direction: tuple[float, float, float] | None = None  # (dx, dy, dz)
+    sensor_position: tuple[float, float, float] | None = None  # (x, y, z)
+    spherical3d_scene: tuple[float, float, float, float] | None = None  # (lon_min, lat_min, lon_max, lat_max)
+    cloud_grid: tuple[int, int, int] | None = None  # (nx, ny, nz)
+    basename: str | None = None
+    min_scatters: int | None = Field(default=None, ge=0)
+    sun_angular_size: float | None = Field(default=None, ge=0.0, le=10.0)
 
     @model_validator(mode="after")
     def validate_mc(self) -> McConfig:
@@ -123,6 +165,18 @@ class McConfig(UvspecOption):
             raise ValueError("jacobian_std requires jacobian to be set")
         if self.jacobian_std and not self.backward:
             raise ValueError("jacobian_std requires backward=True")
+
+        # 3D geometry validation
+        if self.spherical is not None and self.spherical not in ("1D", "3D"):
+            raise ValueError(f"mc spherical must be '1D' or '3D', got '{self.spherical}'")
+        if self.tipa is not None and self.tipa not in ("dir", "dir3d"):
+            raise ValueError(f"mc_tipa must be 'dir' or 'dir3d', got '{self.tipa}'")
+
+        if self.bpdf is not None and self.bpdf not in VALID_BPDF_MODELS:
+            raise ValueError(
+                f"Invalid bpdf '{self.bpdf}'. Valid: {sorted(VALID_BPDF_MODELS)}"
+            )
+
         return self
 
     def to_uvspec_lines(self) -> list[str]:
@@ -198,5 +252,65 @@ class McConfig(UvspecOption):
 
         if self.surface_reflect_always:
             lines.append("mc_surface_reflectalways")
+
+        # --- 3D geometry (Phase 4) ---
+        if self.spherical is not None:
+            lines.append(f"mc_spherical {self.spherical}")
+
+        if self.tenstream:
+            lines.append("mc_tenstream")
+
+        if self.ipa:
+            lines.append("mc_ipa")
+
+        if self.tipa is not None:
+            lines.append(f"mc_tipa {self.tipa}")
+
+        if self.sensor_direction is not None:
+            dx, dy, dz = self.sensor_direction
+            lines.append(f"mc_sensordirection {dx} {dy} {dz}")
+
+        if self.sensor_position is not None:
+            x, y, z = self.sensor_position
+            lines.append(f"mc_sensorposition {x} {y} {z}")
+
+        if self.spherical3d_scene is not None:
+            lon0, lat0, lon1, lat1 = self.spherical3d_scene
+            lines.append(f"mc_spherical3D_scene {lon0} {lat0} {lon1} {lat1}")
+
+        if self.cloud_grid is not None:
+            nx, ny, nz = self.cloud_grid
+            lines.append(f"mc_cloud_grid {nx} {ny} {nz}")
+
+        if self.basename is not None:
+            lines.append(f"mc_basename {self.basename}")
+
+        if self.min_scatters is not None:
+            lines.append(f"mc_minscatters {self.min_scatters}")
+
+        if self.sun_angular_size is not None:
+            lines.append(f"mc_sun_angular_size {self.sun_angular_size}")
+
+        # --- Surface files (Phase 4) ---
+        if self.albedo_file is not None:
+            lines.append(f"mc_albedo_file {self.albedo_file}")
+        if self.albedo_spectral_file is not None:
+            lines.append(f"mc_albedo_spectral_file {self.albedo_spectral_file}")
+        if self.rossli_file is not None:
+            lines.append(f"mc_rossli_file {self.rossli_file}")
+        if self.ambrals_spectral_file is not None:
+            lines.append(f"mc_ambrals_spectral_file {self.ambrals_spectral_file}")
+        if self.rpv_file is not None:
+            lines.append(f"mc_rpv_file {self.rpv_file}")
+        if self.bpdf is not None:
+            lines.append(f"mc_bpdf {self.bpdf}")
+        if self.surface_parallel:
+            lines.append("mc_surfaceparallel")
+        if self.elevation_file is not None:
+            lines.append(f"mc_elevation_file {self.elevation_file}")
+        if self.lidar_file is not None:
+            lines.append(f"mc_lidar_file {self.lidar_file}")
+        if self.triangular_surface_file is not None:
+            lines.append(f"mc_triangular_surface_file {self.triangular_surface_file}")
 
         return lines

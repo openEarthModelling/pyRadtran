@@ -988,6 +988,151 @@ class TestMcConfig:
 
 
 # ---------------------------------------------------------------------------
+# Phase 3: McConfig tests - 3D Geometry Options (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+class TestMcConfig3D:
+    """Tests for MC 3D geometry and sensor options (Phase 4)."""
+
+    def test_spherical_1d(self):
+        mc = McConfig(spherical="1D")
+        lines = mc.to_uvspec_lines()
+        assert "mc_spherical 1D" in lines
+
+    def test_spherical_3d(self):
+        mc = McConfig(spherical="3D")
+        lines = mc.to_uvspec_lines()
+        assert "mc_spherical 3D" in lines
+
+    def test_spherical_invalid(self):
+        with pytest.raises(Exception):
+            McConfig(spherical="2D")
+
+    def test_tenstream(self):
+        mc = McConfig(tenstream=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_tenstream" in lines
+
+    def test_ipa(self):
+        mc = McConfig(ipa=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_ipa" in lines
+
+    def test_tipa_dir(self):
+        mc = McConfig(tipa="dir")
+        lines = mc.to_uvspec_lines()
+        assert "mc_tipa dir" in lines
+
+    def test_tipa_dir3d(self):
+        mc = McConfig(tipa="dir3d")
+        lines = mc.to_uvspec_lines()
+        assert "mc_tipa dir3d" in lines
+
+    def test_tipa_invalid(self):
+        with pytest.raises(Exception):
+            McConfig(tipa="invalid")
+
+    def test_sensor_direction(self):
+        mc = McConfig(sensor_direction=(1.0, 0.0, -1.0))
+        lines = mc.to_uvspec_lines()
+        assert "mc_sensordirection 1.0 0.0 -1.0" in lines
+
+    def test_sensor_position(self):
+        mc = McConfig(sensor_position=(0.0, 0.0, 10.0))
+        lines = mc.to_uvspec_lines()
+        assert "mc_sensorposition 0.0 0.0 10.0" in lines
+
+    def test_spherical3d_scene(self):
+        mc = McConfig(spherical3d_scene=(-10.0, 30.0, 10.0, 50.0))
+        lines = mc.to_uvspec_lines()
+        assert "mc_spherical3D_scene -10.0 30.0 10.0 50.0" in lines
+
+    def test_cloud_grid(self):
+        mc = McConfig(cloud_grid=(100, 100, 50))
+        lines = mc.to_uvspec_lines()
+        assert "mc_cloud_grid 100 100 50" in lines
+
+    def test_basename(self):
+        mc = McConfig(basename="my_sim")
+        lines = mc.to_uvspec_lines()
+        assert "mc_basename my_sim" in lines
+
+    def test_minscatters(self):
+        mc = McConfig(min_scatters=5)
+        lines = mc.to_uvspec_lines()
+        assert "mc_minscatters 5" in lines
+
+    def test_sun_angular_size(self):
+        mc = McConfig(sun_angular_size=0.53)
+        lines = mc.to_uvspec_lines()
+        assert "mc_sun_angular_size 0.53" in lines
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: McConfig tests - Advanced Surface Files (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+class TestMcConfigSurface:
+    """Tests for MC advanced surface file options (Phase 4)."""
+
+    def test_albedo_file(self):
+        mc = McConfig(albedo_file="/data/albedo.nc")
+        lines = mc.to_uvspec_lines()
+        assert "mc_albedo_file /data/albedo.nc" in lines
+
+    def test_albedo_spectral_file(self):
+        mc = McConfig(albedo_spectral_file="/data/alb_spec.dat")
+        lines = mc.to_uvspec_lines()
+        assert "mc_albedo_spectral_file /data/alb_spec.dat" in lines
+
+    def test_rossli_file(self):
+        mc = McConfig(rossli_file="/data/rossli.dat")
+        lines = mc.to_uvspec_lines()
+        assert "mc_rossli_file /data/rossli.dat" in lines
+
+    def test_ambrals_spectral_file(self):
+        mc = McConfig(ambrals_spectral_file="/data/ambrals.dat")
+        lines = mc.to_uvspec_lines()
+        assert "mc_ambrals_spectral_file /data/ambrals.dat" in lines
+
+    def test_rpv_file(self):
+        mc = McConfig(rpv_file="/data/rpv.dat")
+        lines = mc.to_uvspec_lines()
+        assert "mc_rpv_file /data/rpv.dat" in lines
+
+    def test_bpdf(self):
+        mc = McConfig(bpdf="maignan")
+        lines = mc.to_uvspec_lines()
+        assert "mc_bpdf maignan" in lines
+
+    def test_surface_parallel(self):
+        mc = McConfig(surface_parallel=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_surfaceparallel" in lines
+
+    def test_elevation_file(self):
+        mc = McConfig(elevation_file="/data/dem.nc")
+        lines = mc.to_uvspec_lines()
+        assert "mc_elevation_file /data/dem.nc" in lines
+
+    def test_lidar_file(self):
+        mc = McConfig(lidar_file="/data/lidar_input.dat")
+        lines = mc.to_uvspec_lines()
+        assert "mc_lidar_file /data/lidar_input.dat" in lines
+
+    def test_triangular_surface_file(self):
+        mc = McConfig(triangular_surface_file="/data/mesh.dat")
+        lines = mc.to_uvspec_lines()
+        assert "mc_triangular_surface_file /data/mesh.dat" in lines
+
+    def test_bpdf_invalid(self):
+        with pytest.raises(Exception):
+            McConfig(bpdf="invalid_model")
+
+
+# ---------------------------------------------------------------------------
 # Phase 3: AdvancedConfig tests
 # ---------------------------------------------------------------------------
 
