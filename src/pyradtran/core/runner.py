@@ -121,20 +121,20 @@ class Runner:
             env = os.environ.copy()
             env["LIBRADTRAN_DATA_FILES"] = resolved_data_path
 
-            cmd = f"cat {inp_file} | {uvspec} > {out_file} 2>&1"
-            proc = subprocess.run(
-                cmd,
-                shell=True,
-                env=env,
-                timeout=timeout,
-                capture_output=True,
-                text=True,
-            )
+            with open(inp_file) as stdin_f, open(out_file, "w") as stdout_f:
+                proc = subprocess.run(
+                    [uvspec],
+                    stdin=stdin_f,
+                    stdout=stdout_f,
+                    stderr=subprocess.PIPE,
+                    env=env,
+                    timeout=timeout,
+                    text=True,
+                )
 
             if proc.returncode != 0:
                 raise RuntimeError(
                     f"uvspec failed (exit code {proc.returncode}):\n"
-                    f"stdout: {proc.stdout}\n"
                     f"stderr: {proc.stderr}"
                 )
 

@@ -413,6 +413,14 @@ class TestAerosolConfig:
         with pytest.raises(Exception):
             AerosolConfig(angstrom_alpha=1.3, angstrom_beta=0.08)
 
+    def test_angstrom_requires_both_alpha_and_beta(self):
+        from pyradtran.models.aerosol import AerosolConfig
+
+        with pytest.raises(Exception, match="angstrom_beta must be set"):
+            AerosolConfig(default=True, angstrom_alpha=1.3)
+        with pytest.raises(Exception, match="angstrom_alpha must be set"):
+            AerosolConfig(default=True, angstrom_beta=0.08)
+
     def test_set_tau_at_wvl(self):
         from pyradtran.models.aerosol import AerosolConfig
 

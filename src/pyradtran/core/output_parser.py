@@ -84,11 +84,14 @@ def _parse_ascii(
 
     if n_zout == 1:
         data_vars = {}
+        wavelength = None
         for i, name in enumerate(column_names):
             if name == "wavelength":
                 wavelength = data[:, i]
             else:
                 data_vars[name] = ("wavelength", data[:, i])
+        if wavelength is None:
+            wavelength = data[:, 0]
         return xr.Dataset(data_vars, coords={"wavelength": wavelength})
     else:
         n_wl = n_rows // n_zout

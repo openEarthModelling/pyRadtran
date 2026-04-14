@@ -47,6 +47,10 @@ class AerosolConfig(UvspecOption):
             raise ValueError("angstrom_alpha requires default=True")
         if self.angstrom_beta is not None and not self.default:
             raise ValueError("angstrom_beta requires default=True")
+        if self.angstrom_alpha is not None and self.angstrom_beta is None:
+            raise ValueError("angstrom_beta must be set when angstrom_alpha is set")
+        if self.angstrom_beta is not None and self.angstrom_alpha is None:
+            raise ValueError("angstrom_alpha must be set when angstrom_beta is set")
         if self.file is not None:
             file_type = self.file[0]
             if file_type not in self._VALID_FILE_TYPES:
