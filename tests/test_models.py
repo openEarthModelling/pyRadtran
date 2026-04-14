@@ -12,6 +12,7 @@ import pytest
 
 from pyradtran.models.base import UvspecOption
 from pyradtran.models.mc import McConfig
+from pyradtran.models.output import OutputConfig
 
 # ---------------------------------------------------------------------------
 # Task 2: UvspecOption base class tests
@@ -419,6 +420,42 @@ class TestOutputConfig:
 
         with pytest.raises(Exception):
             OutputConfig(format="json")
+
+
+# ---------------------------------------------------------------------------
+# Task 3: OutputConfig advanced (heating_rate, output_process) tests
+# ---------------------------------------------------------------------------
+
+
+class TestOutputConfigAdvanced:
+    def test_heating_rate_local(self):
+        o = OutputConfig(heating_rate="local")
+        lines = o.to_uvspec_lines()
+        assert "heating_rate local" in lines
+
+    def test_heating_rate_layer_fd(self):
+        o = OutputConfig(heating_rate="layer_fd")
+        lines = o.to_uvspec_lines()
+        assert "heating_rate layer_fd" in lines
+
+    def test_heating_rate_none(self):
+        o = OutputConfig(heating_rate="none")
+        lines = o.to_uvspec_lines()
+        assert "heating_rate none" in lines
+
+    def test_heating_rate_invalid(self):
+        with pytest.raises(Exception):
+            OutputConfig(heating_rate="invalid")
+
+    def test_output_process_integrate(self):
+        o = OutputConfig(process="integrate")
+        lines = o.to_uvspec_lines()
+        assert "output_process integrate" in lines
+
+    def test_output_process_per_nm(self):
+        o = OutputConfig(process="per_nm")
+        lines = o.to_uvspec_lines()
+        assert "output_process per_nm" in lines
 
 
 # ---------------------------------------------------------------------------
