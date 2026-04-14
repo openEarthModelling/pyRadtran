@@ -97,7 +97,10 @@ class McConfig(UvspecOption):
                 f"Invalid backward_output '{self.backward_output}'. "
                 f"Valid: {sorted(VALID_BACKWARD_OUTPUTS)}"
             )
-        if self.backward_output_unit is not None and self.backward_output_unit not in VALID_OUTPUT_UNITS:
+        if (
+            self.backward_output_unit is not None
+            and self.backward_output_unit not in VALID_OUTPUT_UNITS
+        ):
             raise ValueError(
                 f"Invalid backward_output_unit '{self.backward_output_unit}'. "
                 f"Valid: {sorted(VALID_OUTPUT_UNITS)}"
