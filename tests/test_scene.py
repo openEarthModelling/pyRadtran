@@ -252,3 +252,31 @@ def test_advanced_in_build_input():
     )
     text = scene.build_input()
     assert "raman" in text
+
+
+# --- Phase 4 tests ---
+
+
+def test_set_three_d():
+    scene = Scene().set_three_d(atmosphere_file="/data/atm3d.nc", cloud_file="/data/c3d.nc")
+    assert scene.three_d.atmosphere_file == "/data/atm3d.nc"
+    assert scene.three_d.cloud_file == "/data/c3d.nc"
+
+
+def test_set_three_d_returns_new_scene():
+    s1 = Scene()
+    s2 = s1.set_three_d(output_3d=True)
+    assert s1 is not s2
+    assert s1.three_d is None
+
+
+def test_set_satellite():
+    scene = Scene().set_satellite(geometry="SENTINEL2A", pixel=(10, 20))
+    assert scene.source.satellite_geometry == "SENTINEL2A"
+    assert scene.source.satellite_pixel == (10, 20)
+
+
+def test_set_dynamic():
+    scene = Scene().set_dynamic(method="dynamic_tenstream", iterations=100)
+    assert scene.solver.method == "dynamic_tenstream"
+    assert scene.solver.dynamic_iterations == 100

@@ -12,6 +12,7 @@ from pyradtran.models.solver import SolverConfig
 from pyradtran.models.source import SourceConfig
 from pyradtran.models.sslidar import SslidarConfig
 from pyradtran.models.surface import SurfaceConfig
+from pyradtran.models.three_d import ThreeDConfig
 from pyradtran.models.wavelength import WavelengthConfig
 
 
@@ -27,6 +28,7 @@ def build_input_text(
     mc: McConfig | None = None,
     sslidar: SslidarConfig | None = None,
     advanced: AdvancedConfig | None = None,
+    three_d: ThreeDConfig | None = None,
     raw_keywords: list[tuple[str, str]] | None = None,
     data_files_path: str | None = None,
 ) -> str:
@@ -49,6 +51,8 @@ def build_input_text(
         lines.extend(sslidar.to_uvspec_lines())
     if advanced is not None:
         lines.extend(advanced.to_uvspec_lines())
+    if three_d is not None:
+        lines.extend(three_d.to_uvspec_lines())
     if data_files_path is not None:
         lines.append(f"data_files_path {data_files_path}")
     if raw_keywords:

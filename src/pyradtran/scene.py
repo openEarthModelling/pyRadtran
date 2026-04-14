@@ -20,6 +20,7 @@ from pyradtran.models.solver import SolverConfig
 from pyradtran.models.source import SourceConfig
 from pyradtran.models.sslidar import SslidarConfig
 from pyradtran.models.surface import SurfaceConfig
+from pyradtran.models.three_d import ThreeDConfig
 from pyradtran.models.wavelength import WavelengthConfig
 
 
@@ -54,6 +55,7 @@ class Scene:
         mc: McConfig | None = None,
         sslidar: SslidarConfig | None = None,
         advanced: AdvancedConfig | None = None,
+        three_d: ThreeDConfig | None = None,
         raw_keywords: list[tuple[str, str]] | None = None,
     ):
         self.atmosphere = atmosphere
@@ -67,6 +69,7 @@ class Scene:
         self.mc = mc
         self.sslidar = sslidar
         self.advanced = advanced
+        self.three_d = three_d
         self.raw_keywords = raw_keywords or []
 
     def clone(self) -> Scene:
@@ -203,6 +206,40 @@ class Scene:
             new.advanced = AdvancedConfig(**kwargs)
         return new
 
+    # --- 3D (Phase 4) ---
+
+    def set_three_d(self, **kwargs) -> Scene:
+        new = self.clone()
+        if new.three_d is not None:
+            new.three_d = new.three_d.model_copy(update=kwargs)
+        else:
+            new.three_d = ThreeDConfig(**kwargs)
+        return new
+
+    def set_satellite(self, geometry: str | None = None,
+                      pixel: tuple[int, int] | None = None,
+                      **source_kwargs) -> Scene:
+        new = self.clone()
+        sat_updates = {}
+        if geometry is not None:
+            sat_updates["satellite_geometry"] = geometry
+        if pixel is not None:
+            sat_updates["satellite_pixel"] = pixel
+        if new.source is not None:
+            new.source = new.source.model_copy(update={**sat_updates, **source_kwargs})
+        else:
+            new.source = SourceConfig(source="solar", sza=0.0, **sat_updates, **source_kwargs)
+        return new
+
+    def set_dynamic(self, method: str = "dynamic_tenstream",
+                    iterations: int | None = None, **kwargs) -> Scene:
+        new = self.clone()
+        solver_kwargs = {"method": method, **kwargs}
+        if iterations is not None:
+            solver_kwargs["dynamic_iterations"] = iterations
+        new.solver = SolverConfig(**solver_kwargs)
+        return new
+
     # --- Raw keywords (escape hatch) ---
 
     def add_raw_keyword(self, key: str, value: str = "") -> Scene:
@@ -249,6 +286,7 @@ class Scene:
             mc=self.mc,
             sslidar=self.sslidar,
             advanced=self.advanced,
+            three_d=self.three_d,
             raw_keywords=self.raw_keywords or None,
             data_files_path=data_files_path,
         )
@@ -277,6 +315,8 @@ class Scene:
             components.append("sslidar")
         if self.advanced:
             components.append("advanced")
+        if self.three_d:
+            components.append("three_d")
         n_raw = len(self.raw_keywords) if self.raw_keywords else 0
         if n_raw:
             components.append(f"{n_raw} raw keywords")

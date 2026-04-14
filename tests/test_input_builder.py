@@ -71,3 +71,23 @@ def test_with_data_files_path():
     )
     lines = text.strip().split("\n")
     assert "data_files_path /usr/local/share/libRadtran/data" in lines
+
+
+def test_three_d_config_wired():
+    """Verify ThreeDConfig is included in built input text."""
+    from pyradtran.models.three_d import ThreeDConfig
+    from pyradtran.models.atmosphere import AtmosphereConfig
+    from pyradtran.models.source import SourceConfig
+    from pyradtran.models.wavelength import WavelengthConfig
+    from pyradtran.models.solver import SolverConfig
+    from pyradtran.models.output import OutputConfig
+
+    result = build_input_text(
+        atmosphere=AtmosphereConfig(profile="us"),
+        source=SourceConfig(source="solar", sza=30.0),
+        wavelength=WavelengthConfig(wavelength_min=300.0, wavelength_max=1200.0),
+        solver=SolverConfig(method="disort"),
+        output=OutputConfig(quiet=True),
+        three_d=ThreeDConfig(atmosphere_file="/data/atm3d.nc"),
+    )
+    assert "atmosphere_file_3D /data/atm3d.nc" in result
