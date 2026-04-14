@@ -421,3 +421,100 @@ def run_polarized(
     )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
+
+
+def run_3d(
+    atmosphere_file: str | None = None,
+    cloud_file: str | None = None,
+    profile: str = "us",
+    altitude: float = 0.0,
+    sza: float = 30.0,
+    wl_min: float = 300.0,
+    wl_max: float = 2500.0,
+    photons: int = 100000,
+    ipa: bool = False,
+    uvspec_exe: str | None = None,
+    data_path: str | None = None,
+) -> xr.Dataset:
+    """Run 3D Monte Carlo radiative transfer simulation.
+
+    Args:
+        atmosphere_file: Path to 3D atmospheric field file.
+        cloud_file: Path to 3D cloud field file.
+        profile: Standard atmosphere profile (for 1D fallback).
+        altitude: Surface altitude in km.
+        sza: Solar zenith angle in degrees.
+        wl_min: Minimum wavelength in nm.
+        wl_max: Maximum wavelength in nm.
+        photons: Number of Monte Carlo photons.
+        ipa: Use independent pixel approximation.
+        uvspec_exe: Path to uvspec binary.
+        data_path: Path to libRadtran data directory.
+
+    Returns:
+        xarray.Dataset with 3D radiative transfer results.
+    """
+    from pyradtran.presets import resolve_altitude
+
+    scene = (
+        Scene()
+        .set_atmosphere(profile=profile, altitude=resolve_altitude(altitude))
+        .set_source_solar(sza=sza)
+        .set_wavelength(wl_min, wl_max)
+        .set_solver(method="mystic", streams=8)
+        .set_mc(photons=photons, ipa=ipa)
+        .set_output(format="netcdf", quiet=True)
+    )
+
+    three_d_kwargs = {}
+    if atmosphere_file is not None:
+        three_d_kwargs["atmosphere_file"] = atmosphere_file
+    if cloud_file is not None:
+        three_d_kwargs["cloud_file"] = cloud_file
+    if ipa:
+        three_d_kwargs["ipa_3d"] = True
+    if three_d_kwargs:
+        scene = scene.set_three_d(**three_d_kwargs)
+
+    return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
+
+
+def run_satellite(
+    geometry: str = "MPS",
+    pixel: tuple[int, int] | None = None,
+    profile: str = "us",
+    sza: float = 60.0,
+    wl_min: float = 300.0,
+    wl_max: float = 2500.0,
+    solver: str = "disort",
+    streams: int = 16,
+    uvspec_exe: str | None = None,
+    data_path: str | None = None,
+) -> xr.Dataset:
+    """Run satellite-viewing radiative transfer simulation.
+
+    Args:
+        geometry: Satellite geometry name (e.g., MPS, SENTINEL2A).
+        pixel: Optional (x, y) pixel coordinates for satellite_geometry file.
+        profile: Standard atmosphere profile.
+        sza: Solar zenith angle in degrees.
+        wl_min: Minimum wavelength in nm.
+        wl_max: Maximum wavelength in nm.
+        solver: RTE solver name.
+        streams: Number of angular streams.
+        uvspec_exe: Path to uvspec binary.
+        data_path: Path to libRadtran data directory.
+
+    Returns:
+        xarray.Dataset with satellite-view radiance/irradiance.
+    """
+    scene = (
+        Scene()
+        .set_atmosphere(profile=profile)
+        .set_satellite(geometry=geometry, pixel=pixel, source="solar", sza=sza)
+        .set_wavelength(wl_min, wl_max)
+        .set_solver(method=solver, streams=streams)
+        .set_output(format="netcdf", quiet=True)
+    )
+
+    return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)

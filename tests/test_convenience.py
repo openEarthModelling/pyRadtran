@@ -139,3 +139,28 @@ def test_run_polarized_creates_scene():
         assert scene_arg.mc.polarisation is True
         assert scene_arg.solver.method == "mystic"
         assert scene_arg.source.sza == 45.0
+
+
+class TestRun3D:
+    def test_returns_dataset(self, uvspec_exe, data_path):
+        from pyradtran.convenience import run_3d
+        result = run_3d(
+            atmosphere_file=str(data_path) + "/aerosol/OPAC/optprop/aerosol_optprop.dat",
+            data_path=data_path,
+            uvspec_exe=uvspec_exe,
+            photons=1000,
+        )
+        assert isinstance(result, xr.Dataset)
+
+
+class TestRunSatellite:
+    def test_returns_dataset(self, uvspec_exe, data_path):
+        from pyradtran.convenience import run_satellite
+        result = run_satellite(
+            geometry="MPS",
+            pixel=(10, 20),
+            sza=60.0,
+            data_path=data_path,
+            uvspec_exe=uvspec_exe,
+        )
+        assert isinstance(result, xr.Dataset)
