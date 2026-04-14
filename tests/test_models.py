@@ -532,16 +532,138 @@ class TestAerosolConfig:
 
 
 # ---------------------------------------------------------------------------
+# Task 2: CloudConfig tests
+# ---------------------------------------------------------------------------
+
+
+class TestCloudConfig:
+    def test_water_cloud_hu(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(wc_properties="hu")
+        lines = c.to_uvspec_lines()
+        assert "wc_properties hu" in lines
+
+    def test_water_cloud_echam4(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(wc_properties="echam4")
+        lines = c.to_uvspec_lines()
+        assert "wc_properties echam4" in lines
+
+    def test_ice_cloud_fu(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(ic_properties="fu")
+        lines = c.to_uvspec_lines()
+        assert "ic_properties fu" in lines
+
+    def test_ice_cloud_baum(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(ic_properties="baum")
+        lines = c.to_uvspec_lines()
+        assert "ic_properties baum" in lines
+
+    def test_ice_cloud_yang2013(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(ic_properties="yang2013")
+        lines = c.to_uvspec_lines()
+        assert "ic_properties yang2013" in lines
+
+    def test_ic_habit(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(ic_habit="rosette-6", ic_habit_roughness=0.5)
+        lines = c.to_uvspec_lines()
+        assert "ic_habit rosette-6" in lines
+        assert "ic_habit_yang2013 rosette-6 0.5" in lines
+
+    def test_ic_file(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(ic_file=("1d", "/data/cloud3d.dat"))
+        lines = c.to_uvspec_lines()
+        assert "ic_file 1d /data/cloud3d.dat" in lines
+
+    def test_wc_file(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(wc_file=("1d", "/data/wc.dat"))
+        lines = c.to_uvspec_lines()
+        assert "wc_file 1d /data/wc.dat" in lines
+
+    def test_cloud_modify(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(
+            wc_properties="hu",
+            modify=[{"variable": "tau", "action": "set", "value": 10.0}],
+        )
+        lines = c.to_uvspec_lines()
+        assert "wc_modify tau set 10.0" in lines
+
+    def test_ic_modify(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(
+            ic_properties="fu",
+            ic_modify=[{"variable": "gg", "action": "scale", "value": 0.85}],
+        )
+        lines = c.to_uvspec_lines()
+        assert "ic_modify gg scale 0.85" in lines
+
+    def test_cloud_cover(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(cloud_cover=0.7)
+        lines = c.to_uvspec_lines()
+        assert "cloudcover 0.7" in lines
+
+    def test_cloud_overlap(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(cloud_overlap="maxrnd")
+        lines = c.to_uvspec_lines()
+        assert "cloud_overlap maxrnd" in lines
+
+    def test_invalid_ic_properties(self):
+        from pyradtran.models.cloud import CloudConfig
+        with pytest.raises(Exception):
+            CloudConfig(ic_properties="bogus_scheme")
+
+    def test_invalid_wc_properties(self):
+        from pyradtran.models.cloud import CloudConfig
+        with pytest.raises(Exception):
+            CloudConfig(wc_properties="bogus_scheme")
+
+    def test_modify_invalid_variable(self):
+        from pyradtran.models.cloud import CloudConfig
+        with pytest.raises(Exception):
+            CloudConfig(
+                wc_properties="hu",
+                modify=[{"variable": "bogus", "action": "set", "value": 1.0}],
+            )
+
+    def test_interpolate_flag(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(ic_properties="fu", interpolate=True)
+        lines = c.to_uvspec_lines()
+        assert "ic_properties fu interpolate" in lines
+
+    def test_empty_cloud(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig()
+        lines = c.to_uvspec_lines()
+        assert lines == []
+
+
+# ---------------------------------------------------------------------------
 # Placeholder models
 # ---------------------------------------------------------------------------
 
 
 class TestPlaceholderModels:
-    def test_cloud_config(self):
-        from pyradtran.models.cloud import CloudConfig
+    def test_mc_config(self):
+        from pyradtran.models.mc import McConfig
 
-        c = CloudConfig()
-        assert c.to_uvspec_lines() == []
+        m = McConfig()
+        assert m.to_uvspec_lines() == []
+
+    def test_advanced_config(self):
+        from pyradtran.models.advanced import AdvancedConfig
+
+        a = AdvancedConfig()
+        assert a.to_uvspec_lines() == []
 
     def test_mc_config(self):
         from pyradtran.models.mc import McConfig
