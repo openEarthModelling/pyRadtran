@@ -11,6 +11,7 @@ Covers Tasks 2, 3, and 4 of Phase 1:
 import pytest
 
 from pyradtran.models.base import UvspecOption
+from pyradtran.models.mc import McConfig
 
 # ---------------------------------------------------------------------------
 # Task 2: UvspecOption base class tests
@@ -775,14 +776,156 @@ class TestCloudConfig:
 
 
 class TestPlaceholderModels:
-    def test_mc_config(self):
-        from pyradtran.models.mc import McConfig
-
-        m = McConfig()
-        assert m.to_uvspec_lines() == []
-
     def test_advanced_config(self):
         from pyradtran.models.advanced import AdvancedConfig
 
         a = AdvancedConfig()
         assert a.to_uvspec_lines() == []
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: McConfig tests
+# ---------------------------------------------------------------------------
+
+
+class TestMcConfig:
+    def test_photons(self):
+        mc = McConfig(photons=100000)
+        lines = mc.to_uvspec_lines()
+        assert "mc_photons 100000" in lines
+
+    def test_backward(self):
+        mc = McConfig(backward=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_backward" in lines
+
+    def test_backward_pixel_range(self):
+        mc = McConfig(backward=True, backward_pixel_range=(0, 0, 10, 10))
+        lines = mc.to_uvspec_lines()
+        assert "mc_backward 0 0 10 10" in lines
+
+    def test_escape(self):
+        mc = McConfig(escape="on")
+        lines = mc.to_uvspec_lines()
+        assert "mc_escape on" in lines
+
+    def test_escape_off(self):
+        mc = McConfig(escape="off")
+        lines = mc.to_uvspec_lines()
+        assert "mc_escape off" in lines
+
+    def test_vroom(self):
+        mc = McConfig(vroom="on")
+        lines = mc.to_uvspec_lines()
+        assert "mc_vroom on" in lines
+
+    def test_polarisation(self):
+        mc = McConfig(polarisation=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_polarisation" in lines
+
+    def test_polarisation_with_state(self):
+        mc = McConfig(polarisation=True, polarisation_state=2)
+        lines = mc.to_uvspec_lines()
+        assert "mc_polarisation 2" in lines
+
+    def test_randomseed(self):
+        mc = McConfig(random_seed=42)
+        lines = mc.to_uvspec_lines()
+        assert "mc_randomseed 42" in lines
+
+    def test_minphotons(self):
+        mc = McConfig(min_photons=100)
+        lines = mc.to_uvspec_lines()
+        assert "mc_minphotons 100" in lines
+
+    def test_maxscatters(self):
+        mc = McConfig(max_scatters=50)
+        lines = mc.to_uvspec_lines()
+        assert "mc_maxscatters 50" in lines
+
+    def test_spectral_is(self):
+        mc = McConfig(spectral_is=550.0)
+        lines = mc.to_uvspec_lines()
+        assert "mc_spectral_is 550.0" in lines
+
+    def test_delta_scaling(self):
+        mc = McConfig(delta_scaling_mucut=0.99, delta_scaling_n_start=0)
+        lines = mc.to_uvspec_lines()
+        assert "mc_delta_scaling 0.99 0" in lines
+
+    def test_rad_alpha(self):
+        mc = McConfig(rad_alpha=10.0)
+        lines = mc.to_uvspec_lines()
+        assert "mc_rad_alpha 10.0" in lines
+
+    def test_backward_output(self):
+        mc = McConfig(backward=True, backward_output="edn")
+        lines = mc.to_uvspec_lines()
+        assert "mc_backward_output edn" in lines
+
+    def test_backward_output_with_unit(self):
+        mc = McConfig(backward=True, backward_output="heat", backward_output_unit="K_per_day")
+        lines = mc.to_uvspec_lines()
+        assert "mc_backward_output heat K_per_day" in lines
+
+    def test_forward_output(self):
+        mc = McConfig(forward_output="heating")
+        lines = mc.to_uvspec_lines()
+        assert "mc_forward_output heating" in lines
+
+    def test_backward_heat(self):
+        mc = McConfig(backward=True, backward_heat="EMABS")
+        lines = mc.to_uvspec_lines()
+        assert "mc_backward_heat EMABS" in lines
+
+    def test_surface_albedo(self):
+        mc = McConfig(surface_reflect_always=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_surface_reflectalways" in lines
+
+    def test_std(self):
+        mc = McConfig(std=0.01)
+        lines = mc.to_uvspec_lines()
+        assert "mc_std 0.01" in lines
+
+    def test_progressbar(self):
+        mc = McConfig(progressbar=2)
+        lines = mc.to_uvspec_lines()
+        assert "mc_progressbar 2" in lines
+
+    def test_jacobian(self):
+        mc = McConfig(backward=True, jacobian="1D")
+        lines = mc.to_uvspec_lines()
+        assert "mc_jacobian 1D" in lines
+
+    def test_jacobian_std(self):
+        mc = McConfig(backward=True, jacobian="1D", jacobian_std=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_jacobian_std" in lines
+
+    def test_escape_invalid_value(self):
+        with pytest.raises(Exception):
+            McConfig(escape="invalid")
+
+    def test_backward_output_invalid(self):
+        with pytest.raises(Exception):
+            McConfig(backward=True, backward_output="invalid_quantity")
+
+    def test_backward_heat_invalid(self):
+        with pytest.raises(Exception):
+            McConfig(backward=True, backward_heat="invalid")
+
+    def test_forward_output_requires_mystic_not_backward(self):
+        mc = McConfig(backward=True, forward_output="heating")
+        lines = mc.to_uvspec_lines()
+        assert "mc_forward_output heating" in lines
+
+    def test_empty_mc(self):
+        mc = McConfig()
+        lines = mc.to_uvspec_lines()
+        assert lines == []
+
+    def test_extra_field_forbidden(self):
+        with pytest.raises(Exception):
+            McConfig(nonexistent_option=1)
