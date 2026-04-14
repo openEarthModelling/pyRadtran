@@ -7,6 +7,7 @@ from pyradtran.models.base import UvspecOption
 from pyradtran.models.cloud import CloudConfig
 from pyradtran.models.mc import McConfig
 from pyradtran.models.output import OutputConfig
+from pyradtran.models.sslidar import SslidarConfig
 from pyradtran.models.solver import SolverConfig
 from pyradtran.models.source import SourceConfig
 from pyradtran.models.surface import SurfaceConfig
@@ -24,4 +25,5 @@ __all__ = [
     "CloudConfig",
     "McConfig",
     "AdvancedConfig",
+    "SslidarConfig",
 ]
