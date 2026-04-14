@@ -16,7 +16,10 @@ VALID_SOLVERS = frozenset({
     "null", "sdisort", "fdisort1", "fdisort2", "sos",
     "ftwostr", "montecarlo", "tzs", "sssi", "sss",
     "twostrebe", "schwarzschild", "twomaxrnd", "twomaxrnd3C",
+    "dynamic_twostream", "dynamic_tenstream",
 })
+
+VALID_HEAT_UNITS = frozenset({"K_per_day", "W_per_m2_and_dz", "W_per_m3"})
 
 
 class SolverConfig(UvspecOption):
@@ -27,18 +30,29 @@ class SolverConfig(UvspecOption):
         streams: Number of streams for discrete ordinates solvers. Default: 6.
         pseudospherical: Enable pseudo-spherical correction (disort/twostr only).
         deltam: Enable delta-M scaling.
+        dynamic_iterations: Number of iterations for dynamic solvers.
+        dynamic_history: Enable history tracking for dynamic solvers.
+        dynamic_heat_unit: Heat unit for dynamic solvers.
     """
 
     method: str
     streams: int = Field(default=6, ge=1)
     pseudospherical: bool = False
     deltam: bool = False
+    dynamic_iterations: int | None = Field(default=None, ge=0)
+    dynamic_history: bool = False
+    dynamic_heat_unit: str | None = None
 
     @model_validator(mode="after")
     def validate_solver(self) -> SolverConfig:
         if self.method not in VALID_SOLVERS:
             raise ValueError(
                 f"Unknown solver '{self.method}'. Valid: {sorted(VALID_SOLVERS)}"
+            )
+        if self.dynamic_heat_unit is not None and self.dynamic_heat_unit not in VALID_HEAT_UNITS:
+            raise ValueError(
+                f"Invalid dynamic_heat_unit '{self.dynamic_heat_unit}'. "
+                f"Valid: {sorted(VALID_HEAT_UNITS)}"
             )
         return self
 
@@ -50,4 +64,10 @@ class SolverConfig(UvspecOption):
             lines.append("pseudospherical")
         if self.deltam:
             lines.append("deltam")
+        if self.dynamic_iterations is not None:
+            lines.append(f"dynamic_tenstream_iterations {self.dynamic_iterations}")
+        if self.dynamic_history:
+            lines.append("dynamic_tenstream_history")
+        if self.dynamic_heat_unit is not None:
+            lines.append(f"dynamic_tenstream_heat_unit {self.dynamic_heat_unit}")
         return lines

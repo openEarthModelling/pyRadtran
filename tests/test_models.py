@@ -265,6 +265,45 @@ class TestSourceConfigAdvanced:
 
 
 # ---------------------------------------------------------------------------
+# Task 5: SourceConfig satellite geometry tests
+# ---------------------------------------------------------------------------
+
+
+class TestSourceConfigSatellite:
+    """Tests for satellite geometry options (Phase 4)."""
+
+    def test_satellite_geometry(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=60.0, satellite_geometry="SENTINEL2A")
+        lines = s.to_uvspec_lines()
+        assert "satellite_geometry SENTINEL2A" in lines
+
+    def test_satellite_pixel(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=60.0, satellite_pixel=(100, 200))
+        lines = s.to_uvspec_lines()
+        assert "satellite_pixel 100 200" in lines
+
+    def test_satellite_pixel_negative_coords(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=0.0, satellite_pixel=(-50, 100))
+        lines = s.to_uvspec_lines()
+        assert "satellite_pixel -50 100" in lines
+
+    def test_satellite_geometry_and_pixel(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=60.0, satellite_geometry="MPS",
+                          satellite_pixel=(10, 20))
+        lines = s.to_uvspec_lines()
+        assert "satellite_geometry MPS" in lines
+        assert "satellite_pixel 10 20" in lines
+
+
+# ---------------------------------------------------------------------------
 # Task 4: WavelengthConfig tests
 # ---------------------------------------------------------------------------
 
@@ -318,6 +357,7 @@ class TestSolverConfig:
     def test_disort(self):
         from pyradtran.models.solver import SolverConfig
 
+        from pyradtran.models.solver import SolverConfig
         s = SolverConfig(method="disort", streams=16)
         lines = s.to_uvspec_lines()
         assert "rte_solver disort" in lines
@@ -326,6 +366,7 @@ class TestSolverConfig:
     def test_twostr(self):
         from pyradtran.models.solver import SolverConfig
 
+        from pyradtran.models.solver import SolverConfig
         s = SolverConfig(method="twostr")
         lines = s.to_uvspec_lines()
         assert "rte_solver twostr" in lines
@@ -333,6 +374,7 @@ class TestSolverConfig:
     def test_pseudospherical(self):
         from pyradtran.models.solver import SolverConfig
 
+        from pyradtran.models.solver import SolverConfig
         s = SolverConfig(method="disort", streams=8, pseudospherical=True)
         lines = s.to_uvspec_lines()
         assert "pseudospherical" in lines
@@ -340,6 +382,7 @@ class TestSolverConfig:
     def test_deltam(self):
         from pyradtran.models.solver import SolverConfig
 
+        from pyradtran.models.solver import SolverConfig
         s = SolverConfig(method="disort", streams=16, deltam=True)
         lines = s.to_uvspec_lines()
         assert "deltam" in lines
@@ -1135,6 +1178,54 @@ class TestMcConfigSurface:
 # ---------------------------------------------------------------------------
 # Phase 3: AdvancedConfig tests
 # ---------------------------------------------------------------------------
+
+
+class TestSolverConfigDynamic:
+    """Tests for dynamic solver options (Phase 4)."""
+
+    def test_dynamic_twostream(self):
+        from pyradtran.models.solver import SolverConfig
+        s = SolverConfig(method="dynamic_twostream")
+        lines = s.to_uvspec_lines()
+        assert "rte_solver dynamic_twostream" in lines
+
+    def test_dynamic_tenstream(self):
+        from pyradtran.models.solver import SolverConfig
+        s = SolverConfig(method="dynamic_tenstream")
+        lines = s.to_uvspec_lines()
+        assert "rte_solver dynamic_tenstream" in lines
+
+    def test_dynamic_iterations(self):
+        from pyradtran.models.solver import SolverConfig
+        s = SolverConfig(method="dynamic_tenstream", dynamic_iterations=100)
+        lines = s.to_uvspec_lines()
+        assert "dynamic_tenstream_iterations 100" in lines
+
+    def test_dynamic_history(self):
+        from pyradtran.models.solver import SolverConfig
+        s = SolverConfig(method="dynamic_tenstream", dynamic_history=True)
+        lines = s.to_uvspec_lines()
+        assert "dynamic_tenstream_history" in lines
+
+    def test_dynamic_heat_unit(self):
+        from pyradtran.models.solver import SolverConfig
+        s = SolverConfig(method="dynamic_tenstream", dynamic_heat_unit="K_per_day")
+        lines = s.to_uvspec_lines()
+        assert "dynamic_tenstream_heat_unit K_per_day" in lines
+
+    def test_dynamic_heat_unit_w_per_m3(self):
+        from pyradtran.models.solver import SolverConfig
+        s = SolverConfig(method="dynamic_tenstream", dynamic_heat_unit="W_per_m3")
+        lines = s.to_uvspec_lines()
+        assert "dynamic_tenstream_heat_unit W_per_m3" in lines
+
+    def test_dynamic_heat_unit_invalid(self):
+        with pytest.raises(Exception):
+            SolverConfig(method="dynamic_tenstream", dynamic_heat_unit="invalid")
+
+    def test_dynamic_iterations_negative(self):
+        with pytest.raises(Exception):
+            SolverConfig(method="dynamic_tenstream", dynamic_iterations=-1)
 
 
 class TestAdvancedConfig:

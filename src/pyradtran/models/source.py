@@ -23,6 +23,8 @@ class SourceConfig(UvspecOption):
         solar_flux_file: Path to solar flux file (e.g. kurudz_0.1nm.dat).
         umu: Viewing zenith angles (cosines). Positive = upward, negative = downward.
         phi: Viewing azimuth angles in degrees.
+        satellite_geometry: Satellite geometry specification (e.g., SENTINEL2A, MPS).
+        satellite_pixel: Pixel coordinates (x, y) for satellite pixel-based geometry.
     """
 
     source: str = Field(pattern=r"^(solar|thermal)$")
@@ -32,6 +34,8 @@ class SourceConfig(UvspecOption):
     solar_flux_file: str | None = None
     umu: list[float] = Field(default_factory=list)
     phi: list[float] = Field(default_factory=list)
+    satellite_geometry: str | None = None
+    satellite_pixel: tuple[int, int] | None = None
 
     @model_validator(mode="after")
     def check_sza_for_solar(self) -> SourceConfig:
@@ -55,4 +59,9 @@ class SourceConfig(UvspecOption):
             lines.append(f"umu {' '.join(str(v) for v in self.umu)}")
         if self.phi:
             lines.append(f"phi {' '.join(str(v) for v in self.phi)}")
+        if self.satellite_geometry is not None:
+            lines.append(f"satellite_geometry {self.satellite_geometry}")
+        if self.satellite_pixel is not None:
+            x, y = self.satellite_pixel
+            lines.append(f"satellite_pixel {x} {y}")
         return lines
