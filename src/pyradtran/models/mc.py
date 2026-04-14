@@ -122,7 +122,9 @@ class McConfig(UvspecOption):
     tipa: str | None = None  # "dir" or "dir3d"
     sensor_direction: tuple[float, float, float] | None = None  # (dx, dy, dz)
     sensor_position: tuple[float, float, float] | None = None  # (x, y, z)
-    spherical3d_scene: tuple[float, float, float, float] | None = None  # (lon_min, lat_min, lon_max, lat_max)
+    spherical3d_scene: tuple[float, float, float, float] | None = (
+        None  # (lon_min, lat_min, lon_max, lat_max)
+    )
     cloud_grid: tuple[int, int, int] | None = None  # (nx, ny, nz)
     basename: str | None = None
     min_scatters: int | None = Field(default=None, ge=0)
