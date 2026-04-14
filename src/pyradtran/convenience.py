@@ -326,3 +326,98 @@ def run_cloudy_scene(
     scene = scene.set_cloud(**cloud_kwargs)
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
+
+
+def run_lidar(
+    area: float = 1.0,
+    E0: float = 0.1,
+    efficiency: float = 0.5,
+    position: float = 0.0,
+    range_bin: float = 0.1,
+    n_ranges: int = 100,
+    profile: str = "us",
+    altitude: float = 0.0,
+    wl_min: float = 300.0,
+    wl_max: float = 1100.0,
+    streams: int = 16,
+    uvspec_exe: str | None = None,
+    data_path: str | None = None,
+) -> xr.Dataset:
+    """Run single scattering lidar simulation.
+
+    Args:
+        area: Telescope area in m^2.
+        E0: Pulse energy in Joules.
+        efficiency: Detector efficiency.
+        position: Lidar position in km.
+        range_bin: Range bin width in km.
+        n_ranges: Number of range bins.
+        profile: Atmospheric profile.
+        altitude: Surface altitude in km.
+        wl_min: Minimum wavelength in nm.
+        wl_max: Maximum wavelength in nm.
+        streams: Number of DISORT streams.
+        uvspec_exe: Path to uvspec binary.
+        data_path: Path to libRadtran data directory.
+
+    Returns:
+        xarray.Dataset with lidar signal vs range.
+    """
+    from pyradtran.presets import resolve_altitude
+
+    scene = (
+        Scene()
+        .set_atmosphere(profile=profile, altitude=resolve_altitude(altitude))
+        .set_source_solar(sza=0.0)
+        .set_wavelength(wl_min, wl_max)
+        .set_solver(method="sslidar", streams=streams)
+        .set_sslidar(
+            area=area, E0=E0, efficiency=efficiency,
+            position=position, range_bin=range_bin, n_ranges=n_ranges,
+        )
+        .set_output(format="netcdf", quiet=True)
+    )
+
+    return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
+
+
+def run_polarized(
+    profile: str = "us",
+    altitude: float = 0.0,
+    sza: float = 30.0,
+    wl_min: float = 250.0,
+    wl_max: float = 1200.0,
+    photons: int = 100000,
+    streams: int = 16,
+    uvspec_exe: str | None = None,
+    data_path: str | None = None,
+) -> xr.Dataset:
+    """Run polarized Monte Carlo simulation.
+
+    Args:
+        profile: Atmospheric profile.
+        altitude: Surface altitude in km.
+        sza: Solar zenith angle in degrees.
+        wl_min: Minimum wavelength in nm.
+        wl_max: Maximum wavelength in nm.
+        photons: Number of Monte Carlo photons.
+        streams: Number of streams (for correlated-k).
+        uvspec_exe: Path to uvspec binary.
+        data_path: Path to libRadtran data directory.
+
+    Returns:
+        xarray.Dataset with polarized radiance.
+    """
+    from pyradtran.presets import resolve_altitude
+
+    scene = (
+        Scene()
+        .set_atmosphere(profile=profile, altitude=resolve_altitude(altitude))
+        .set_source_solar(sza=sza)
+        .set_wavelength(wl_min, wl_max)
+        .set_solver(method="mystic", streams=streams)
+        .set_mc(photons=photons, polarisation=True)
+        .set_output(quiet=True, format="netcdf")
+    )
+
+    return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)

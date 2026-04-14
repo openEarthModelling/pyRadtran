@@ -93,3 +93,38 @@ def test_run_cloudy_scene_creates_scene():
         scene_arg = mock_exec.call_args[1]["scene"] if "scene" in mock_exec.call_args[1] else mock_exec.call_args[0][0]
         assert scene_arg.cloud is not None
         assert scene_arg.cloud.ic_properties == "fu"
+
+
+# --- Phase 3 tests ---
+
+
+def test_run_lidar_creates_scene():
+    """Verify run_lidar builds a valid Scene with sslidar config."""
+    from unittest.mock import patch, MagicMock
+    from pyradtran.convenience import run_lidar
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_lidar(area=2.0, E0=0.2, n_ranges=50)
+        scene_arg = mock_exec.call_args[1]["scene"] if "scene" in mock_exec.call_args[1] else mock_exec.call_args[0][0]
+        assert scene_arg.sslidar is not None
+        assert scene_arg.sslidar.area == 2.0
+        assert scene_arg.sslidar.E0 == 0.2
+        assert scene_arg.sslidar.n_ranges == 50
+        assert scene_arg.solver.method == "sslidar"
+
+
+def test_run_polarized_creates_scene():
+    """Verify run_polarized builds a valid Scene with MC polarisation."""
+    from unittest.mock import patch, MagicMock
+    from pyradtran.convenience import run_polarized
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_polarized(photons=50000, sza=45.0)
+        scene_arg = mock_exec.call_args[1]["scene"] if "scene" in mock_exec.call_args[1] else mock_exec.call_args[0][0]
+        assert scene_arg.mc is not None
+        assert scene_arg.mc.photons == 50000
+        assert scene_arg.mc.polarisation is True
+        assert scene_arg.solver.method == "mystic"
+        assert scene_arg.source.sza == 45.0

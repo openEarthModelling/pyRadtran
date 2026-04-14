@@ -2,6 +2,8 @@
 
 from pyradtran.convenience import (
     run_cloudy_scene,
+    run_lidar,
+    run_polarized,
     run_solar_radiance,
     run_solar_transmittance,
     run_thermal_brightness,
@@ -18,4 +20,6 @@ __all__ = [
     "run_solar_radiance",
     "run_with_aerosol",
     "run_cloudy_scene",
+    "run_lidar",
+    "run_polarized",
 ]
