@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 import xarray as xr
 
-from pyradtran.core.input_builder import build_input_text
 from pyradtran.core.output_parser import parse_output
 
 if TYPE_CHECKING:

@@ -2,7 +2,7 @@
 
 import numpy as np
 import xarray as xr
-import pytest
+
 from pyradtran.core.output_parser import parse_output
 
 

@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from pyradtran.models.atmosphere import AtmosphereConfig
-from pyradtran.models.source import SourceConfig
-from pyradtran.models.wavelength import WavelengthConfig
-from pyradtran.models.solver import SolverConfig
-from pyradtran.models.output import OutputConfig
-from pyradtran.models.surface import SurfaceConfig
+from pyradtran.models.advanced import AdvancedConfig
 from pyradtran.models.aerosol import AerosolConfig
+from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.cloud import CloudConfig
 from pyradtran.models.mc import McConfig
-from pyradtran.models.advanced import AdvancedConfig
+from pyradtran.models.output import OutputConfig
+from pyradtran.models.solver import SolverConfig
+from pyradtran.models.source import SourceConfig
+from pyradtran.models.surface import SurfaceConfig
+from pyradtran.models.wavelength import WavelengthConfig
 
 
 def build_input_text(

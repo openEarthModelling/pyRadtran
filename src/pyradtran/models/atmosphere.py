@@ -46,9 +46,10 @@ class AtmosphereConfig(UvspecOption):
     mol_modify: list[tuple[str, float, str]] = Field(default_factory=list)
     mol_abs_param: str | None = None
 
-    _VALID_MOL_SPECIES = frozenset(
-        {"O3", "O2", "H2O", "CO2", "NO2", "BRO", "OCLO", "HCHO", "O4", "SO2", "CH4", "N2O", "CO", "N2"}
-    )
+    _VALID_MOL_SPECIES = frozenset({
+        "O3", "O2", "H2O", "CO2", "NO2", "BRO", "OCLO",
+        "HCHO", "O4", "SO2", "CH4", "N2O", "CO", "N2",
+    })
     _VALID_MOL_UNITS = frozenset({"DU", "CM_2", "MM"})
 
     @model_validator(mode="after")

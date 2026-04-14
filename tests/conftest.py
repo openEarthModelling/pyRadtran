@@ -2,6 +2,7 @@
 
 import os
 import shutil
+
 import pytest
 
 UVSPEC_EXE = shutil.which("uvspec")

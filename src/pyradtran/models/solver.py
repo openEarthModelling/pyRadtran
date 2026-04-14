@@ -7,8 +7,9 @@ Reference: libRadtran src_py/solver_options.py
 
 from __future__ import annotations
 
-from pyradtran.models.base import UvspecOption
 from pydantic import Field, model_validator
+
+from pyradtran.models.base import UvspecOption
 
 VALID_SOLVERS = frozenset({
     "disort", "twostr", "mystic", "rodents", "sslidar",

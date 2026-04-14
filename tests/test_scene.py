@@ -1,6 +1,7 @@
 """Tests for Scene builder with immutable chain API."""
 
 import pytest
+
 from pyradtran.scene import Scene
 
 
@@ -101,7 +102,12 @@ class TestSceneBuilder:
             scene.build_input()
 
     def test_missing_solver_raises(self):
-        scene = Scene().set_atmosphere(profile="us").set_source_solar(sza=30.0).set_wavelength(300.0, 400.0)
+        scene = (
+            Scene()
+            .set_atmosphere(profile="us")
+            .set_source_solar(sza=30.0)
+            .set_wavelength(300.0, 400.0)
+        )
         with pytest.raises(ValueError, match="solver"):
             scene.build_input()
 

@@ -8,8 +8,9 @@ Reference: libRadtran src_py/output_options.py
 
 from __future__ import annotations
 
-from pyradtran.models.base import UvspecOption
 from pydantic import Field, model_validator
+
+from pyradtran.models.base import UvspecOption
 
 VALID_OUTPUT_FORMATS = frozenset({"ascii", "flexstor", "netcdf", "sat_picture"})
 

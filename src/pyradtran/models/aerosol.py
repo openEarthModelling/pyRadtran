@@ -9,8 +9,9 @@ Reference: libRadtran src_py/aerosol_options.py
 
 from __future__ import annotations
 
-from pyradtran.models.base import UvspecOption
 from pydantic import Field, model_validator
+
+from pyradtran.models.base import UvspecOption
 
 
 class AerosolConfig(UvspecOption):

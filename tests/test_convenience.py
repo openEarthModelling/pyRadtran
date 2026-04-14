@@ -1,8 +1,8 @@
 """Tests for convenience functions."""
 
-import pytest
 import xarray as xr
-from pyradtran.convenience import run_solar_transmittance, _airmass_to_sza
+
+from pyradtran.convenience import _airmass_to_sza, run_solar_transmittance
 
 
 class TestAirmassConversion:

@@ -7,8 +7,9 @@ Reference: libRadtran src_py/surface_options.py
 
 from __future__ import annotations
 
-from pyradtran.models.base import UvspecOption
 from pydantic import Field, model_validator
+
+from pyradtran.models.base import UvspecOption
 
 
 class SurfaceConfig(UvspecOption):

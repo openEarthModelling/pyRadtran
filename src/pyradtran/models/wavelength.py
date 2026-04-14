@@ -5,8 +5,9 @@ Maps to uvspec keywords: wavelength, spline, filter_function_file.
 Reference: libRadtran src_py/spectral_options.py
 """
 
-from pyradtran.models.base import UvspecOption
 from pydantic import Field
+
+from pyradtran.models.base import UvspecOption
 
 
 class WavelengthConfig(UvspecOption):

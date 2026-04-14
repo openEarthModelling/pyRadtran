@@ -8,14 +8,13 @@ mutability traps.
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING
 
 from pyradtran.core.input_builder import build_input_text
+from pyradtran.models.advanced import AdvancedConfig
 from pyradtran.models.aerosol import AerosolConfig
 from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.cloud import CloudConfig
 from pyradtran.models.mc import McConfig
-from pyradtran.models.advanced import AdvancedConfig
 from pyradtran.models.output import OutputConfig
 from pyradtran.models.solver import SolverConfig
 from pyradtran.models.source import SourceConfig
@@ -168,17 +167,23 @@ class Scene:
             ValueError: If required components are missing.
         """
         if self.atmosphere is None:
-            raise ValueError("Scene is missing atmosphere configuration. Call .set_atmosphere() first.")
+            raise ValueError(
+                "Scene is missing atmosphere. Call .set_atmosphere() first."
+            )
         if self.source is None:
-            raise ValueError("Scene is missing source configuration. Call .set_source_solar() or .set_source_thermal() first.")
+            raise ValueError(
+                "Scene is missing source. Call .set_source_solar() or "
+                ".set_source_thermal() first."
+            )
         if self.wavelength is None:
-            raise ValueError("Scene is missing wavelength configuration. Call .set_wavelength() first.")
+            raise ValueError(
+                "Scene is missing wavelength. Call .set_wavelength() first."
+            )
         if self.solver is None:
-            raise ValueError("Scene is missing solver configuration. Call .set_solver() first.")
-        if self.output is None:
-            output = OutputConfig(quiet=True)
-        else:
-            output = self.output
+            raise ValueError(
+                "Scene is missing solver. Call .set_solver() first."
+            )
+        output = self.output if self.output is not None else OutputConfig(quiet=True)
 
         return build_input_text(
             atmosphere=self.atmosphere,
@@ -197,14 +202,23 @@ class Scene:
 
     def __repr__(self) -> str:
         components = []
-        if self.atmosphere: components.append("atmosphere")
-        if self.source: components.append("source")
-        if self.wavelength: components.append("wavelength")
-        if self.solver: components.append("solver")
-        if self.output: components.append("output")
-        if self.surface: components.append("surface")
-        if self.aerosol: components.append("aerosol")
-        if self.cloud: components.append("cloud")
+        if self.atmosphere:
+            components.append("atmosphere")
+        if self.source:
+            components.append("source")
+        if self.wavelength:
+            components.append("wavelength")
+        if self.solver:
+            components.append("solver")
+        if self.output:
+            components.append("output")
+        if self.surface:
+            components.append("surface")
+        if self.aerosol:
+            components.append("aerosol")
+        if self.cloud:
+            components.append("cloud")
         n_raw = len(self.raw_keywords) if self.raw_keywords else 0
-        if n_raw: components.append(f"{n_raw} raw keywords")
+        if n_raw:
+            components.append(f"{n_raw} raw keywords")
         return f"Scene({', '.join(components)})"

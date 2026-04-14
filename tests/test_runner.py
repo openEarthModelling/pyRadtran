@@ -2,8 +2,9 @@
 
 import pytest
 import xarray as xr
+
 from pyradtran import Scene
-from pyradtran.core.runner import RunnerConfig, Runner
+from pyradtran.core.runner import Runner, RunnerConfig
 
 
 class TestRunnerConfig:

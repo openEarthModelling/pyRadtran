@@ -9,8 +9,8 @@ Covers Tasks 2, 3, and 4 of Phase 1:
 """
 
 import pytest
-from pyradtran.models.base import UvspecOption
 
+from pyradtran.models.base import UvspecOption
 
 # ---------------------------------------------------------------------------
 # Task 2: UvspecOption base class tests
@@ -313,7 +313,7 @@ class TestOutputConfig:
 
         o = OutputConfig(zout=[0, 100])
         lines = o.to_uvspec_lines()
-        zout_lines = [l for l in lines if l.startswith("zout")]
+        zout_lines = [line for line in lines if line.startswith("zout")]
         assert len(zout_lines) == 1
         parts = zout_lines[0].split()
         assert parts[0] == "zout"

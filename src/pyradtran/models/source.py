@@ -7,8 +7,9 @@ Reference: libRadtran src_py/geometry_options.py, src_py/spectral_options.py
 
 from __future__ import annotations
 
-from pyradtran.models.base import UvspecOption
 from pydantic import Field, model_validator
+
+from pyradtran.models.base import UvspecOption
 
 
 class SourceConfig(UvspecOption):

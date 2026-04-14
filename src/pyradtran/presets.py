@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Union
-
 SITES: dict[str, dict[str, float]] = {
     "LSST": {"altitude": 2.663, "pressure": 731.50433},
     "CTIO": {"altitude": 2.207, "pressure": 776.0},
@@ -23,9 +21,9 @@ PROFILES: dict[str, str] = {
 }
 
 
-def resolve_altitude(altitude: Union[float, str]) -> float:
+def resolve_altitude(altitude: float | str) -> float:
     """Resolve altitude -- accepts km float or site preset name."""
-    if isinstance(altitude, (int, float)):
+    if isinstance(altitude, int | float):
         return float(altitude)
     if isinstance(altitude, str):
         if altitude in SITES:

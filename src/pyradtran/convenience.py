@@ -6,8 +6,8 @@ import math
 
 import xarray as xr
 
-from pyradtran.scene import Scene
 from pyradtran.core.runner import Runner
+from pyradtran.scene import Scene
 
 
 def _airmass_to_sza(airmass: float) -> float:
