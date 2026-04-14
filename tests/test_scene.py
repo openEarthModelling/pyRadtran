@@ -117,3 +117,51 @@ class TestSceneBuilder:
         assert "Scene(" in r
         assert "atmosphere" in r
         assert "source" in r
+
+
+# --- Phase 2 tests ---
+
+
+def test_set_aerosol_modify():
+    scene = Scene().set_atmosphere(profile="us").set_aerosol(default=True)
+    scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
+    lines = scene2.aerosol.to_uvspec_lines()
+    assert "aerosol_modify ssa scale 0.85" in lines
+
+
+def test_set_aerosol_modify_multiple():
+    scene = Scene().set_atmosphere(profile="us").set_aerosol(default=True)
+    scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
+    scene3 = scene2.set_aerosol_modify("gg", "set", 0.7)
+    lines = scene3.aerosol.to_uvspec_lines()
+    assert "aerosol_modify ssa scale 0.85" in lines
+    assert "aerosol_modify gg set 0.70" in lines
+
+
+def test_set_cloud_water():
+    scene = Scene().set_atmosphere(profile="us")
+    scene2 = scene.set_cloud(wc_properties="hu")
+    lines = scene2.cloud.to_uvspec_lines()
+    assert "wc_properties hu" in lines
+
+
+def test_set_cloud_ice():
+    scene = Scene().set_atmosphere(profile="us")
+    scene2 = scene.set_cloud(ic_properties="fu", ic_habit="rosette-6")
+    lines = scene2.cloud.to_uvspec_lines()
+    assert "ic_properties fu" in lines
+    assert "ic_habit rosette-6" in lines
+
+
+def test_set_surface_brdf():
+    scene = Scene().set_atmosphere(profile="us")
+    scene2 = scene.set_surface(brdf_hapke={"w": 0.4, "b0": 1.0, "h": 0.06})
+    lines = scene2.surface.to_uvspec_lines()
+    assert "brdf_hapke w 0.4" in lines
+
+
+def test_immutable_set_aerosol_modify():
+    scene = Scene().set_atmosphere(profile="us").set_aerosol(default=True)
+    scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
+    assert len(scene.aerosol.modify) == 0
+    assert len(scene2.aerosol.modify) == 1

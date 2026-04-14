@@ -128,7 +128,10 @@ class Scene:
 
     def set_surface(self, **kwargs) -> Scene:
         new = self.clone()
-        new.surface = SurfaceConfig(**kwargs)
+        if new.surface is not None:
+            new.surface = new.surface.model_copy(update=kwargs)
+        else:
+            new.surface = SurfaceConfig(**kwargs)
         return new
 
     # --- Aerosol ---
@@ -139,6 +142,26 @@ class Scene:
             new.aerosol = new.aerosol.model_copy(update=kwargs)
         else:
             new.aerosol = AerosolConfig(**kwargs)
+        return new
+
+    def set_aerosol_modify(
+        self, variable: str, action: str, value: float
+    ) -> Scene:
+        """Add an aerosol modification directive.
+
+        Args:
+            variable: Property to modify (gg, ssa, tau, tau550).
+            action: Modification type (scale or set).
+            value: Numeric value.
+        """
+        from pyradtran.models.aerosol import AerosolModifyEntry
+
+        new = self.clone()
+        if new.aerosol is None:
+            new.aerosol = AerosolConfig()
+        entry = AerosolModifyEntry(variable=variable, action=action, value=value)
+        modify_list = list(new.aerosol.modify) + [entry]
+        new.aerosol = new.aerosol.model_copy(update={"modify": modify_list})
         return new
 
     # --- Cloud (Phase 2) ---
