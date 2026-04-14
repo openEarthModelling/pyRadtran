@@ -177,6 +177,8 @@ def run_solar_radiance(
             beta = aerosol_tau * (0.55 ** (-aerosol_angstrom)) * 1e-3
             aerosol_kwargs["angstrom_alpha"] = aerosol_angstrom
             aerosol_kwargs["angstrom_beta"] = beta
+        elif aerosol_tau is not None:
+            aerosol_kwargs["set_tau_at_wvl"] = (550.0, aerosol_tau)
         scene = scene.set_aerosol(**aerosol_kwargs)
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
@@ -316,16 +318,11 @@ def run_cloudy_scene(
         cloud_kwargs["ic_habit"] = ic_habit
     if wc_properties:
         cloud_kwargs["wc_properties"] = wc_properties
+    if ic_tau is not None:
+        cloud_kwargs["ic_modify"] = [CloudModifyEntry(variable="tau", action="set", value=ic_tau)]
+    if wc_tau is not None:
+        cloud_kwargs["wc_modify"] = [CloudModifyEntry(variable="tau", action="set", value=wc_tau)]
 
     scene = scene.set_cloud(**cloud_kwargs)
-
-    if ic_tau is not None and scene.cloud is not None:
-        entry = CloudModifyEntry(variable="tau", action="set", value=ic_tau)
-        ic_modify = list(scene.cloud.ic_modify) + [entry]
-        scene = scene.set_cloud(**{**cloud_kwargs, "ic_modify": ic_modify})
-    if wc_tau is not None and scene.cloud is not None:
-        entry = CloudModifyEntry(variable="tau", action="set", value=wc_tau)
-        wc_modify = list(scene.cloud.wc_modify) + [entry]
-        scene = scene.set_cloud(**{**cloud_kwargs, "wc_modify": wc_modify})
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)

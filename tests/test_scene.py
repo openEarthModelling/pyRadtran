@@ -135,7 +135,7 @@ def test_set_aerosol_modify_multiple():
     scene3 = scene2.set_aerosol_modify("gg", "set", 0.7)
     lines = scene3.aerosol.to_uvspec_lines()
     assert "aerosol_modify ssa scale 0.85" in lines
-    assert "aerosol_modify gg set 0.70" in lines
+    assert "aerosol_modify gg set 0.7" in lines
 
 
 def test_set_cloud_water():

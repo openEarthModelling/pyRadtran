@@ -23,14 +23,15 @@ _VALID_IC_HABITS = frozenset({
 })
 
 _VALID_YANG2013_HABITS = frozenset({
-    "column-8elements", "droxtal", "plate", "aggregate-5-elements",
-    "hollow-column", "solid-column",
+    "column_8elements", "droxtal", "hollow_bullet_rosette",
+    "hollow_column", "plate", "plate_10elements", "plate_5elements",
+    "solid_bullet_rosette", "solid_column",
 })
 
 _VALID_WC_PROPERTIES = frozenset({"hu", "echam4", "mie"})
 
 _VALID_CLOUD_OVERLAP = frozenset({
-    "random", "maxrnd", "max_overlap",
+    "max", "maxrand", "off", "rand",
 })
 
 _VALID_MODIFY_VARIABLES = frozenset({"gg", "ssa", "tau", "tau550"})
@@ -68,11 +69,12 @@ class CloudConfig(UvspecOption):
         ic_properties: Ice cloud optical property parameterization.
         ic_file: Tuple of (dimension, path) for ice cloud external file.
         ic_habit: Ice crystal habit type.
-        ic_habit_roughness: Roughness parameter for yang2013 habits.
+        ic_habit_roughness: Roughness for yang2013 ("smooth", "moderate", "severe").
         ic_modify: List of ice cloud modification directives.
         wc_properties: Water cloud optical property parameterization.
         wc_file: Tuple of (dimension, path) for water cloud external file.
         wc_modify: List of water cloud modification directives.
+        cloud_cover_type: Cloud type for cloud cover ("ic" or "wc").
         cloud_cover: Cloud cover fraction [0, 1].
         cloud_overlap: Cloud overlap method.
         interpolate: Append 'interpolate' to ic/wc_properties for spectral mode.
@@ -81,12 +83,13 @@ class CloudConfig(UvspecOption):
     ic_properties: str | None = None
     ic_file: tuple[str, str] | None = None
     ic_habit: str | None = None
-    ic_habit_roughness: float | None = Field(default=None, ge=0.0, le=1.0)
+    ic_habit_roughness: str | None = None
     ic_modify: list[CloudModifyEntry] = Field(default_factory=list)
     wc_properties: str | None = None
     wc_file: tuple[str, str] | None = None
     wc_modify: list[CloudModifyEntry] = Field(default_factory=list)
     modify: list[CloudModifyEntry] = Field(default_factory=list)
+    cloud_cover_type: str | None = None
     cloud_cover: float | None = Field(default=None, ge=0.0, le=1.0)
     cloud_overlap: str | None = None
     interpolate: bool = False
@@ -115,6 +118,11 @@ class CloudConfig(UvspecOption):
                 f"Invalid cloud_overlap '{self.cloud_overlap}'. "
                 f"Valid: {sorted(_VALID_CLOUD_OVERLAP)}"
             )
+        if self.cloud_cover is not None and self.cloud_cover_type is not None:
+            if self.cloud_cover_type not in ("ic", "wc"):
+                raise ValueError(
+                    f"Invalid cloud_cover_type '{self.cloud_cover_type}'. Valid: ic, wc"
+                )
         return self
 
     def to_uvspec_lines(self) -> list[str]:
@@ -142,7 +150,10 @@ class CloudConfig(UvspecOption):
         for entry in self.wc_modify + self.modify:
             lines.append(f"wc_modify {entry.variable} {entry.action} {entry.value}")
         if self.cloud_cover is not None:
-            lines.append(f"cloudcover {self.cloud_cover}")
+            if self.cloud_cover_type is not None:
+                lines.append(f"cloudcover {self.cloud_cover_type} {self.cloud_cover}")
+            else:
+                lines.append(f"cloudcover wc {self.cloud_cover}")
         if self.cloud_overlap is not None:
             lines.append(f"cloud_overlap {self.cloud_overlap}")
         return lines

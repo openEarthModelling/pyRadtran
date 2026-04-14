@@ -458,7 +458,7 @@ class TestSurfaceConfig:
 
     def test_bpdf_litvinov(self):
         from pyradtran.models.surface import SurfaceConfig
-        s = SurfaceConfig(bpdf_litvinov={"ndvi": 0.6, "rms_slope": 0.3})
+        s = SurfaceConfig(bpdf_litvinov={"albedo": 0.6, "rms_slope": 0.3})
         lines = s.to_uvspec_lines()
         assert any("bpdf_litvinov" in line for line in lines)
 
@@ -586,10 +586,10 @@ class TestAerosolConfig:
         from pyradtran.models.aerosol import AerosolConfig
         a = AerosolConfig(
             default=True,
-            modify=[{"variable": "gg", "action": "set", "value": 0.70}],
+            modify=[{"variable": "gg", "action": "set", "value": 0.7}],
         )
         lines = a.to_uvspec_lines()
-        assert "aerosol_modify gg set 0.70" in lines
+        assert "aerosol_modify gg set 0.7" in lines
 
     def test_aerosol_refrac_index(self):
         from pyradtran.models.aerosol import AerosolConfig
@@ -685,10 +685,10 @@ class TestCloudConfig:
 
     def test_ic_habit(self):
         from pyradtran.models.cloud import CloudConfig
-        c = CloudConfig(ic_habit="rosette-6", ic_habit_roughness=0.5)
+        c = CloudConfig(ic_habit="rosette-6", ic_habit_roughness="moderate")
         lines = c.to_uvspec_lines()
         assert "ic_habit rosette-6" in lines
-        assert "ic_habit_yang2013 rosette-6 0.5" in lines
+        assert "ic_habit_yang2013 rosette-6 moderate" in lines
 
     def test_ic_file(self):
         from pyradtran.models.cloud import CloudConfig
@@ -724,13 +724,19 @@ class TestCloudConfig:
         from pyradtran.models.cloud import CloudConfig
         c = CloudConfig(cloud_cover=0.7)
         lines = c.to_uvspec_lines()
-        assert "cloudcover 0.7" in lines
+        assert "cloudcover wc 0.7" in lines
+
+    def test_cloud_cover_with_type(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(cloud_cover=0.7, cloud_cover_type="ic")
+        lines = c.to_uvspec_lines()
+        assert "cloudcover ic 0.7" in lines
 
     def test_cloud_overlap(self):
         from pyradtran.models.cloud import CloudConfig
-        c = CloudConfig(cloud_overlap="maxrnd")
+        c = CloudConfig(cloud_overlap="maxrand")
         lines = c.to_uvspec_lines()
-        assert "cloud_overlap maxrnd" in lines
+        assert "cloud_overlap maxrand" in lines
 
     def test_invalid_ic_properties(self):
         from pyradtran.models.cloud import CloudConfig
@@ -769,18 +775,6 @@ class TestCloudConfig:
 
 
 class TestPlaceholderModels:
-    def test_mc_config(self):
-        from pyradtran.models.mc import McConfig
-
-        m = McConfig()
-        assert m.to_uvspec_lines() == []
-
-    def test_advanced_config(self):
-        from pyradtran.models.advanced import AdvancedConfig
-
-        a = AdvancedConfig()
-        assert a.to_uvspec_lines() == []
-
     def test_mc_config(self):
         from pyradtran.models.mc import McConfig
 

@@ -50,12 +50,7 @@ class AerosolModifyEntry(UvspecOption):
         return self
 
     def to_uvspec_line(self) -> str:
-        # Format the float to have consistent decimal places
-        if self.value.is_integer():
-            value_str = str(int(self.value))
-        else:
-            value_str = f"{self.value:.2f}"
-        return f"aerosol_modify {self.variable} {self.action} {value_str}"
+        return f"aerosol_modify {self.variable} {self.action} {self.value}"
 
 
 class AerosolConfig(UvspecOption):
