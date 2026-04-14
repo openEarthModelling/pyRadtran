@@ -386,6 +386,80 @@ class TestSurfaceConfig:
         with pytest.raises(Exception):
             SurfaceConfig(albedo=0.2, albedo_file="/data/albedo.dat")
 
+    # --- Phase 2 tests ---
+
+    def test_brdf_ambrals(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(brdf_ambrals={"iso": 0.3, "vol": 0.1, "geo": 0.05})
+        lines = s.to_uvspec_lines()
+        assert "brdf_ambrals iso 0.3" in lines
+        assert "brdf_ambrals vol 0.1" in lines
+        assert "brdf_ambrals geo 0.05" in lines
+
+    def test_brdf_hapke(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(brdf_hapke={"w": 0.4, "b0": 1.0, "h": 0.06})
+        lines = s.to_uvspec_lines()
+        assert "brdf_hapke w 0.4" in lines
+
+    def test_brdf_rpv(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(brdf_rpv={"rho0": 0.076, "k": 0.9, "theta": -0.1, "scale": 0.1})
+        lines = s.to_uvspec_lines()
+        assert "brdf_rpv rho0 0.076" in lines
+
+    def test_brdf_cam(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(brdf_cam={"pcl": 0.1, "sal": 0.05, "u10": 7.0})
+        lines = s.to_uvspec_lines()
+        assert "brdf_cam u10 7.0" in lines
+
+    def test_bpdf_litvinov(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(bpdf_litvinov={"ndvi": 0.6, "rms_slope": 0.3})
+        lines = s.to_uvspec_lines()
+        assert any("bpdf_litvinov" in line for line in lines)
+
+    def test_bpdf_maignan(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(bpdf_maignan={"c_maign": 0.18})
+        lines = s.to_uvspec_lines()
+        assert any("bpdf_maignan" in line for line in lines)
+
+    def test_bpdf_tsang_u10(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(bpdf_tsang_u10=5.0)
+        lines = s.to_uvspec_lines()
+        assert "bpdf_tsang_u10 5.0" in lines
+
+    def test_albedo_map(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(albedo_map="/data/albedo.nc")
+        lines = s.to_uvspec_lines()
+        assert "albedo_map /data/albedo.nc" in lines
+
+    def test_albedo_map_with_variable(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(albedo_map=("/data/albedo.nc", "ALBEDO"))
+        lines = s.to_uvspec_lines()
+        assert "albedo_map /data/albedo.nc ALBEDO" in lines
+
+    def test_albedo_library(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(albedo_library="IGBP")
+        lines = s.to_uvspec_lines()
+        assert "albedo_library IGBP" in lines
+
+    def test_albedo_with_brdf_raises(self):
+        from pyradtran.models.surface import SurfaceConfig
+        with pytest.raises(Exception):
+            SurfaceConfig(albedo=0.2, brdf_ambrals={"iso": 0.3})
+
+    def test_albedo_with_bpdf_raises(self):
+        from pyradtran.models.surface import SurfaceConfig
+        with pytest.raises(Exception):
+            SurfaceConfig(albedo=0.2, bpdf_tsang_u10=5.0)
+
 
 # ---------------------------------------------------------------------------
 # Task 4: AerosolConfig tests
