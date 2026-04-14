@@ -2,7 +2,7 @@
 
 Maps to uvspec keywords: mc_photons, mc_backward, mc_escape, mc_vroom,
 mc_polarisation, mc_randomseed, mc_minphotons, mc_maxscatters, mc_spectral_is,
-mc_delta_scaling, mc_truncate, mc_rad_alpha, mc_backward_output,
+mc_delta_scaling, mc_rad_alpha, mc_backward_output,
 mc_forward_output, mc_backward_heat, mc_std, mc_jacobian, mc_progressbar,
 mc_surface_reflectalways.
 
@@ -69,9 +69,9 @@ class McConfig(UvspecOption):
     vroom: str | None = None
     polarisation: bool = False
     polarisation_state: int | None = Field(default=None, ge=-3, le=4)
-    random_seed: int | None = Field(default=None, ge=0)
+    random_seed: int | None = Field(default=None, ge=0, le=1_000_000_000_000_000)
     max_scatters: int | None = Field(default=None, ge=0)
-    spectral_is: float | None = Field(default=None, ge=0.0)
+    spectral_is: float | None = Field(default=None, ge=0.0, le=1_000_000.0)
     delta_scaling_mucut: float | None = Field(default=None, ge=0.0, le=1.0)
     delta_scaling_n_start: int | None = Field(default=None, ge=0)
     rad_alpha: float | None = Field(default=None, ge=0.0, le=90.0)
