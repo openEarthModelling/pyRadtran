@@ -12,10 +12,12 @@ from pyradtran.convenience import (
     run_with_aerosol,
 )
 from pyradtran.core.runner import Runner
+from pyradtran.models import ThreeDConfig
 from pyradtran.scene import Scene
 
 __all__ = [
     "Scene",
+    "ThreeDConfig",
     "Runner",
     "run_3d",
     "run_solar_transmittance",

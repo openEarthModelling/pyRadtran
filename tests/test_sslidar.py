@@ -1,6 +1,7 @@
 """Tests for SSLidar configuration model."""
 
 import pytest
+
 from pyradtran.models.sslidar import SslidarConfig
 
 

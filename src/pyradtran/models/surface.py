@@ -17,7 +17,10 @@ _VALID_AMBRALS_PARAMS = frozenset({"geo", "iso", "vol"})
 _VALID_HAPKE_PARAMS = frozenset({"b0", "h", "w"})
 _VALID_RPV_PARAMS = frozenset({"rho0", "k", "theta", "scale"})
 _VALID_CAM_PARAMS = frozenset({"pcl", "sal", "u10"})
-_VALID_LITVINOV_PARAMS = frozenset({"albedo", "rms_slope", "fresnel", "shadowing", "refr_index", "refr_index_i", "rms_slope2"})
+_VALID_LITVINOV_PARAMS = frozenset({
+    "albedo", "rms_slope", "fresnel", "shadowing",
+    "refr_index", "refr_index_i", "rms_slope2",
+})
 _VALID_MAIGNAN_PARAMS = frozenset({"c_maign", "arvi", "refr_index", "refr_index_i"})
 
 
