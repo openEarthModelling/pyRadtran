@@ -11,6 +11,7 @@ from pyradtran.models.sslidar import SslidarConfig
 from pyradtran.models.solver import SolverConfig
 from pyradtran.models.source import SourceConfig
 from pyradtran.models.surface import SurfaceConfig
+from pyradtran.models.three_d import ThreeDConfig
 from pyradtran.models.wavelength import WavelengthConfig
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "McConfig",
     "AdvancedConfig",
     "SslidarConfig",
+    "ThreeDConfig",
 ]
