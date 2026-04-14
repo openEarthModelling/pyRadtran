@@ -5,7 +5,7 @@ mc_polarisation, mc_randomseed, mc_minphotons, mc_maxscatters, mc_spectral_is,
 mc_delta_scaling, mc_rad_alpha, mc_backward_output,
 mc_forward_output, mc_backward_heat, mc_std, mc_jacobian, mc_progressbar,
 mc_surface_reflectalways, mc_spherical, mc_tenstream, mc_ipa, mc_tipa,
-mc_sensordirection, mc_sensorposition, mc_spherical3D_scene, mc_cloud_grid,
+mc_sensordirection, mc_sensorposition, mc_spherical3D_scene,
 mc_basename, mc_minscatters, mc_sun_angular_size.
 
 Reference: libRadtran src_py/mc_options.py
@@ -72,7 +72,6 @@ class McConfig(UvspecOption):
         sensor_direction: Sensor viewing direction (dx, dy, dz).
         sensor_position: Sensor position (x, y, z).
         spherical3d_scene: Spherical 3D scene bounds (lon_min, lat_min, lon_max, lat_max).
-        cloud_grid: Cloud grid dimensions (nx, ny, nz).
         basename: Basename for output files.
         min_scatters: Minimum number of scatters before stopping.
         sun_angular_size: Sun angular size in degrees.
@@ -108,7 +107,7 @@ class McConfig(UvspecOption):
     albedo_spectral_file: str | None = None
     rossli_file: str | None = None
     ambrals_spectral_file: str | None = None
-    rpv_file: str | None = None
+    rpv_spectral_file: str | None = None
     bpdf: str | None = None
     surface_parallel: bool = False
     elevation_file: str | None = None
@@ -125,7 +124,6 @@ class McConfig(UvspecOption):
     spherical3d_scene: tuple[float, float, float, float] | None = (
         None  # (lon_min, lat_min, lon_max, lat_max)
     )
-    cloud_grid: tuple[int, int, int] | None = None  # (nx, ny, nz)
     basename: str | None = None
     min_scatters: int | None = Field(default=None, ge=0)
     sun_angular_size: float | None = Field(default=None, ge=0.0, le=10.0)
@@ -280,10 +278,6 @@ class McConfig(UvspecOption):
             lon0, lat0, lon1, lat1 = self.spherical3d_scene
             lines.append(f"mc_spherical3D_scene {lon0} {lat0} {lon1} {lat1}")
 
-        if self.cloud_grid is not None:
-            nx, ny, nz = self.cloud_grid
-            lines.append(f"mc_cloud_grid {nx} {ny} {nz}")
-
         if self.basename is not None:
             lines.append(f"mc_basename {self.basename}")
 
@@ -302,8 +296,8 @@ class McConfig(UvspecOption):
             lines.append(f"mc_rossli_file {self.rossli_file}")
         if self.ambrals_spectral_file is not None:
             lines.append(f"mc_ambrals_spectral_file {self.ambrals_spectral_file}")
-        if self.rpv_file is not None:
-            lines.append(f"mc_rpv_file {self.rpv_file}")
+        if self.rpv_spectral_file is not None:
+            lines.append(f"mc_rpv_spectral_file {self.rpv_spectral_file}")
         if self.bpdf is not None:
             lines.append(f"mc_bpdf {self.bpdf}")
         if self.surface_parallel:

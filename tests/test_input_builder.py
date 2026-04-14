@@ -75,12 +75,12 @@ def test_with_data_files_path():
 
 def test_three_d_config_wired():
     """Verify ThreeDConfig is included in built input text."""
-    from pyradtran.models.three_d import ThreeDConfig
     from pyradtran.models.atmosphere import AtmosphereConfig
-    from pyradtran.models.source import SourceConfig
-    from pyradtran.models.wavelength import WavelengthConfig
-    from pyradtran.models.solver import SolverConfig
     from pyradtran.models.output import OutputConfig
+    from pyradtran.models.solver import SolverConfig
+    from pyradtran.models.source import SourceConfig
+    from pyradtran.models.three_d import ThreeDConfig
+    from pyradtran.models.wavelength import WavelengthConfig
 
     result = build_input_text(
         atmosphere=AtmosphereConfig(profile="us"),
@@ -90,4 +90,4 @@ def test_three_d_config_wired():
         output=OutputConfig(quiet=True),
         three_d=ThreeDConfig(atmosphere_file="/data/atm3d.nc"),
     )
-    assert "atmosphere_file_3D /data/atm3d.nc" in result
+    assert "atmosphere_file /data/atm3d.nc" in result

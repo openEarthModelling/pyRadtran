@@ -64,10 +64,12 @@ class SolverConfig(UvspecOption):
             lines.append("pseudospherical")
         if self.deltam:
             lines.append("deltam")
-        if self.dynamic_iterations is not None:
-            lines.append(f"dynamic_tenstream_iterations {self.dynamic_iterations}")
-        if self.dynamic_history:
-            lines.append("dynamic_tenstream_history")
-        if self.dynamic_heat_unit is not None:
-            lines.append(f"dynamic_tenstream_heat_unit {self.dynamic_heat_unit}")
+        if self.method.startswith("dynamic_"):
+            prefix = self.method  # e.g. "dynamic_twostream" or "dynamic_tenstream"
+            if self.dynamic_iterations is not None:
+                lines.append(f"{prefix}_iterations {self.dynamic_iterations}")
+            if self.dynamic_history:
+                lines.append(f"{prefix}_history")
+            if self.dynamic_heat_unit is not None:
+                lines.append(f"{prefix}_heat_unit {self.dynamic_heat_unit}")
         return lines

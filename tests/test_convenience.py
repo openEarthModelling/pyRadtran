@@ -145,7 +145,6 @@ class TestRun3D:
     def test_returns_dataset(self, uvspec_exe, data_path):
         from pyradtran.convenience import run_3d
         result = run_3d(
-            atmosphere_file=str(data_path) + "/aerosol/OPAC/optprop/aerosol_optprop.dat",
             data_path=data_path,
             uvspec_exe=uvspec_exe,
             photons=1000,

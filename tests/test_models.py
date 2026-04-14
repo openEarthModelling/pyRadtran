@@ -275,23 +275,38 @@ class TestSourceConfigSatellite:
     def test_satellite_geometry(self):
         from pyradtran.models.source import SourceConfig
 
-        s = SourceConfig(source="solar", sza=60.0, satellite_geometry="SENTINEL2A")
+        s = SourceConfig(source="solar", sza=60.0, satellite_geometry="SENTINEL2A",
+                         satellite_pixel=(10, 20))
         lines = s.to_uvspec_lines()
         assert "satellite_geometry SENTINEL2A" in lines
 
     def test_satellite_pixel(self):
         from pyradtran.models.source import SourceConfig
 
-        s = SourceConfig(source="solar", sza=60.0, satellite_pixel=(100, 200))
+        s = SourceConfig(source="solar", sza=60.0, satellite_geometry="MPS",
+                         satellite_pixel=(100, 200))
         lines = s.to_uvspec_lines()
         assert "satellite_pixel 100 200" in lines
 
     def test_satellite_pixel_negative_coords(self):
         from pyradtran.models.source import SourceConfig
 
-        s = SourceConfig(source="solar", sza=0.0, satellite_pixel=(-50, 100))
+        s = SourceConfig(source="solar", sza=0.0, satellite_geometry="MPS",
+                         satellite_pixel=(-50, 100))
         lines = s.to_uvspec_lines()
         assert "satellite_pixel -50 100" in lines
+
+    def test_satellite_geometry_without_pixel_raises(self):
+        from pyradtran.models.source import SourceConfig
+
+        with pytest.raises(ValueError, match="satellite_pixel"):
+            SourceConfig(source="solar", sza=60.0, satellite_geometry="MPS")
+
+    def test_satellite_pixel_without_geometry_raises(self):
+        from pyradtran.models.source import SourceConfig
+
+        with pytest.raises(ValueError, match="satellite_geometry"):
+            SourceConfig(source="solar", sza=60.0, satellite_pixel=(10, 20))
 
     def test_satellite_geometry_and_pixel(self):
         from pyradtran.models.source import SourceConfig
@@ -1027,7 +1042,7 @@ class TestMcConfig:
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: McConfig tests - 3D Geometry Options (Phase 4)
+# Phase 4: McConfig 3D geometry options
 # ---------------------------------------------------------------------------
 
 
@@ -1045,7 +1060,7 @@ class TestMcConfig3D:
         assert "mc_spherical 3D" in lines
 
     def test_spherical_invalid(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             McConfig(spherical="2D")
 
     def test_tenstream(self):
@@ -1069,7 +1084,7 @@ class TestMcConfig3D:
         assert "mc_tipa dir3d" in lines
 
     def test_tipa_invalid(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             McConfig(tipa="invalid")
 
     def test_sensor_direction(self):
@@ -1086,11 +1101,6 @@ class TestMcConfig3D:
         mc = McConfig(spherical3d_scene=(-10.0, 30.0, 10.0, 50.0))
         lines = mc.to_uvspec_lines()
         assert "mc_spherical3D_scene -10.0 30.0 10.0 50.0" in lines
-
-    def test_cloud_grid(self):
-        mc = McConfig(cloud_grid=(100, 100, 50))
-        lines = mc.to_uvspec_lines()
-        assert "mc_cloud_grid 100 100 50" in lines
 
     def test_basename(self):
         mc = McConfig(basename="my_sim")
@@ -1109,7 +1119,7 @@ class TestMcConfig3D:
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: McConfig tests - Advanced Surface Files (Phase 4)
+# Phase 4: McConfig advanced surface files
 # ---------------------------------------------------------------------------
 
 
@@ -1136,10 +1146,10 @@ class TestMcConfigSurface:
         lines = mc.to_uvspec_lines()
         assert "mc_ambrals_spectral_file /data/ambrals.dat" in lines
 
-    def test_rpv_file(self):
-        mc = McConfig(rpv_file="/data/rpv.dat")
+    def test_rpv_spectral_file(self):
+        mc = McConfig(rpv_spectral_file="/data/rpv.dat")
         lines = mc.to_uvspec_lines()
-        assert "mc_rpv_file /data/rpv.dat" in lines
+        assert "mc_rpv_spectral_file /data/rpv.dat" in lines
 
     def test_bpdf(self):
         mc = McConfig(bpdf="maignan")
@@ -1167,7 +1177,7 @@ class TestMcConfigSurface:
         assert "mc_triangular_surface_file /data/mesh.dat" in lines
 
     def test_bpdf_invalid(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             McConfig(bpdf="invalid_model")
 
 
@@ -1200,6 +1210,13 @@ class TestSolverConfigDynamic:
         lines = s.to_uvspec_lines()
         assert "dynamic_tenstream_iterations 100" in lines
 
+    def test_dynamic_twostream_iterations(self):
+        from pyradtran.models.solver import SolverConfig
+
+        s = SolverConfig(method="dynamic_twostream", dynamic_iterations=50)
+        lines = s.to_uvspec_lines()
+        assert "dynamic_twostream_iterations 50" in lines
+
     def test_dynamic_history(self):
         from pyradtran.models.solver import SolverConfig
 
@@ -1224,13 +1241,13 @@ class TestSolverConfigDynamic:
     def test_dynamic_heat_unit_invalid(self):
         from pyradtran.models.solver import SolverConfig
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             SolverConfig(method="dynamic_tenstream", dynamic_heat_unit="invalid")
 
     def test_dynamic_iterations_negative(self):
         from pyradtran.models.solver import SolverConfig
 
-        with pytest.raises(Exception):
+        with pytest.raises(ValueError):
             SolverConfig(method="dynamic_tenstream", dynamic_iterations=-1)
 
 

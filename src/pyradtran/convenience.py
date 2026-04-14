@@ -425,7 +425,6 @@ def run_polarized(
 
 def run_3d(
     atmosphere_file: str | None = None,
-    cloud_file: str | None = None,
     profile: str = "us",
     altitude: float = 0.0,
     sza: float = 30.0,
@@ -440,7 +439,6 @@ def run_3d(
 
     Args:
         atmosphere_file: Path to 3D atmospheric field file.
-        cloud_file: Path to 3D cloud field file.
         profile: Standard atmosphere profile (for 1D fallback).
         altitude: Surface altitude in km.
         sza: Solar zenith angle in degrees.
@@ -469,10 +467,6 @@ def run_3d(
     three_d_kwargs = {}
     if atmosphere_file is not None:
         three_d_kwargs["atmosphere_file"] = atmosphere_file
-    if cloud_file is not None:
-        three_d_kwargs["cloud_file"] = cloud_file
-    if ipa:
-        three_d_kwargs["ipa_3d"] = True
     if three_d_kwargs:
         scene = scene.set_three_d(**three_d_kwargs)
 
