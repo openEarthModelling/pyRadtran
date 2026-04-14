@@ -231,6 +231,37 @@ class TestSourceConfig:
             SourceConfig(source="solar")
 
 
+class TestSourceConfigAdvanced:
+    def test_umu_single(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=30.0, umu=[1.0])
+        lines = s.to_uvspec_lines()
+        assert "umu 1.0" in lines
+
+    def test_umu_multiple(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=30.0, umu=[1.0, 0.5, -1.0])
+        lines = s.to_uvspec_lines()
+        assert "umu 1.0 0.5 -1.0" in lines
+
+    def test_phi(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=30.0, phi=[0.0, 90.0, 180.0])
+        lines = s.to_uvspec_lines()
+        assert "phi 0.0 90.0 180.0" in lines
+
+    def test_umu_phi_combined(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=60.0, umu=[1.0, 0.8], phi=[0.0, 180.0])
+        lines = s.to_uvspec_lines()
+        assert "umu 1.0 0.8" in lines
+        assert "phi 0.0 180.0" in lines
+
+
 # ---------------------------------------------------------------------------
 # Task 4: WavelengthConfig tests
 # ---------------------------------------------------------------------------

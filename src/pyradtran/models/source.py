@@ -1,6 +1,6 @@
 """Source configuration model.
 
-Maps to uvspec keywords: source, sza, phi0, day_of_year, solar_flux_file.
+Maps to uvspec keywords: source, sza, phi0, day_of_year, solar_flux_file, umu, phi.
 
 Reference: libRadtran src_py/geometry_options.py, src_py/spectral_options.py
 """
@@ -21,6 +21,8 @@ class SourceConfig(UvspecOption):
         phi0: Solar azimuth angle in degrees [-360, 360].
         day_of_year: Day of year [1, 366].
         solar_flux_file: Path to solar flux file (e.g. kurudz_0.1nm.dat).
+        umu: Viewing zenith angles (cosines). Positive = upward, negative = downward.
+        phi: Viewing azimuth angles in degrees.
     """
 
     source: str = Field(pattern=r"^(solar|thermal)$")
@@ -28,6 +30,8 @@ class SourceConfig(UvspecOption):
     phi0: float | None = Field(default=None, ge=-360.0, le=360.0)
     day_of_year: int | None = Field(default=None, ge=1, le=366)
     solar_flux_file: str | None = None
+    umu: list[float] = Field(default_factory=list)
+    phi: list[float] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_sza_for_solar(self) -> SourceConfig:
@@ -47,4 +51,8 @@ class SourceConfig(UvspecOption):
             lines.append(f"phi0 {self.phi0}")
         if self.day_of_year is not None:
             lines.append(f"day_of_year {self.day_of_year}")
+        if self.umu:
+            lines.append(f"umu {' '.join(str(v) for v in self.umu)}")
+        if self.phi:
+            lines.append(f"phi {' '.join(str(v) for v in self.phi)}")
         return lines
