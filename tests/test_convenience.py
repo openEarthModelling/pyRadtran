@@ -41,3 +41,55 @@ class TestRunThermalBrightness:
             pwv=10.0, altitude=2.2, data_path=data_path, uvspec_exe=has_uvspec,
         )
         assert isinstance(result, xr.Dataset)
+
+
+# --- Phase 2 tests ---
+
+
+def test_run_solar_radiance_creates_scene():
+    """Verify run_solar_radiance builds a valid Scene with radiance output."""
+    from unittest.mock import patch, MagicMock
+    from pyradtran.convenience import run_solar_radiance
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset):
+        result = run_solar_radiance(sza=60.0, airmass=2.0)
+        assert result is mock_dataset
+
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_solar_radiance(sza=60.0, aerosol_tau=0.1)
+        scene_arg = mock_exec.call_args[1]["scene"] if "scene" in mock_exec.call_args[1] else mock_exec.call_args[0][0]
+        assert scene_arg.aerosol is not None
+
+
+def test_run_with_aerosol_creates_scene():
+    """Verify run_with_aerosol passes aerosol config correctly."""
+    from unittest.mock import patch, MagicMock
+    from pyradtran.convenience import run_with_aerosol
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_with_aerosol(
+            aerosol_file_type="explicit",
+            aerosol_file_path="/data/profile.dat",
+            sza=45.0,
+        )
+        scene_arg = mock_exec.call_args[1]["scene"] if "scene" in mock_exec.call_args[1] else mock_exec.call_args[0][0]
+        assert scene_arg.aerosol.file == ("explicit", "/data/profile.dat")
+
+
+def test_run_cloudy_scene_creates_scene():
+    """Verify run_cloudy_scene passes cloud config correctly."""
+    from unittest.mock import patch, MagicMock
+    from pyradtran.convenience import run_cloudy_scene
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_cloudy_scene(
+            ic_properties="fu",
+            ic_tau=5.0,
+            sza=30.0,
+        )
+        scene_arg = mock_exec.call_args[1]["scene"] if "scene" in mock_exec.call_args[1] else mock_exec.call_args[0][0]
+        assert scene_arg.cloud is not None
+        assert scene_arg.cloud.ic_properties == "fu"
