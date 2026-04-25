@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pyradtran.models.advanced import AdvancedConfig
-from pyradtran.models.aerosol import AerosolConfig
+from pyradtran.models.aerosol import AerosolModel
 from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.cloud import CloudConfig
 from pyradtran.models.mc import McConfig
@@ -24,7 +24,7 @@ def build_input_text(
     solver: SolverConfig,
     output: OutputConfig,
     surface: SurfaceConfig | None = None,
-    aerosol: AerosolConfig | None = None,
+    aerosol: AerosolModel | None = None,
     cloud: CloudConfig | None = None,
     mc: McConfig | None = None,
     sslidar: SslidarConfig | None = None,
