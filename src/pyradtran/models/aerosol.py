@@ -1,15 +1,19 @@
-"""Aerosol configuration model.
+"""Aerosol configuration models.
 
-Maps to uvspec keywords: aerosol_default, aerosol_angstrom,
-aerosol_set_tau_at_wvl, aerosol_haze, aerosol_vulcan,
-aerosol_season, aerosol_visibility, aerosol_file,
-aerosol_modify, aerosol_refrac_index, aerosol_refrac_file,
-aerosol_sizedist_file, aerosol_species_file, aerosol_species_library.
+Provides a strict class hierarchy for aerosol configuration:
+
+- OpacPreset: OPAC preset mixture profiles (continental_average, maritime_clean, etc.)
+- OpacCustom: OPAC custom species profile files
+- ExternalAerosol: External optical property files (explicit, gg, ssa, tau, moments)
 
 Reference: libRadtran src/uvspec_lex.l (aerosol options)
+Reference: Hess et al. (1998), Bull. Amer. Meteor. Soc., 79, 831-844
 """
 
 from __future__ import annotations
+
+from abc import abstractmethod
+from enum import Enum
 
 from pydantic import Field, model_validator
 
@@ -18,6 +22,27 @@ from pyradtran.models.base import UvspecOption
 _VALID_FILE_TYPES = frozenset({"gg", "ssa", "tau", "explicit", "moments", "ref", "siz"})
 _VALID_MODIFY_VARIABLES = frozenset({"gg", "ssa", "tau", "tau550"})
 _VALID_MODIFY_ACTIONS = frozenset({"scale", "set"})
+_VALID_OPAC_SPECIES = frozenset({
+    "inso", "waso", "soot", "ssam", "sscm",
+    "minm", "miam", "micm", "mitr", "suso",
+})
+
+
+class OpacPresetName(str, Enum):
+    """OPAC preset mixture profile names.
+
+    These correspond to files in data/aerosol/OPAC/standard_aerosol_files/.
+    """
+    CONTINENTAL_AVERAGE = "continental_average"
+    CONTINENTAL_CLEAN = "continental_clean"
+    CONTINENTAL_POLLUTED = "continental_polluted"
+    URBAN = "urban"
+    MARITIME_CLEAN = "maritime_clean"
+    MARITIME_POLLUTED = "maritime_polluted"
+    MARITIME_TROPICAL = "maritime_tropical"
+    DESERT = "desert"
+    DESERT_SPHEROIDS = "desert_spheroids"
+    ANTARCTIC = "antarctic"
 
 
 class AerosolModifyEntry(UvspecOption):
@@ -53,119 +78,128 @@ class AerosolModifyEntry(UvspecOption):
         return f"aerosol_modify {self.variable} {self.action} {self.value}"
 
 
-class AerosolConfig(UvspecOption):
-    """Aerosol configuration.
+class AerosolModel(UvspecOption):
+    """Abstract base class for all aerosol configurations.
 
-    Attributes:
-        default: Enable default Shettle (1989) aerosol.
-        angstrom_alpha: Angstrom alpha exponent (requires default=True).
-        angstrom_beta: Angstrom beta coefficient in um^-1 (requires default=True).
-        set_tau_at_wvl: Tuple of (wavelength_nm, tau) to set AOD.
-        haze: Aerosol type in lower 2 km [1, 6].
-        vulcan: Aerosol situation above 2 km [1, 4].
-        season: Season [1, 2]. 1=spring-summer, 2=fall-winter.
-        visibility: Horizontal visibility in km.
-        files: List of (file_type, file_path) tuples. Types: "gg", "ssa", "tau",
-            "explicit", "moments", "ref", "siz".
-        modify: List of aerosol modification directives.
-        refrac_index: Tuple of (real, imaginary) refractive index parts.
-        refrac_file: Path to refractive index file (wavelength-dependent).
-        sizedist_file: Path to size distribution file.
-        species_file: Path to aerosol species profile file.
-        species_names: Optional list of species names for species_file.
-        species_library: Path to aerosol species library directory.
-        king_byrne: Tuple of (a0, a1, a2) King-Byrne aerosol parameters.
+    Subclasses implement mode-specific ``to_uvspec_lines()``.
+    Common capabilities (set_tau_at_wvl, king_byrne, modify) are handled here.
     """
 
-    default: bool = False
-    angstrom_alpha: float | None = None
-    angstrom_beta: float | None = None
     set_tau_at_wvl: tuple[float, float] | None = None
-    haze: int | None = Field(default=None, ge=1, le=6)
-    vulcan: int | None = Field(default=None, ge=1, le=4)
-    season: int | None = Field(default=None, ge=1, le=2)
-    visibility: float | None = Field(default=None, ge=0.0, le=1e6)
-    files: list[tuple[str, str]] = Field(default_factory=list)
-    modify: list[AerosolModifyEntry] = Field(default_factory=list)
-    refrac_index: tuple[float, float] | None = None
-    refrac_file: str | None = None
-    sizedist_file: str | None = None
-    species_file: str | None = None
-    species_names: list[str] | None = None
-    species_library: str | None = None
     king_byrne: tuple[float, float, float] | None = None
+    modify: list[AerosolModifyEntry] = Field(default_factory=list)
 
-    @property
-    def file(self) -> tuple[str, str] | None:
-        """Deprecated: use 'files' instead. Returns first file or None."""
-        return self.files[0] if self.files else None
-
-    @model_validator(mode="after")
-    def validate_aerosol(self) -> AerosolConfig:
-        if self.angstrom_alpha is not None and not self.default:
-            raise ValueError("angstrom_alpha requires default=True")
-        if self.angstrom_beta is not None and not self.default:
-            raise ValueError("angstrom_beta requires default=True")
-        if self.angstrom_alpha is not None and self.angstrom_beta is None:
-            raise ValueError("angstrom_beta must be set when angstrom_alpha is set")
-        if self.angstrom_beta is not None and self.angstrom_alpha is None:
-            raise ValueError("angstrom_alpha must be set when angstrom_beta is set")
-        if self.files:
-            for file_type, _ in self.files:
-                if file_type not in _VALID_FILE_TYPES:
-                    raise ValueError(
-                        f"Unknown aerosol file type '{file_type}'. "
-                        f"Valid: {sorted(_VALID_FILE_TYPES)}"
-                    )
-        if self.refrac_index is not None and self.refrac_file is not None:
-            raise ValueError("Cannot set both refrac_index and refrac_file")
-        if self.species_names is not None and self.species_file is None:
-            raise ValueError("species_names requires species_file")
-        return self
-
+    @abstractmethod
     def to_uvspec_lines(self) -> list[str]:
-        lines: list[str] = []
-        if self.default:
-            lines.append("aerosol_default")
-        if self.files:
-            for file_type, filepath in self.files:
-                lines.append(f"aerosol_file {file_type} {filepath}")
-        elif self.haze is not None or self.vulcan is not None:
-            if self.haze is not None:
-                lines.append(f"aerosol_haze {self.haze}")
-            if self.vulcan is not None:
-                lines.append(f"aerosol_vulcan {self.vulcan}")
-            if self.season is not None:
-                lines.append(f"aerosol_season {self.season}")
-            if self.visibility is not None:
-                lines.append(f"aerosol_visibility {self.visibility}")
-        if self.default and self.angstrom_alpha is not None:
-            lines.append(f"aerosol_angstrom {self.angstrom_alpha} {self.angstrom_beta}")
-        if self.set_tau_at_wvl is not None:
-            wl, tau = self.set_tau_at_wvl
-            lines.append(f"aerosol_set_tau_at_wvl {wl} {tau}")
-        if self.refrac_index is not None:
-            real, imag = self.refrac_index
-            lines.append(f"aerosol_refrac_index {real} {imag}")
-        if self.refrac_file is not None:
-            lines.append(f"aerosol_refrac_file {self.refrac_file}")
-        if self.sizedist_file is not None:
-            lines.append(f"aerosol_sizedist_file {self.sizedist_file}")
-        if self.species_file is not None:
-            if self.species_names:
-                names = " ".join(self.species_names)
-                lines.append(f"aerosol_species_file {self.species_file} {names}")
-            else:
-                lines.append(f"aerosol_species_file {self.species_file}")
-        if self.species_library is not None:
-            lines.append(f"aerosol_species_library {self.species_library}")
-        if self.king_byrne is not None:
-            a0, a1, a2 = self.king_byrne
-            lines.append(f"aerosol_king_byrne {a0} {a1} {a2}")
-        for entry in self.modify:
-            lines.append(entry.to_uvspec_line())
-        return lines
+        ...
 
     def to_uvspec_items(self) -> list[tuple[int, str]]:
         phase = 5
-        return [(phase, line) for line in self.to_uvspec_lines()]
+        items = [(phase, line) for line in self.to_uvspec_lines()]
+        if self.set_tau_at_wvl is not None:
+            wl, tau = self.set_tau_at_wvl
+            items.append((phase, f"aerosol_set_tau_at_wvl {wl} {tau}"))
+        if self.king_byrne is not None:
+            a0, a1, a2 = self.king_byrne
+            items.append((phase, f"aerosol_king_byrne {a0} {a1} {a2}"))
+        for entry in self.modify:
+            items.append((phase, entry.to_uvspec_line()))
+        return items
+
+
+class OpacPreset(AerosolModel):
+    """OPAC preset mixture profile aerosol.
+
+    Uses pre-defined aerosol species mixture profiles from the OPAC library.
+    The ``name`` selects from 10 predefined mixture profiles.
+    Optionally filter to specific species via ``species_names``.
+
+    Attributes:
+        name: Preset mixture profile name.
+        library: OPAC library path or "OPAC" for uvspec default resolution.
+        species_names: Optional species filter (e.g. ["inso", "soot"]).
+    """
+
+    name: OpacPresetName
+    library: str = "OPAC"
+    species_names: list[str] | None = None
+
+    @model_validator(mode="after")
+    def validate_species(self) -> OpacPreset:
+        if self.species_names:
+            invalid = set(self.species_names) - _VALID_OPAC_SPECIES
+            if invalid:
+                raise ValueError(
+                    f"Invalid OPAC species: {sorted(invalid)}. "
+                    f"Valid: {sorted(_VALID_OPAC_SPECIES)}"
+                )
+        return self
+
+    def to_uvspec_lines(self) -> list[str]:
+        lines = [f"aerosol_species_library {self.library}"]
+        if self.species_names:
+            names = " ".join(self.species_names)
+            lines.append(f"aerosol_species_file {self.name.value} {names}")
+        else:
+            lines.append(f"aerosol_species_file {self.name.value}")
+        return lines
+
+
+class OpacCustom(AerosolModel):
+    """OPAC custom species profile aerosol.
+
+    Uses a user-provided mass concentration profile file with the OPAC library.
+
+    Attributes:
+        species_file: Path to an ASCII profile file.
+        library: OPAC library path or "OPAC" for uvspec default resolution.
+        species_names: Optional species filter.
+    """
+
+    species_file: str
+    species_names: list[str] | None = None
+    library: str = "OPAC"
+
+    @model_validator(mode="after")
+    def validate_species(self) -> OpacCustom:
+        if self.species_names:
+            invalid = set(self.species_names) - _VALID_OPAC_SPECIES
+            if invalid:
+                raise ValueError(
+                    f"Invalid OPAC species: {sorted(invalid)}. "
+                    f"Valid: {sorted(_VALID_OPAC_SPECIES)}"
+                )
+        return self
+
+    def to_uvspec_lines(self) -> list[str]:
+        lines = [f"aerosol_species_library {self.library}"]
+        if self.species_names:
+            names = " ".join(self.species_names)
+            lines.append(f"aerosol_species_file {self.species_file} {names}")
+        else:
+            lines.append(f"aerosol_species_file {self.species_file}")
+        return lines
+
+
+class ExternalAerosol(AerosolModel):
+    """External aerosol optical property files.
+
+    Attributes:
+        files: List of (file_type, file_path) tuples.
+            Types: "gg", "ssa", "tau", "explicit", "moments", "ref", "siz".
+    """
+
+    files: list[tuple[str, str]] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_files(self) -> ExternalAerosol:
+        for file_type, _ in self.files:
+            if file_type not in _VALID_FILE_TYPES:
+                raise ValueError(
+                    f"Unknown aerosol file type '{file_type}'. "
+                    f"Valid: {sorted(_VALID_FILE_TYPES)}"
+                )
+        return self
+
+    def to_uvspec_lines(self) -> list[str]:
+        return [f"aerosol_file {ft} {fp}" for ft, fp in self.files]
