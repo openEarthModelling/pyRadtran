@@ -117,9 +117,6 @@ def run_solar_radiance(
     wl_min: float = 250.0,
     wl_max: float = 2500.0,
     albedo: float = 0.2,
-    aerosol_default: bool = False,
-    aerosol_tau: float | None = None,
-    aerosol_angstrom: float | None = None,
     streams: int = 16,
     solver: str = "disort",
     uvspec_exe: str | None = None,
@@ -137,9 +134,6 @@ def run_solar_radiance(
         wl_min: Minimum wavelength in nm.
         wl_max: Maximum wavelength in nm.
         albedo: Surface albedo.
-        aerosol_default: Enable default Shettle aerosol.
-        aerosol_tau: AOD at 550 nm (sets tau via angstrom).
-        aerosol_angstrom: Angstrom exponent (requires aerosol_tau).
         streams: Number of DISORT streams.
         solver: RTE solver name.
         uvspec_exe: Path to uvspec binary.
@@ -170,16 +164,6 @@ def run_solar_radiance(
         )
         .set_surface(albedo=albedo)
     )
-
-    if aerosol_default or aerosol_tau is not None:
-        aerosol_kwargs: dict = {"default": True}
-        if aerosol_tau is not None and aerosol_angstrom is not None:
-            beta = aerosol_tau * (0.55 ** (-aerosol_angstrom)) * 1e-3
-            aerosol_kwargs["angstrom_alpha"] = aerosol_angstrom
-            aerosol_kwargs["angstrom_beta"] = beta
-        elif aerosol_tau is not None:
-            aerosol_kwargs["set_tau_at_wvl"] = (550.0, aerosol_tau)
-        scene = scene.set_aerosol(**aerosol_kwargs)
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
 
@@ -241,9 +225,142 @@ def run_with_aerosol(
     )
 
     if aerosol_file_path is not None:
+        from pyradtran.models.aerosol import ExternalAerosol
         scene = scene.set_aerosol(
-            files=[(aerosol_file_type, aerosol_file_path)],
+            ExternalAerosol(files=[(aerosol_file_type, aerosol_file_path)]),
         )
+
+    return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
+
+
+def run_with_opac_preset(
+    preset: str | OpacPresetName,
+    library: str = "OPAC",
+    species_names: list[str] | None = None,
+    sza: float = 30.0,
+    profile: str = "us",
+    altitude: float | str = 0.0,
+    pwv: float = 5.0,
+    ozone: float = 300.0,
+    wl_min: float = 300.0,
+    wl_max: float = 2500.0,
+    albedo: float = 0.2,
+    streams: int = 16,
+    uvspec_exe: str | None = None,
+    data_path: str | None = None,
+) -> xr.Dataset:
+    """Run uvspec with OPAC preset mixture profile.
+
+    Args:
+        preset: OPAC preset name (e.g. "continental_average") or OpacPresetName enum.
+        library: OPAC library path or "OPAC" for default resolution.
+        species_names: Optional species filter (e.g. ["inso", "soot"]).
+        sza: Solar zenith angle in degrees.
+        profile: Atmospheric profile name.
+        altitude: Surface altitude in km.
+        pwv: Precipitable water vapor in mm.
+        ozone: Ozone column in DU.
+        wl_min: Minimum wavelength in nm.
+        wl_max: Maximum wavelength in nm.
+        albedo: Surface albedo.
+        streams: Number of DISORT streams.
+        uvspec_exe: Path to uvspec binary.
+        data_path: Path to libRadtran data directory.
+
+    Returns:
+        xarray.Dataset with irradiance vs wavelength.
+    """
+    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+    from pyradtran.presets import resolve_altitude
+
+    resolved_altitude = resolve_altitude(altitude)
+    if isinstance(preset, str):
+        preset = OpacPresetName(preset)
+
+    scene = (
+        Scene()
+        .set_atmosphere(profile=profile, altitude=resolved_altitude)
+        .set_mol_modify("H2O", pwv, "MM")
+        .set_mol_modify("O3", ozone, "DU")
+        .set_source_solar(sza=sza)
+        .set_wavelength(wl_min, wl_max)
+        .set_solver(method="disort", streams=streams)
+        .set_output(
+            quantities=["lambda", "edir", "edn", "eup"],
+            format="netcdf",
+            quiet=True,
+            zout=[0, "toa"],
+        )
+        .set_surface(albedo=albedo)
+        .set_aerosol(OpacPreset(name=preset, library=library, species_names=species_names))
+    )
+
+    return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
+
+
+def run_with_opac_custom(
+    species_file: str,
+    library: str = "OPAC",
+    species_names: list[str] | None = None,
+    sza: float = 30.0,
+    profile: str = "us",
+    altitude: float | str = 0.0,
+    pwv: float = 5.0,
+    ozone: float = 300.0,
+    wl_min: float = 300.0,
+    wl_max: float = 2500.0,
+    albedo: float = 0.2,
+    streams: int = 16,
+    uvspec_exe: str | None = None,
+    data_path: str | None = None,
+) -> xr.Dataset:
+    """Run uvspec with OPAC custom species profile.
+
+    Args:
+        species_file: Path to an ASCII species mass concentration profile file.
+        library: OPAC library path or "OPAC" for default resolution.
+        species_names: Optional species filter.
+        sza: Solar zenith angle in degrees.
+        profile: Atmospheric profile name.
+        altitude: Surface altitude in km.
+        pwv: Precipitable water vapor in mm.
+        ozone: Ozone column in DU.
+        wl_min: Minimum wavelength in nm.
+        wl_max: Maximum wavelength in nm.
+        albedo: Surface albedo.
+        streams: Number of DISORT streams.
+        uvspec_exe: Path to uvspec binary.
+        data_path: Path to libRadtran data directory.
+
+    Returns:
+        xarray.Dataset with irradiance vs wavelength.
+    """
+    from pyradtran.models.aerosol import OpacCustom
+    from pyradtran.presets import resolve_altitude
+
+    resolved_altitude = resolve_altitude(altitude)
+
+    scene = (
+        Scene()
+        .set_atmosphere(profile=profile, altitude=resolved_altitude)
+        .set_mol_modify("H2O", pwv, "MM")
+        .set_mol_modify("O3", ozone, "DU")
+        .set_source_solar(sza=sza)
+        .set_wavelength(wl_min, wl_max)
+        .set_solver(method="disort", streams=streams)
+        .set_output(
+            quantities=["lambda", "edir", "edn", "eup"],
+            format="netcdf",
+            quiet=True,
+            zout=[0, "toa"],
+        )
+        .set_surface(albedo=albedo)
+        .set_aerosol(OpacCustom(
+            species_file=species_file,
+            library=library,
+            species_names=species_names,
+        ))
+    )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
 
@@ -408,6 +525,7 @@ def run_polarized(
     Returns:
         xarray.Dataset with polarized radiance.
     """
+    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
     from pyradtran.presets import resolve_altitude
 
     scene = (
@@ -416,7 +534,7 @@ def run_polarized(
         .set_source_solar(sza=sza)
         .set_wavelength(wl_min, wl_max)
         .set_solver(method="mystic", streams=streams)
-        .set_aerosol(default=True)
+        .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
         .set_mc(photons=photons, backward=True, polarisation=True)
         .set_output(quantities=["lambda", "uu_pol"], quiet=True, format="netcdf")
     )
