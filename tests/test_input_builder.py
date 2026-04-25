@@ -91,3 +91,29 @@ def test_three_d_config_wired():
         three_d=ThreeDConfig(atmosphere_file="/data/atm3d.nc"),
     )
     assert "atmosphere_file /data/atm3d.nc" in result
+
+
+def test_data_files_path_first():
+    text = build_input_text(
+        atmosphere=AtmosphereConfig(profile="us"),
+        source=SourceConfig(source="solar", sza=30.0),
+        wavelength=WavelengthConfig(wavelength_min=250.0, wavelength_max=1200.0),
+        solver=SolverConfig(method="disort"),
+        output=OutputConfig(quiet=True),
+        data_files_path="/usr/local/share/libRadtran/data",
+    )
+    lines = text.strip().split("\n")
+    assert lines[0] == "data_files_path /usr/local/share/libRadtran/data"
+
+
+def test_raw_keywords_last():
+    text = build_input_text(
+        atmosphere=AtmosphereConfig(profile="us"),
+        source=SourceConfig(source="solar", sza=30.0),
+        wavelength=WavelengthConfig(wavelength_min=250.0, wavelength_max=1200.0),
+        solver=SolverConfig(method="disort"),
+        output=OutputConfig(quiet=True),
+        raw_keywords=[("custom_option", "value")],
+    )
+    lines = text.strip().split("\n")
+    assert lines[-1] == "custom_option value"

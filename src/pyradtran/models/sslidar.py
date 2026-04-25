@@ -50,3 +50,7 @@ class SslidarConfig(UvspecOption):
         if self.polarisation:
             lines.append("sslidar_polarisation")
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 10
+        return [(phase, line) for line in self.to_uvspec_lines()]

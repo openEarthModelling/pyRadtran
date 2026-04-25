@@ -9,6 +9,7 @@ from pyradtran.models.mc import McConfig
 from pyradtran.models.output import OutputConfig
 from pyradtran.models.solver import SolverConfig
 from pyradtran.models.source import SourceConfig
+from pyradtran.models.special import SpecialConfig
 from pyradtran.models.sslidar import SslidarConfig
 from pyradtran.models.surface import SurfaceConfig
 from pyradtran.models.three_d import ThreeDConfig
@@ -28,4 +29,5 @@ __all__ = [
     "AdvancedConfig",
     "SslidarConfig",
     "ThreeDConfig",
+    "SpecialConfig",
 ]

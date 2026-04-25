@@ -279,3 +279,16 @@ def test_set_dynamic():
     scene = Scene().set_dynamic(method="dynamic_tenstream", iterations=100)
     assert scene.solver.method == "dynamic_tenstream"
     assert scene.solver.dynamic_iterations == 100
+
+
+def test_set_special():
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_source_solar(sza=30)
+        .set_wavelength(500, 1000)
+        .set_solver()
+        .set_special(no_scattering=True)
+    )
+    text = scene.build_input()
+    assert "no_scattering" in text

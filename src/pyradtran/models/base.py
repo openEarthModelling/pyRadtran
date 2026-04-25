@@ -26,3 +26,12 @@ class UvspecOption(BaseModel):
             List of strings, each being one line of a uvspec input file.
         """
         raise NotImplementedError
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        """Return (phase, keyword_line) pairs for priority-sorted output.
+
+        Subclasses may override to assign different phases to different keywords.
+        Default phase is 9 (output section).
+        """
+        default_phase = 9
+        return [(default_phase, line) for line in self.to_uvspec_lines()]

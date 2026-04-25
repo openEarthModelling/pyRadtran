@@ -93,6 +93,12 @@ class CloudConfig(UvspecOption):
     cloud_cover: float | None = Field(default=None, ge=0.0, le=1.0)
     cloud_overlap: str | None = None
     interpolate: bool = False
+    cloud_fraction_file: str | None = None
+    cloud_fraction_map: str | tuple[str, str, float] | None = None
+    wc_saturate: bool = False
+    ic_saturate: bool = False
+    wc_ipa: bool = False
+    wc_layer: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def validate_cloud(self) -> CloudConfig:
@@ -101,13 +107,16 @@ class CloudConfig(UvspecOption):
                 f"Invalid ic_properties '{self.ic_properties}'. "
                 f"Valid: {sorted(_VALID_IC_PROPERTIES)}"
             )
-        if self.ic_habit is not None and self.ic_habit not in _VALID_IC_HABITS:
-            if self.ic_habit not in _VALID_YANG2013_HABITS:
-                raise ValueError(
-                    f"Invalid ic_habit '{self.ic_habit}'. "
-                    f"Valid standard: {sorted(_VALID_IC_HABITS)}. "
-                    f"Valid yang2013: {sorted(_VALID_YANG2013_HABITS)}."
-                )
+        if (
+            self.ic_habit is not None
+            and self.ic_habit not in _VALID_IC_HABITS
+            and self.ic_habit not in _VALID_YANG2013_HABITS
+        ):
+            raise ValueError(
+                f"Invalid ic_habit '{self.ic_habit}'. "
+                f"Valid standard: {sorted(_VALID_IC_HABITS)}. "
+                f"Valid yang2013: {sorted(_VALID_YANG2013_HABITS)}."
+            )
         if self.wc_properties is not None and self.wc_properties not in _VALID_WC_PROPERTIES:
             raise ValueError(
                 f"Invalid wc_properties '{self.wc_properties}'. "
@@ -118,9 +127,12 @@ class CloudConfig(UvspecOption):
                 f"Invalid cloud_overlap '{self.cloud_overlap}'. "
                 f"Valid: {sorted(_VALID_CLOUD_OVERLAP)}"
             )
-        if self.cloud_cover is not None and self.cloud_cover_type is not None:
-            if self.cloud_cover_type not in ("ic", "wc"):
-                raise ValueError(
+        if (
+            self.cloud_cover is not None
+            and self.cloud_cover_type is not None
+            and self.cloud_cover_type not in ("ic", "wc")
+        ):
+            raise ValueError(
                     f"Invalid cloud_cover_type '{self.cloud_cover_type}'. Valid: ic, wc"
                 )
         return self
@@ -156,4 +168,24 @@ class CloudConfig(UvspecOption):
                 lines.append(f"cloudcover wc {self.cloud_cover}")
         if self.cloud_overlap is not None:
             lines.append(f"cloud_overlap {self.cloud_overlap}")
+        if self.cloud_fraction_file is not None:
+            lines.append(f"cloud_fraction_file {self.cloud_fraction_file}")
+        if self.cloud_fraction_map is not None:
+            if isinstance(self.cloud_fraction_map, tuple):
+                f, var, scale = self.cloud_fraction_map
+                lines.append(f"cloud_fraction_map {f} {var} {scale}")
+            else:
+                lines.append(f"cloud_fraction_map {self.cloud_fraction_map}")
+        if self.wc_saturate:
+            lines.append("wc_saturate")
+        if self.ic_saturate:
+            lines.append("ic_saturate")
+        if self.wc_ipa:
+            lines.append("wc_ipa")
+        if self.wc_layer is not None:
+            lines.append(f"wc_layer {self.wc_layer}")
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 6
+        return [(phase, line) for line in self.to_uvspec_lines()]

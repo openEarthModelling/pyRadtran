@@ -30,9 +30,11 @@ class OutputConfig(UvspecOption):
         format: Output file format -- "netcdf" (default), "ascii", "flexstor".
         quiet: Suppress uvspec stdout messages. Default: True.
         verbose: Enable verbose uvspec output.
-        zout: Output altitudes in km above ground level.
+        zout: Output altitudes in km above ground level. Supports float values
+            and special strings like "toa" and "boa".
         output_file: Path for output file (overrides auto-generated name).
         heating_rate: Heating rate calculation mode (e.g. 'local', 'layer_fd').
+        write_optical_properties: Write optical properties to output file.
     """
 
     quantities: list[str] = Field(default_factory=list)
@@ -41,9 +43,10 @@ class OutputConfig(UvspecOption):
     format: str = Field(default="netcdf")
     quiet: bool = True
     verbose: bool = False
-    zout: list[float] = Field(default_factory=list)
+    zout: list[float | str] = Field(default_factory=list)
     output_file: str | None = None
     heating_rate: str | None = None
+    write_optical_properties: bool = False
 
     @model_validator(mode="after")
     def validate_output(self) -> OutputConfig:
@@ -87,4 +90,10 @@ class OutputConfig(UvspecOption):
             lines.append(f"zout {zout_str}")
         if self.output_file is not None:
             lines.append(f"output_file {self.output_file}")
+        if self.write_optical_properties:
+            lines.append("write_optical_properties")
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 9
+        return [(phase, line) for line in self.to_uvspec_lines()]

@@ -177,6 +177,70 @@ class TestAtmosphereConfig:
                 crs_model={"species": "bogus", "model": "Serdyuchenko"},
             )
 
+    def test_mol_modify_precip_cm(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(profile="us", mol_modify=[("H2O", 2.5, "precip_cm")])
+        lines = a.to_uvspec_lines()
+        assert "mol_modify H2O 2.5 precip_cm" in lines
+
+    def test_mol_modify_ppmv(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(profile="us", mol_modify=[("CO2", 410.0, "ppmv")])
+        lines = a.to_uvspec_lines()
+        assert "mol_modify CO2 410.0 ppmv" in lines
+
+    def test_atm_z_grid(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(profile="us", atm_z_grid=[0, 1, 2, 5, 10, 20, 35, 50])
+        lines = a.to_uvspec_lines()
+        assert "atm_z_grid 0.0 1.0 2.0 5.0 10.0 20.0 35.0 50.0" in lines
+
+    def test_radiosonde(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(profile="/data/sonde.dat", radiosonde=True)
+        lines = a.to_uvspec_lines()
+        assert "radiosonde" in lines
+
+    def test_radiosonde_levels_only_requires_radiosonde(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        with pytest.raises(Exception, match="radiosonde_levels_only"):
+            AtmosphereConfig(profile="us", radiosonde_levels_only=True)
+
+    def test_mol_file(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(
+            profile="us", mol_file=[{"species": "CH4", "file": "/data/ch4_vmr.dat"}]
+        )
+        lines = a.to_uvspec_lines()
+        assert "mol_file CH4 /data/ch4_vmr.dat" in lines
+
+    def test_mol_file_with_unit(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(
+            profile="us",
+            mol_file=[{"species": "CH4", "file": "/data/ch4_vmr.dat", "unit": "ppmv"}],
+        )
+        lines = a.to_uvspec_lines()
+        assert "mol_file CH4 /data/ch4_vmr.dat ppmv" in lines
+
+    def test_mol_tau_file(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(profile="us", mol_tau_file=("abs", "/data/tau.dat"))
+        lines = a.to_uvspec_lines()
+        assert "mol_tau_file abs /data/tau.dat" in lines
+
+    def test_rayleigh_depol(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(profile="us", rayleigh_depol=0.0279)
+        lines = a.to_uvspec_lines()
+        assert "rayleigh_depol 0.0279" in lines
+
+    def test_raman(self):
+        from pyradtran.models.atmosphere import AtmosphereConfig
+        a = AtmosphereConfig(profile="us", raman=True)
+        lines = a.to_uvspec_lines()
+        assert "raman" in lines
+
 
 # ---------------------------------------------------------------------------
 # Task 4: SourceConfig tests
@@ -262,6 +326,58 @@ class TestSourceConfigAdvanced:
         lines = s.to_uvspec_lines()
         assert "umu 1.0 0.8" in lines
         assert "phi 0.0 180.0" in lines
+
+    def test_latitude_longitude(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(
+            source="solar", sza=60.0,
+            latitude=("N", 30, 0, 0), longitude=("E", 120, 0, 0),
+        )
+        lines = s.to_uvspec_lines()
+        assert "latitude N 30 0 0" in lines
+        assert "longitude E 120 0 0" in lines
+
+    def test_time(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=60.0, time="10:30:00")
+        lines = s.to_uvspec_lines()
+        assert "time 10:30:00" in lines
+
+    def test_time_interpolate(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=60.0, time="10:30:00", time_interpolate=True)
+        lines = s.to_uvspec_lines()
+        assert "time_interpolate" in lines
+
+    def test_earth_radius(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza=60.0, earth_radius=6371.0)
+        lines = s.to_uvspec_lines()
+        assert "earth_radius 6371.0" in lines
+
+    def test_sza_file(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", sza_file="/data/sza.dat")
+        lines = s.to_uvspec_lines()
+        assert "sza_file /data/sza.dat" in lines
+
+    def test_isotropic_source_toa(self):
+        from pyradtran.models.source import SourceConfig
+
+        s = SourceConfig(source="solar", isotropic_source_toa=True)
+        lines = s.to_uvspec_lines()
+        assert "isotropic_source_toa" in lines
+
+    def test_sza_mutual_exclusion(self):
+        from pyradtran.models.source import SourceConfig
+
+        with pytest.raises(Exception):
+            SourceConfig(source="solar", sza=30.0, sza_file="/data/sza.dat")
 
 
 # ---------------------------------------------------------------------------
@@ -362,6 +478,48 @@ class TestWavelengthConfig:
         with pytest.raises(Exception):
             WavelengthConfig(wavelength_min=-1.0, wavelength_max=1000.0)
 
+    def test_single_wavelength(self):
+        from pyradtran.models.wavelength import WavelengthConfig
+
+        w = WavelengthConfig(wavelength_min=500.0)
+        lines = w.to_uvspec_lines()
+        assert "wavelength 500.0" in lines
+        assert "500.0 500.0" not in "".join(lines)
+
+    def test_wavelength_grid_file(self):
+        from pyradtran.models.wavelength import WavelengthConfig
+
+        w = WavelengthConfig(wavelength_grid_file="/data/wl_grid.dat")
+        lines = w.to_uvspec_lines()
+        assert "wavelength_grid_file /data/wl_grid.dat" in lines
+
+    def test_wavelength_index(self):
+        from pyradtran.models.wavelength import WavelengthConfig
+
+        w = WavelengthConfig(wavelength_min=300.0, wavelength_max=800.0, wavelength_index=(10, 50))
+        lines = w.to_uvspec_lines()
+        assert "wavelength_index 10 50" in lines
+
+    def test_slit_function_file(self):
+        from pyradtran.models.wavelength import WavelengthConfig
+
+        w = WavelengthConfig(
+            wavelength_min=300.0, wavelength_max=800.0,
+            slit_function_file="/data/slit.dat",
+        )
+        lines = w.to_uvspec_lines()
+        assert "slit_function_file /data/slit.dat" in lines
+
+    def test_thermal_bands_file(self):
+        from pyradtran.models.wavelength import WavelengthConfig
+
+        w = WavelengthConfig(
+            wavelength_min=8000.0, wavelength_max=12000.0,
+            thermal_bands_file="/data/bands.dat",
+        )
+        lines = w.to_uvspec_lines()
+        assert "thermal_bands_file /data/bands.dat" in lines
+
 
 # ---------------------------------------------------------------------------
 # Task 4: SolverConfig tests
@@ -409,6 +567,33 @@ class TestSolverConfig:
 
         with pytest.raises(Exception):
             SolverConfig(method="bogus_solver")
+
+    def test_disort_intcor(self):
+        from pyradtran.models.solver import SolverConfig
+
+        s = SolverConfig(method="disort", streams=16, disort_intcor="moments")
+        lines = s.to_uvspec_lines()
+        assert "disort_intcor moments" in lines
+
+    def test_disort_spherical_albedo(self):
+        from pyradtran.models.solver import SolverConfig
+
+        s = SolverConfig(method="disort", disort_spherical_albedo=True)
+        lines = s.to_uvspec_lines()
+        assert "disort_spherical_albedo" in lines
+
+    def test_schwarzschild_streams(self):
+        from pyradtran.models.solver import SolverConfig
+
+        s = SolverConfig(method="schwarzschild", schwarzschild_streams=8)
+        lines = s.to_uvspec_lines()
+        assert "schwarzschild_streams 8" in lines
+
+    def test_disort_intcor_invalid(self):
+        from pyradtran.models.solver import SolverConfig
+
+        with pytest.raises(Exception):
+            SolverConfig(method="disort", disort_intcor="invalid")
 
 
 # ---------------------------------------------------------------------------
@@ -475,6 +660,19 @@ class TestOutputConfig:
 
         with pytest.raises(Exception):
             OutputConfig(format="json")
+
+    def test_zout_toa_boa(self):
+        o = OutputConfig(zout=["toa", 5.0, "boa"])
+        lines = o.to_uvspec_lines()
+        zout_lines = [ln for ln in lines if ln.startswith("zout")]
+        assert len(zout_lines) == 1
+        assert "toa" in zout_lines[0]
+        assert "boa" in zout_lines[0]
+
+    def test_write_optical_properties(self):
+        o = OutputConfig(write_optical_properties=True)
+        lines = o.to_uvspec_lines()
+        assert "write_optical_properties" in lines
 
 
 # ---------------------------------------------------------------------------
@@ -626,6 +824,42 @@ class TestSurfaceConfig:
         with pytest.raises(Exception):
             SurfaceConfig(albedo=0.2, bpdf_tsang_u10=5.0)
 
+    def test_brdf_rossli_file(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(brdf_rossli_file="/data/rossli.dat")
+        lines = s.to_uvspec_lines()
+        assert "brdf_rossli_file /data/rossli.dat" in lines
+
+    def test_brdf_rossli_hotspot(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(brdf_ambrals={"iso": 0.3}, brdf_rossli_hotspot=True)
+        lines = s.to_uvspec_lines()
+        assert "brdf_rossli_hotspot" in lines
+
+    def test_brdf_rpv_file(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(brdf_rpv_file="/data/rpv.dat")
+        lines = s.to_uvspec_lines()
+        assert "brdf_rpv_file /data/rpv.dat" in lines
+
+    def test_surface_type_map(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(surface_type_map="/data/surface_type.nc")
+        lines = s.to_uvspec_lines()
+        assert "surface_type_map /data/surface_type.nc" in lines
+
+    def test_surface_temperature_map(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(surface_temperature_map=("/data/temp.nc", "TS", 1.0))
+        lines = s.to_uvspec_lines()
+        assert "surface_temperature_map /data/temp.nc TS 1.0" in lines
+
+    def test_surface_temperature_map_file_only(self):
+        from pyradtran.models.surface import SurfaceConfig
+        s = SurfaceConfig(surface_temperature_map="/data/temp.nc")
+        lines = s.to_uvspec_lines()
+        assert "surface_temperature_map /data/temp.nc" in lines
+
 
 # ---------------------------------------------------------------------------
 # Task 4: AerosolConfig tests
@@ -679,7 +913,7 @@ class TestAerosolConfig:
     def test_file(self):
         from pyradtran.models.aerosol import AerosolConfig
 
-        a = AerosolConfig(file=("explicit", "/data/profile.dat"))
+        a = AerosolConfig(files=[("explicit", "/data/profile.dat")])
         lines = a.to_uvspec_lines()
         assert "aerosol_file explicit /data/profile.dat" in lines
 
@@ -687,7 +921,7 @@ class TestAerosolConfig:
         from pyradtran.models.aerosol import AerosolConfig
 
         with pytest.raises(Exception):
-            AerosolConfig(file=("invalid", "/data/profile.dat"))
+            AerosolConfig(files=[("invalid", "/data/profile.dat")])
 
     def test_visibility_valid_range(self):
         from pyradtran.models.aerosol import AerosolConfig
@@ -769,6 +1003,39 @@ class TestAerosolConfig:
                 default=True,
                 modify=[{"variable": "ssa", "action": "bogus", "value": 1.0}],
             )
+
+    def test_multiple_aerosol_files(self):
+        from pyradtran.models.aerosol import AerosolConfig
+
+        a = AerosolConfig(
+            files=[("tau", "/data/tau.dat"), ("ssa", "/data/ssa.dat"),
+                   ("moments", "/data/mom.dat")],
+        )
+        lines = a.to_uvspec_lines()
+        assert "aerosol_file tau /data/tau.dat" in lines
+        assert "aerosol_file ssa /data/ssa.dat" in lines
+        assert "aerosol_file moments /data/mom.dat" in lines
+
+    def test_aerosol_file_ref_type(self):
+        from pyradtran.models.aerosol import AerosolConfig
+
+        a = AerosolConfig(files=[("ref", "/data/refr.dat")])
+        lines = a.to_uvspec_lines()
+        assert "aerosol_file ref /data/refr.dat" in lines
+
+    def test_aerosol_file_siz_type(self):
+        from pyradtran.models.aerosol import AerosolConfig
+
+        a = AerosolConfig(files=[("siz", "/data/sizedist.dat")])
+        lines = a.to_uvspec_lines()
+        assert "aerosol_file siz /data/sizedist.dat" in lines
+
+    def test_king_byrne(self):
+        from pyradtran.models.aerosol import AerosolConfig
+
+        a = AerosolConfig(king_byrne=(1.027, -0.25, 0.03))
+        lines = a.to_uvspec_lines()
+        assert "aerosol_king_byrne 1.027 -0.25 0.03" in lines
 
 
 # ---------------------------------------------------------------------------
@@ -891,6 +1158,42 @@ class TestCloudConfig:
         c = CloudConfig()
         lines = c.to_uvspec_lines()
         assert lines == []
+
+    def test_cloud_fraction_file(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(cloud_fraction_file="/data/cfrac.dat")
+        lines = c.to_uvspec_lines()
+        assert "cloud_fraction_file /data/cfrac.dat" in lines
+
+    def test_cloud_fraction_map(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(cloud_fraction_map=("/data/cfrac.nc", "CF", 1.0))
+        lines = c.to_uvspec_lines()
+        assert "cloud_fraction_map /data/cfrac.nc CF 1.0" in lines
+
+    def test_wc_saturate(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(wc_properties="hu", wc_saturate=True)
+        lines = c.to_uvspec_lines()
+        assert "wc_saturate" in lines
+
+    def test_ic_saturate(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(ic_properties="fu", ic_saturate=True)
+        lines = c.to_uvspec_lines()
+        assert "ic_saturate" in lines
+
+    def test_wc_ipa(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(wc_properties="hu", wc_ipa=True)
+        lines = c.to_uvspec_lines()
+        assert "wc_ipa" in lines
+
+    def test_wc_layer(self):
+        from pyradtran.models.cloud import CloudConfig
+        c = CloudConfig(wc_properties="hu", wc_layer=5)
+        lines = c.to_uvspec_lines()
+        assert "wc_layer 5" in lines
 
 
 # ---------------------------------------------------------------------------
@@ -1039,6 +1342,35 @@ class TestMcConfig:
     def test_extra_field_forbidden(self):
         with pytest.raises(Exception):
             McConfig(nonexistent_option=1)
+
+    def test_relerr(self):
+        mc = McConfig(relerr=0.01)
+        lines = mc.to_uvspec_lines()
+        assert "mc_relerr 0.01" in lines
+
+    def test_coherent_backscatter(self):
+        mc = McConfig(coherent_backscatter=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_coherent_backscatter" in lines
+
+    def test_nca(self):
+        mc = McConfig(nca=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_nca" in lines
+
+    def test_bcond(self):
+        mc = McConfig(bcond="periodic")
+        lines = mc.to_uvspec_lines()
+        assert "mc_bcond periodic" in lines
+
+    def test_bcond_invalid(self):
+        with pytest.raises(Exception):
+            McConfig(bcond="invalid")
+
+    def test_aerosol_is(self):
+        mc = McConfig(aerosol_is=True)
+        lines = mc.to_uvspec_lines()
+        assert "mc_aerosol_is" in lines
 
 
 # ---------------------------------------------------------------------------
@@ -1283,3 +1615,78 @@ class TestAdvancedConfig:
     def test_extra_field_forbidden(self):
         with pytest.raises(Exception):
             AdvancedConfig(invalid=1)
+
+
+# ---------------------------------------------------------------------------
+# to_uvspec_items() phase tests
+# ---------------------------------------------------------------------------
+
+
+def test_to_uvspec_items_default_phase():
+    items = FakeOption(wavelength=550.0, sza=30.0).to_uvspec_items()
+    assert len(items) == 2
+    assert items[0] == (9, "wavelength 550.0")
+    assert items[1] == (9, "sza 30.0")
+
+
+def test_atmosphere_phase_1():
+    from pyradtran.models.atmosphere import AtmosphereConfig
+
+    items = AtmosphereConfig(profile="us", altitude=2.5).to_uvspec_items()
+    assert all(phase == 1 for phase, _ in items)
+
+
+def test_source_phase_2():
+    from pyradtran.models.source import SourceConfig
+
+    items = SourceConfig(source="solar", sza=30.0).to_uvspec_items()
+    assert all(phase == 2 for phase, _ in items)
+
+
+def test_solver_phase_8():
+    from pyradtran.models.solver import SolverConfig
+
+    items = SolverConfig(method="disort", streams=16).to_uvspec_items()
+    assert all(phase == 8 for phase, _ in items)
+
+
+def test_output_phase_9():
+    from pyradtran.models.output import OutputConfig
+
+    items = OutputConfig(quiet=True).to_uvspec_items()
+    assert all(phase == 9 for phase, _ in items)
+
+
+class TestSpecialConfig:
+    def test_no_absorption(self):
+        from pyradtran.models.special import SpecialConfig
+        s = SpecialConfig(no_absorption=True)
+        items = s._scattering_items()
+        assert (4, "no_absorption") in items
+
+    def test_no_scattering(self):
+        from pyradtran.models.special import SpecialConfig
+        s = SpecialConfig(no_scattering=True)
+        items = s._scattering_items()
+        assert (4, "no_scattering") in items
+
+    def test_no_scattering_mol(self):
+        from pyradtran.models.special import SpecialConfig
+        s = SpecialConfig(no_scattering_mol=True)
+        items = s._scattering_items()
+        assert (4, "no_scattering mol") in items
+
+    def test_include_files(self):
+        from pyradtran.models.special import SpecialConfig
+        s = SpecialConfig(include_files=["extra_options.inp"])
+        assert s.include_files == ["extra_options.inp"]
+
+    def test_mutual_exclusion(self):
+        from pyradtran.models.special import SpecialConfig
+        with pytest.raises(Exception):
+            SpecialConfig(no_scattering=True, no_scattering_mol=True)
+
+    def test_empty(self):
+        from pyradtran.models.special import SpecialConfig
+        s = SpecialConfig()
+        assert s._scattering_items() == []

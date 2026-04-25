@@ -54,6 +54,11 @@ class SurfaceConfig(UvspecOption):
     bpdf_litvinov: dict[str, float] | None = None
     bpdf_maignan: dict[str, float] | None = None
     bpdf_tsang_u10: float | None = Field(default=None, ge=0.0, le=100.0)
+    brdf_rossli_file: str | None = None
+    brdf_rossli_hotspot: bool = False
+    brdf_rpv_file: str | None = None
+    surface_type_map: str | None = None
+    surface_temperature_map: str | tuple[str, str, float] | None = None
 
     @model_validator(mode="after")
     def check_mutual_exclusion(self) -> SurfaceConfig:
@@ -141,4 +146,22 @@ class SurfaceConfig(UvspecOption):
             lines.append(f"bpdf_tsang_u10 {self.bpdf_tsang_u10}")
         if self.sur_temperature is not None:
             lines.append(f"sur_temperature {self.sur_temperature}")
+        if self.brdf_rossli_file is not None:
+            lines.append(f"brdf_rossli_file {self.brdf_rossli_file}")
+        if self.brdf_rossli_hotspot:
+            lines.append("brdf_rossli_hotspot")
+        if self.brdf_rpv_file is not None:
+            lines.append(f"brdf_rpv_file {self.brdf_rpv_file}")
+        if self.surface_type_map is not None:
+            lines.append(f"surface_type_map {self.surface_type_map}")
+        if self.surface_temperature_map is not None:
+            if isinstance(self.surface_temperature_map, tuple):
+                f, var, scale = self.surface_temperature_map
+                lines.append(f"surface_temperature_map {f} {var} {scale}")
+            else:
+                lines.append(f"surface_temperature_map {self.surface_temperature_map}")
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 7
+        return [(phase, line) for line in self.to_uvspec_lines()]

@@ -49,3 +49,7 @@ class AdvancedConfig(UvspecOption):
                 line += f" {self.raman_variant}"
             lines.append(line)
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 12
+        return [(phase, line) for line in self.to_uvspec_lines()]

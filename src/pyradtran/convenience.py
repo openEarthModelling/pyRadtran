@@ -166,7 +166,7 @@ def run_solar_radiance(
             quantities=["lambda", "edir", "edn", "eup"],
             format="netcdf",
             quiet=True,
-            zout=[0, 100],
+            zout=[0, "toa"],
         )
         .set_surface(albedo=albedo)
     )
@@ -235,14 +235,14 @@ def run_with_aerosol(
             quantities=["lambda", "edir", "edn", "eup"],
             format="netcdf",
             quiet=True,
-            zout=[0, 100],
+            zout=[0, "toa"],
         )
         .set_surface(albedo=albedo)
     )
 
     if aerosol_file_path is not None:
         scene = scene.set_aerosol(
-            file=(aerosol_file_type, aerosol_file_path),
+            files=[(aerosol_file_type, aerosol_file_path)],
         )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
@@ -306,7 +306,7 @@ def run_cloudy_scene(
             quantities=["lambda", "edir", "edn", "eup"],
             format="netcdf",
             quiet=True,
-            zout=[0, 100],
+            zout=[0, "toa"],
         )
         .set_surface(albedo=albedo)
     )
@@ -416,8 +416,9 @@ def run_polarized(
         .set_source_solar(sza=sza)
         .set_wavelength(wl_min, wl_max)
         .set_solver(method="mystic", streams=streams)
-        .set_mc(photons=photons, polarisation=True)
-        .set_output(quiet=True, format="netcdf")
+        .set_aerosol(default=True)
+        .set_mc(photons=photons, backward=True, polarisation=True)
+        .set_output(quantities=["lambda", "uu_pol"], quiet=True, format="netcdf")
     )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)

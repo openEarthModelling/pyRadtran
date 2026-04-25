@@ -36,6 +36,8 @@ VALID_BPDF_MODELS = frozenset({
     "litvinov", "maignan", "tsang_u10",
 })
 
+_VALID_BCOND = frozenset({"periodic", "mirror", "absorb"})
+
 
 class McConfig(UvspecOption):
     """Monte Carlo (MYSTIC) solver configuration.
@@ -127,6 +129,11 @@ class McConfig(UvspecOption):
     basename: str | None = None
     min_scatters: int | None = Field(default=None, ge=0)
     sun_angular_size: float | None = Field(default=None, ge=0.0, le=10.0)
+    relerr: float | None = Field(default=None, ge=0.0)
+    coherent_backscatter: bool = False
+    nca: bool = False
+    aerosol_is: bool = False
+    bcond: str | None = None
 
     @model_validator(mode="after")
     def validate_mc(self) -> McConfig:
@@ -175,6 +182,10 @@ class McConfig(UvspecOption):
         if self.bpdf is not None and self.bpdf not in VALID_BPDF_MODELS:
             raise ValueError(
                 f"Invalid bpdf '{self.bpdf}'. Valid: {sorted(VALID_BPDF_MODELS)}"
+            )
+        if self.bcond is not None and self.bcond not in _VALID_BCOND:
+            raise ValueError(
+                f"Invalid bcond '{self.bcond}'. Valid: {sorted(_VALID_BCOND)}"
             )
 
         return self
@@ -287,6 +298,17 @@ class McConfig(UvspecOption):
         if self.sun_angular_size is not None:
             lines.append(f"mc_sun_angular_size {self.sun_angular_size}")
 
+        if self.relerr is not None:
+            lines.append(f"mc_relerr {self.relerr}")
+        if self.coherent_backscatter:
+            lines.append("mc_coherent_backscatter")
+        if self.nca:
+            lines.append("mc_nca")
+        if self.aerosol_is:
+            lines.append("mc_aerosol_is")
+        if self.bcond is not None:
+            lines.append(f"mc_bcond {self.bcond}")
+
         # --- Surface files (Phase 4) ---
         if self.albedo_file is not None:
             lines.append(f"mc_albedo_file {self.albedo_file}")
@@ -310,3 +332,7 @@ class McConfig(UvspecOption):
             lines.append(f"mc_triangular_surface_file {self.triangular_surface_file}")
 
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 10
+        return [(phase, line) for line in self.to_uvspec_lines()]

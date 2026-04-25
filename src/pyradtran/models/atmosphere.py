@@ -38,6 +38,14 @@ class AtmosphereConfig(UvspecOption):
             Units: DU, CM_2, MM.
         mol_abs_param: Molecular absorption parameterization scheme string.
             Default is reptran coarse (handled by uvspec internally).
+        atm_z_grid: Custom altitude grid in km.
+        radiosonde: Use radiosonde profile data.
+        radiosonde_levels_only: Use only radiosonde levels (requires radiosonde=True).
+        mol_file: List of molecular VMR profile files, each a dict with
+            keys "species", "file", and optional "unit".
+        mol_tau_file: Molecular optical thickness file as (kind, filepath) tuple.
+        rayleigh_depol: Rayleigh scattering depolarization factor.
+        raman: Enable Raman scattering.
     """
 
     profile: str = Field(min_length=1)
@@ -46,12 +54,19 @@ class AtmosphereConfig(UvspecOption):
     mol_modify: list[tuple[str, float, str]] = Field(default_factory=list)
     mol_abs_param: str | None = None
     crs_model: dict[str, str] | list[dict[str, str]] | None = None
+    atm_z_grid: list[float] | None = Field(default=None)
+    radiosonde: bool = False
+    radiosonde_levels_only: bool = False
+    mol_file: list[dict[str, str]] | None = None
+    mol_tau_file: tuple[str, str] | None = None
+    rayleigh_depol: float | None = Field(default=None, ge=0.0, le=1.0)
+    raman: bool = False
 
     _VALID_MOL_SPECIES = frozenset({
         "O3", "O2", "H2O", "CO2", "NO2", "BRO", "OCLO",
         "HCHO", "O4", "SO2", "CH4", "N2O", "CO", "N2",
     })
-    _VALID_MOL_UNITS = frozenset({"DU", "CM_2", "MM"})
+    _VALID_MOL_UNITS = frozenset({"DU", "CM_2", "MM", "precip_cm", "ppmv"})
     _VALID_CRS_SPECIES = frozenset({
         "rayleigh", "o3", "no2", "o4",
     })
@@ -98,6 +113,12 @@ class AtmosphereConfig(UvspecOption):
                     )
         return self
 
+    @model_validator(mode="after")
+    def validate_radiosonde(self) -> AtmosphereConfig:
+        if self.radiosonde_levels_only and not self.radiosonde:
+            raise ValueError("radiosonde_levels_only requires radiosonde=True")
+        return self
+
     def _resolve_profile(self) -> str:
         name = self.profile.strip()
         return PROFILE_ALIASES.get(name, name)
@@ -118,4 +139,31 @@ class AtmosphereConfig(UvspecOption):
             entries = self.crs_model if isinstance(self.crs_model, list) else [self.crs_model]
             for entry in entries:
                 lines.append(f"crs_model {entry['species']} {entry['model']}")
+        if self.atm_z_grid is not None:
+            vals = " ".join(str(v) for v in self.atm_z_grid)
+            lines.append(f"atm_z_grid {vals}")
+        if self.radiosonde:
+            lines.append("radiosonde")
+        if self.radiosonde_levels_only:
+            lines.append("radiosonde_levels_only")
+        if self.mol_file is not None:
+            for entry in self.mol_file:
+                species = entry["species"]
+                filepath = entry["file"]
+                unit = entry.get("unit", "")
+                if unit:
+                    lines.append(f"mol_file {species} {filepath} {unit}")
+                else:
+                    lines.append(f"mol_file {species} {filepath}")
+        if self.mol_tau_file is not None:
+            kind, filepath = self.mol_tau_file
+            lines.append(f"mol_tau_file {kind} {filepath}")
+        if self.rayleigh_depol is not None:
+            lines.append(f"rayleigh_depol {self.rayleigh_depol}")
+        if self.raman:
+            lines.append("raman")
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 1
+        return [(phase, line) for line in self.to_uvspec_lines()]

@@ -18,6 +18,7 @@ from pyradtran.models.mc import McConfig
 from pyradtran.models.output import OutputConfig
 from pyradtran.models.solver import SolverConfig
 from pyradtran.models.source import SourceConfig
+from pyradtran.models.special import SpecialConfig
 from pyradtran.models.sslidar import SslidarConfig
 from pyradtran.models.surface import SurfaceConfig
 from pyradtran.models.three_d import ThreeDConfig
@@ -56,6 +57,7 @@ class Scene:
         sslidar: SslidarConfig | None = None,
         advanced: AdvancedConfig | None = None,
         three_d: ThreeDConfig | None = None,
+        special: SpecialConfig | None = None,
         raw_keywords: list[tuple[str, str]] | None = None,
     ):
         self.atmosphere = atmosphere
@@ -70,6 +72,7 @@ class Scene:
         self.sslidar = sslidar
         self.advanced = advanced
         self.three_d = three_d
+        self.special = special
         self.raw_keywords = raw_keywords or []
 
     def clone(self) -> Scene:
@@ -108,7 +111,7 @@ class Scene:
 
     # --- Wavelength ---
 
-    def set_wavelength(self, wl_min: float, wl_max: float, **kwargs) -> Scene:
+    def set_wavelength(self, wl_min: float, wl_max: float | None = None, **kwargs) -> Scene:
         new = self.clone()
         new.wavelength = WavelengthConfig(wavelength_min=wl_min, wavelength_max=wl_max, **kwargs)
         return new
@@ -216,6 +219,14 @@ class Scene:
             new.three_d = ThreeDConfig(**kwargs)
         return new
 
+    def set_special(self, **kwargs) -> Scene:
+        new = self.clone()
+        if new.special is not None:
+            new.special = new.special.model_copy(update=kwargs)
+        else:
+            new.special = SpecialConfig(**kwargs)
+        return new
+
     def set_satellite(self, geometry: str | None = None,
                       pixel: tuple[int, int] | None = None,
                       **source_kwargs) -> Scene:
@@ -287,6 +298,7 @@ class Scene:
             sslidar=self.sslidar,
             advanced=self.advanced,
             three_d=self.three_d,
+            special=self.special,
             raw_keywords=self.raw_keywords or None,
             data_files_path=data_files_path,
         )
@@ -317,6 +329,8 @@ class Scene:
             components.append("advanced")
         if self.three_d:
             components.append("three_d")
+        if self.special:
+            components.append("special")
         n_raw = len(self.raw_keywords) if self.raw_keywords else 0
         if n_raw:
             components.append(f"{n_raw} raw keywords")

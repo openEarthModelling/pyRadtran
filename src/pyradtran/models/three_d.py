@@ -40,3 +40,7 @@ class ThreeDConfig(UvspecOption):
         if self.atmosphere_file is not None:
             lines.append(f"atmosphere_file {self.atmosphere_file}")
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 11
+        return [(phase, line) for line in self.to_uvspec_lines()]

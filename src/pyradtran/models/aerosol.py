@@ -15,7 +15,7 @@ from pydantic import Field, model_validator
 
 from pyradtran.models.base import UvspecOption
 
-_VALID_FILE_TYPES = frozenset({"gg", "ssa", "tau", "explicit", "moments"})
+_VALID_FILE_TYPES = frozenset({"gg", "ssa", "tau", "explicit", "moments", "ref", "siz"})
 _VALID_MODIFY_VARIABLES = frozenset({"gg", "ssa", "tau", "tau550"})
 _VALID_MODIFY_ACTIONS = frozenset({"scale", "set"})
 
@@ -65,7 +65,8 @@ class AerosolConfig(UvspecOption):
         vulcan: Aerosol situation above 2 km [1, 4].
         season: Season [1, 2]. 1=spring-summer, 2=fall-winter.
         visibility: Horizontal visibility in km.
-        file: Tuple of (file_type, file_path). Type: "gg", "ssa", "tau", "explicit", "moments".
+        files: List of (file_type, file_path) tuples. Types: "gg", "ssa", "tau",
+            "explicit", "moments", "ref", "siz".
         modify: List of aerosol modification directives.
         refrac_index: Tuple of (real, imaginary) refractive index parts.
         refrac_file: Path to refractive index file (wavelength-dependent).
@@ -73,6 +74,7 @@ class AerosolConfig(UvspecOption):
         species_file: Path to aerosol species profile file.
         species_names: Optional list of species names for species_file.
         species_library: Path to aerosol species library directory.
+        king_byrne: Tuple of (a0, a1, a2) King-Byrne aerosol parameters.
     """
 
     default: bool = False
@@ -83,7 +85,7 @@ class AerosolConfig(UvspecOption):
     vulcan: int | None = Field(default=None, ge=1, le=4)
     season: int | None = Field(default=None, ge=1, le=2)
     visibility: float | None = Field(default=None, ge=0.0, le=1e6)
-    file: tuple[str, str] | None = None
+    files: list[tuple[str, str]] = Field(default_factory=list)
     modify: list[AerosolModifyEntry] = Field(default_factory=list)
     refrac_index: tuple[float, float] | None = None
     refrac_file: str | None = None
@@ -91,6 +93,12 @@ class AerosolConfig(UvspecOption):
     species_file: str | None = None
     species_names: list[str] | None = None
     species_library: str | None = None
+    king_byrne: tuple[float, float, float] | None = None
+
+    @property
+    def file(self) -> tuple[str, str] | None:
+        """Deprecated: use 'files' instead. Returns first file or None."""
+        return self.files[0] if self.files else None
 
     @model_validator(mode="after")
     def validate_aerosol(self) -> AerosolConfig:
@@ -102,13 +110,13 @@ class AerosolConfig(UvspecOption):
             raise ValueError("angstrom_beta must be set when angstrom_alpha is set")
         if self.angstrom_beta is not None and self.angstrom_alpha is None:
             raise ValueError("angstrom_alpha must be set when angstrom_beta is set")
-        if self.file is not None:
-            file_type = self.file[0]
-            if file_type not in _VALID_FILE_TYPES:
-                raise ValueError(
-                    f"Unknown aerosol file type '{file_type}'. "
-                    f"Valid: {sorted(_VALID_FILE_TYPES)}"
-                )
+        if self.files:
+            for file_type, _ in self.files:
+                if file_type not in _VALID_FILE_TYPES:
+                    raise ValueError(
+                        f"Unknown aerosol file type '{file_type}'. "
+                        f"Valid: {sorted(_VALID_FILE_TYPES)}"
+                    )
         if self.refrac_index is not None and self.refrac_file is not None:
             raise ValueError("Cannot set both refrac_index and refrac_file")
         if self.species_names is not None and self.species_file is None:
@@ -119,8 +127,9 @@ class AerosolConfig(UvspecOption):
         lines: list[str] = []
         if self.default:
             lines.append("aerosol_default")
-        if self.file is not None:
-            lines.append(f"aerosol_file {self.file[0]} {self.file[1]}")
+        if self.files:
+            for file_type, filepath in self.files:
+                lines.append(f"aerosol_file {file_type} {filepath}")
         elif self.haze is not None or self.vulcan is not None:
             if self.haze is not None:
                 lines.append(f"aerosol_haze {self.haze}")
@@ -150,6 +159,13 @@ class AerosolConfig(UvspecOption):
                 lines.append(f"aerosol_species_file {self.species_file}")
         if self.species_library is not None:
             lines.append(f"aerosol_species_library {self.species_library}")
+        if self.king_byrne is not None:
+            a0, a1, a2 = self.king_byrne
+            lines.append(f"aerosol_king_byrne {a0} {a1} {a2}")
         for entry in self.modify:
             lines.append(entry.to_uvspec_line())
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 5
+        return [(phase, line) for line in self.to_uvspec_lines()]

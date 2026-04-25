@@ -21,6 +21,8 @@ VALID_SOLVERS = frozenset({
 
 VALID_HEAT_UNITS = frozenset({"K_per_day", "W_per_m2_and_dz", "W_per_m3"})
 
+_VALID_DISORT_INTCOR = frozenset({"phase", "moments", "off"})
+
 
 class SolverConfig(UvspecOption):
     """Radiative transfer solver configuration.
@@ -42,6 +44,9 @@ class SolverConfig(UvspecOption):
     dynamic_iterations: int | None = Field(default=None, ge=0)
     dynamic_history: bool = False
     dynamic_heat_unit: str | None = None
+    disort_intcor: str | None = None
+    disort_spherical_albedo: bool = False
+    schwarzschild_streams: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def validate_solver(self) -> SolverConfig:
@@ -54,6 +59,11 @@ class SolverConfig(UvspecOption):
                 f"Invalid dynamic_heat_unit '{self.dynamic_heat_unit}'. "
                 f"Valid: {sorted(VALID_HEAT_UNITS)}"
             )
+        if self.disort_intcor is not None and self.disort_intcor not in _VALID_DISORT_INTCOR:
+            raise ValueError(
+                f"Invalid disort_intcor '{self.disort_intcor}'. "
+                f"Valid: {sorted(_VALID_DISORT_INTCOR)}"
+            )
         return self
 
     def to_uvspec_lines(self) -> list[str]:
@@ -64,6 +74,12 @@ class SolverConfig(UvspecOption):
             lines.append("pseudospherical")
         if self.deltam:
             lines.append("deltam")
+        if self.disort_intcor is not None:
+            lines.append(f"disort_intcor {self.disort_intcor}")
+        if self.disort_spherical_albedo:
+            lines.append("disort_spherical_albedo")
+        if self.schwarzschild_streams is not None:
+            lines.append(f"schwarzschild_streams {self.schwarzschild_streams}")
         if self.method.startswith("dynamic_"):
             prefix = self.method  # e.g. "dynamic_twostream" or "dynamic_tenstream"
             if self.dynamic_iterations is not None:
@@ -73,3 +89,7 @@ class SolverConfig(UvspecOption):
             if self.dynamic_heat_unit is not None:
                 lines.append(f"{prefix}_heat_unit {self.dynamic_heat_unit}")
         return lines
+
+    def to_uvspec_items(self) -> list[tuple[int, str]]:
+        phase = 8
+        return [(phase, line) for line in self.to_uvspec_lines()]

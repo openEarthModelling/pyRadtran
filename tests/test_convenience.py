@@ -83,7 +83,7 @@ def test_run_with_aerosol_creates_scene():
             sza=45.0,
         )
         scene_arg = _get_scene_arg(mock_exec)
-        assert scene_arg.aerosol.file == ("explicit", "/data/profile.dat")
+        assert scene_arg.aerosol.files == [("explicit", "/data/profile.dat")]
 
 
 def test_run_cloudy_scene_creates_scene():
@@ -137,6 +137,9 @@ def test_run_polarized_creates_scene():
         assert scene_arg.mc is not None
         assert scene_arg.mc.photons == 50000
         assert scene_arg.mc.polarisation is True
+        assert scene_arg.mc.backward is True
+        assert scene_arg.aerosol is not None
+        assert scene_arg.aerosol.default is True
         assert scene_arg.solver.method == "mystic"
         assert scene_arg.source.sza == 45.0
 
