@@ -7,6 +7,7 @@ import math
 import xarray as xr
 
 from pyradtran.core.runner import Runner
+from pyradtran.models.aerosol import ExternalAerosol, OpacCustom, OpacPreset, OpacPresetName
 from pyradtran.scene import Scene
 
 
@@ -225,7 +226,6 @@ def run_with_aerosol(
     )
 
     if aerosol_file_path is not None:
-        from pyradtran.models.aerosol import ExternalAerosol
         scene = scene.set_aerosol(
             ExternalAerosol(files=[(aerosol_file_type, aerosol_file_path)]),
         )
@@ -270,7 +270,6 @@ def run_with_opac_preset(
     Returns:
         xarray.Dataset with irradiance vs wavelength.
     """
-    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
     from pyradtran.presets import resolve_altitude
 
     resolved_altitude = resolve_altitude(altitude)
@@ -335,7 +334,6 @@ def run_with_opac_custom(
     Returns:
         xarray.Dataset with irradiance vs wavelength.
     """
-    from pyradtran.models.aerosol import OpacCustom
     from pyradtran.presets import resolve_altitude
 
     resolved_altitude = resolve_altitude(altitude)
@@ -525,7 +523,6 @@ def run_polarized(
     Returns:
         xarray.Dataset with polarized radiance.
     """
-    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
     from pyradtran.presets import resolve_altitude
 
     scene = (

@@ -28,6 +28,16 @@ _VALID_OPAC_SPECIES = frozenset({
 })
 
 
+def _validate_opac_species_names(names: list[str]) -> None:
+    """Validate that species names are valid OPAC species."""
+    invalid = set(names) - _VALID_OPAC_SPECIES
+    if invalid:
+        raise ValueError(
+            f"Invalid OPAC species: {sorted(invalid)}. "
+            f"Valid: {sorted(_VALID_OPAC_SPECIES)}"
+        )
+
+
 class OpacPresetName(str, Enum):
     """OPAC preset mixture profile names.
 
@@ -74,7 +84,7 @@ class AerosolModifyEntry(UvspecOption):
             )
         return self
 
-    def to_uvspec_line(self) -> str:
+    def _format_line(self) -> str:
         return f"aerosol_modify {self.variable} {self.action} {self.value}"
 
 
@@ -103,7 +113,7 @@ class AerosolModel(UvspecOption):
             a0, a1, a2 = self.king_byrne
             items.append((phase, f"aerosol_king_byrne {a0} {a1} {a2}"))
         for entry in self.modify:
-            items.append((phase, entry.to_uvspec_line()))
+            items.append((phase, entry._format_line()))
         return items
 
 
@@ -127,12 +137,7 @@ class OpacPreset(AerosolModel):
     @model_validator(mode="after")
     def validate_species(self) -> OpacPreset:
         if self.species_names:
-            invalid = set(self.species_names) - _VALID_OPAC_SPECIES
-            if invalid:
-                raise ValueError(
-                    f"Invalid OPAC species: {sorted(invalid)}. "
-                    f"Valid: {sorted(_VALID_OPAC_SPECIES)}"
-                )
+            _validate_opac_species_names(self.species_names)
         return self
 
     def to_uvspec_lines(self) -> list[str]:
@@ -152,7 +157,7 @@ class OpacCustom(AerosolModel):
 
     Attributes:
         species_file: Path to an ASCII profile file.
-        library: OPAC library path or "OPAC" for uvspec default resolution.
+        library: OPAC library path or "OPAC" for default resolution.
         species_names: Optional species filter.
     """
 
@@ -163,12 +168,7 @@ class OpacCustom(AerosolModel):
     @model_validator(mode="after")
     def validate_species(self) -> OpacCustom:
         if self.species_names:
-            invalid = set(self.species_names) - _VALID_OPAC_SPECIES
-            if invalid:
-                raise ValueError(
-                    f"Invalid OPAC species: {sorted(invalid)}. "
-                    f"Valid: {sorted(_VALID_OPAC_SPECIES)}"
-                )
+            _validate_opac_species_names(self.species_names)
         return self
 
     def to_uvspec_lines(self) -> list[str]:

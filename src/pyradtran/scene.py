@@ -11,7 +11,7 @@ import copy
 
 from pyradtran.core.input_builder import build_input_text
 from pyradtran.models.advanced import AdvancedConfig
-from pyradtran.models.aerosol import AerosolModel, OpacPreset, OpacPresetName
+from pyradtran.models.aerosol import AerosolModifyEntry, AerosolModel, OpacPreset, OpacPresetName
 from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.cloud import CloudConfig
 from pyradtran.models.mc import McConfig
@@ -161,7 +161,6 @@ class Scene:
             action: Modification type (scale or set).
             value: Numeric value.
         """
-        from pyradtran.models.aerosol import AerosolModifyEntry, OpacPreset, OpacPresetName
 
         new = self.clone()
         if new.aerosol is None:
