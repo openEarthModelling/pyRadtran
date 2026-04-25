@@ -11,7 +11,7 @@ import copy
 
 from pyradtran.core.input_builder import build_input_text
 from pyradtran.models.advanced import AdvancedConfig
-from pyradtran.models.aerosol import AerosolConfig
+from pyradtran.models.aerosol import AerosolModel, OpacPreset, OpacPresetName
 from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.cloud import CloudConfig
 from pyradtran.models.mc import McConfig
@@ -51,7 +51,7 @@ class Scene:
         solver: SolverConfig | None = None,
         output: OutputConfig | None = None,
         surface: SurfaceConfig | None = None,
-        aerosol: AerosolConfig | None = None,
+        aerosol: AerosolModel | None = None,
         cloud: CloudConfig | None = None,
         mc: McConfig | None = None,
         sslidar: SslidarConfig | None = None,
@@ -145,12 +145,10 @@ class Scene:
 
     # --- Aerosol ---
 
-    def set_aerosol(self, **kwargs) -> Scene:
+    def set_aerosol(self, aerosol: AerosolModel) -> Scene:
+        """Set aerosol configuration from an AerosolModel instance."""
         new = self.clone()
-        if new.aerosol is not None:
-            new.aerosol = new.aerosol.model_copy(update=kwargs)
-        else:
-            new.aerosol = AerosolConfig(**kwargs)
+        new.aerosol = aerosol
         return new
 
     def set_aerosol_modify(
@@ -163,11 +161,11 @@ class Scene:
             action: Modification type (scale or set).
             value: Numeric value.
         """
-        from pyradtran.models.aerosol import AerosolModifyEntry
+        from pyradtran.models.aerosol import AerosolModifyEntry, OpacPreset, OpacPresetName
 
         new = self.clone()
         if new.aerosol is None:
-            new.aerosol = AerosolConfig()
+            new.aerosol = OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
         entry = AerosolModifyEntry(variable=variable, action=action, value=value)
         modify_list = list(new.aerosol.modify) + [entry]
         new.aerosol = new.aerosol.model_copy(update={"modify": modify_list})
