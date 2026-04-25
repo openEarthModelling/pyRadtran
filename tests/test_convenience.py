@@ -63,11 +63,6 @@ def test_run_solar_radiance_creates_scene():
         result = run_solar_radiance(sza=60.0, airmass=2.0)
         assert result is mock_dataset
 
-    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
-        run_solar_radiance(sza=60.0, aerosol_tau=0.1)
-        scene_arg = _get_scene_arg(mock_exec)
-        assert scene_arg.aerosol is not None
-
 
 def test_run_with_aerosol_creates_scene():
     """Verify run_with_aerosol passes aerosol config correctly."""
@@ -83,6 +78,7 @@ def test_run_with_aerosol_creates_scene():
             sza=45.0,
         )
         scene_arg = _get_scene_arg(mock_exec)
+        assert scene_arg.aerosol is not None
         assert scene_arg.aerosol.files == [("explicit", "/data/profile.dat")]
 
 
@@ -139,7 +135,9 @@ def test_run_polarized_creates_scene():
         assert scene_arg.mc.polarisation is True
         assert scene_arg.mc.backward is True
         assert scene_arg.aerosol is not None
-        assert scene_arg.aerosol.default is True
+        from pyradtran.models.aerosol import OpacPreset
+        assert isinstance(scene_arg.aerosol, OpacPreset)
+        assert scene_arg.aerosol.name.value == "continental_average"
         assert scene_arg.solver.method == "mystic"
         assert scene_arg.source.sza == 45.0
 
@@ -166,3 +164,35 @@ class TestRunSatellite:
             uvspec_exe=uvspec_exe,
         )
         assert isinstance(result, xr.Dataset)
+
+
+def test_run_with_opac_preset_creates_scene():
+    """Verify run_with_opac_preset passes OPAC config correctly."""
+    from unittest.mock import MagicMock, patch
+
+    from pyradtran.convenience import run_with_opac_preset
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_with_opac_preset(preset="maritime_clean", sza=45.0)
+        scene_arg = _get_scene_arg(mock_exec)
+        assert scene_arg.aerosol is not None
+        from pyradtran.models.aerosol import OpacPreset
+        assert isinstance(scene_arg.aerosol, OpacPreset)
+        assert scene_arg.aerosol.name.value == "maritime_clean"
+
+
+def test_run_with_opac_custom_creates_scene():
+    """Verify run_with_opac_custom passes custom OPAC config correctly."""
+    from unittest.mock import MagicMock, patch
+
+    from pyradtran.convenience import run_with_opac_custom
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_with_opac_custom(species_file="/data/my_aerosol.dat", sza=45.0)
+        scene_arg = _get_scene_arg(mock_exec)
+        assert scene_arg.aerosol is not None
+        from pyradtran.models.aerosol import OpacCustom
+        assert isinstance(scene_arg.aerosol, OpacCustom)
+        assert scene_arg.aerosol.species_file == "/data/my_aerosol.dat"
