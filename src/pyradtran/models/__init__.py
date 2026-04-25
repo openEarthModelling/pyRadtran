@@ -1,7 +1,14 @@
 """Pydantic models mapping 1:1 to uvspec keyword groups."""
 
 from pyradtran.models.advanced import AdvancedConfig
-from pyradtran.models.aerosol import AerosolConfig
+from pyradtran.models.aerosol import (
+    AerosolModel,
+    AerosolModifyEntry,
+    ExternalAerosol,
+    OpacCustom,
+    OpacPreset,
+    OpacPresetName,
+)
 from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.base import UvspecOption
 from pyradtran.models.cloud import CloudConfig
@@ -23,7 +30,12 @@ __all__ = [
     "SolverConfig",
     "OutputConfig",
     "SurfaceConfig",
-    "AerosolConfig",
+    "AerosolModel",
+    "AerosolModifyEntry",
+    "OpacPreset",
+    "OpacPresetName",
+    "OpacCustom",
+    "ExternalAerosol",
     "CloudConfig",
     "McConfig",
     "AdvancedConfig",
