@@ -71,10 +71,11 @@ class TestSceneBuilder:
         scene = Scene().set_surface(albedo=0.2)
         assert scene.surface.albedo == 0.2
 
-    def test_set_aerosol_default(self):
-        scene = Scene().set_aerosol(default=True, angstrom_alpha=1.3, angstrom_beta=0.08)
+    def test_set_aerosol(self):
+        from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+        scene = Scene().set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
         assert scene.aerosol is not None
-        assert scene.aerosol.default is True
+        assert scene.aerosol.name == OpacPresetName.CONTINENTAL_AVERAGE
 
     def test_build_input_returns_string(self):
         scene = (
@@ -123,17 +124,25 @@ class TestSceneBuilder:
 
 
 def test_set_aerosol_modify():
-    scene = Scene().set_atmosphere(profile="us").set_aerosol(default=True)
+    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+    scene = Scene().set_atmosphere(profile="us").set_aerosol(
+        OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+    )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
-    lines = scene2.aerosol.to_uvspec_lines()
+    items = scene2.aerosol.to_uvspec_items()
+    lines = [line for _, line in items]
     assert "aerosol_modify ssa scale 0.85" in lines
 
 
 def test_set_aerosol_modify_multiple():
-    scene = Scene().set_atmosphere(profile="us").set_aerosol(default=True)
+    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+    scene = Scene().set_atmosphere(profile="us").set_aerosol(
+        OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+    )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     scene3 = scene2.set_aerosol_modify("gg", "set", 0.7)
-    lines = scene3.aerosol.to_uvspec_lines()
+    items = scene3.aerosol.to_uvspec_items()
+    lines = [line for _, line in items]
     assert "aerosol_modify ssa scale 0.85" in lines
     assert "aerosol_modify gg set 0.7" in lines
 
@@ -161,7 +170,10 @@ def test_set_surface_brdf():
 
 
 def test_immutable_set_aerosol_modify():
-    scene = Scene().set_atmosphere(profile="us").set_aerosol(default=True)
+    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+    scene = Scene().set_atmosphere(profile="us").set_aerosol(
+        OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+    )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     assert len(scene.aerosol.modify) == 0
     assert len(scene2.aerosol.modify) == 1
