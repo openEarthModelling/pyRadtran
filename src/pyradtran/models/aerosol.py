@@ -161,7 +161,7 @@ class OpacCustom(AerosolModel):
         species_names: Optional species filter.
     """
 
-    species_file: str
+    species_file: str = Field(min_length=1)
     species_names: list[str] | None = None
     library: str = "OPAC"
 
@@ -189,7 +189,7 @@ class ExternalAerosol(AerosolModel):
             Types: "gg", "ssa", "tau", "explicit", "moments", "ref", "siz".
     """
 
-    files: list[tuple[str, str]] = Field(default_factory=list)
+    files: list[tuple[str, str]] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_files(self) -> ExternalAerosol:
