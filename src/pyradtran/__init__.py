@@ -10,21 +10,41 @@ from pyradtran.convenience import (
     run_solar_transmittance,
     run_thermal_brightness,
     run_with_aerosol,
+    run_with_opac_custom,
+    run_with_opac_preset,
 )
 from pyradtran.core.runner import Runner
 from pyradtran.models import ThreeDConfig
+from pyradtran.models.aerosol import (
+    AerosolModel,
+    AerosolModifyEntry,
+    ExternalAerosol,
+    OpacCustom,
+    OpacPreset,
+    OpacPresetName,
+)
 from pyradtran.scene import Scene
 
 __all__ = [
     "Scene",
     "ThreeDConfig",
     "Runner",
+    # Aerosol classes
+    "AerosolModel",
+    "AerosolModifyEntry",
+    "OpacPreset",
+    "OpacPresetName",
+    "OpacCustom",
+    "ExternalAerosol",
+    # Convenience functions
     "run_3d",
     "run_solar_transmittance",
     "run_thermal_brightness",
     "run_solar_radiance",
     "run_satellite",
     "run_with_aerosol",
+    "run_with_opac_preset",
+    "run_with_opac_custom",
     "run_cloudy_scene",
     "run_lidar",
     "run_polarized",
