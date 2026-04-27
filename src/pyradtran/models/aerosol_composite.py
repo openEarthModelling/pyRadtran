@@ -127,3 +127,95 @@ class ParticleOptics(BaseModel):
             g=g,
             legendre_moments=legendre_moments,
         )
+
+
+class SizeDistribution(BaseModel):
+    """Aerosol particle size distribution."""
+
+    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+
+    kind: Literal["lognormal", "modified_gamma", "discrete", "monodisperse"]
+    params: dict
+    number_density_per_m3: float = 1.0
+
+    @model_validator(mode="after")
+    def validate_params(self) -> "SizeDistribution":
+        if self.kind == "lognormal":
+            if "r_g_um" not in self.params or "sigma_g" not in self.params:
+                raise ValueError("lognormal requires r_g_um and sigma_g")
+            if self.params["sigma_g"] <= 1.0:
+                raise ValueError("sigma_g must be > 1")
+        elif self.kind == "modified_gamma":
+            for key in ("alpha", "gamma", "r_c_um"):
+                if key not in self.params:
+                    raise ValueError(f"modified_gamma requires {key}")
+        elif self.kind == "discrete":
+            if "radius_um" not in self.params or "weights" not in self.params:
+                raise ValueError("discrete requires radius_um and weights")
+            if len(self.params["radius_um"]) != len(self.params["weights"]):
+                raise ValueError("radius_um and weights must have same length")
+        elif self.kind == "monodisperse":
+            if "radius_um" not in self.params:
+                raise ValueError("monodisperse requires radius_um")
+        return self
+
+    def evaluate(self, r_grid_um: np.ndarray) -> np.ndarray:
+        r = np.asarray(r_grid_um)
+        if self.kind == "lognormal":
+            rg = self.params["r_g_um"]
+            sg = self.params["sigma_g"]
+            ln_s = np.log(sg)
+            dn_dlnr = (
+                self.number_density_per_m3
+                / (np.sqrt(2.0 * np.pi) * ln_s)
+                * np.exp(-0.5 * (np.log(r / rg) / ln_s) ** 2)
+            )
+            dn_dr = dn_dlnr / r
+        elif self.kind == "monodisperse":
+            r0 = self.params["radius_um"]
+            sigma = r0 * 0.01
+            dn_dr = (
+                self.number_density_per_m3
+                / (sigma * np.sqrt(2.0 * np.pi))
+                * np.exp(-0.5 * ((r - r0) / sigma) ** 2)
+            )
+        elif self.kind == "discrete":
+            radii = np.asarray(self.params["radius_um"])
+            weights = np.asarray(self.params["weights"])
+            weights = weights / weights.sum()
+            dn_dr = np.zeros_like(r, dtype=float)
+            for rad, w in zip(radii, weights):
+                sigma = rad * 0.01
+                dn_dr += (
+                    w
+                    * self.number_density_per_m3
+                    / (sigma * np.sqrt(2.0 * np.pi))
+                    * np.exp(-0.5 * ((r - rad) / sigma) ** 2)
+                )
+        elif self.kind == "modified_gamma":
+            alpha = self.params["alpha"]
+            gamma = self.params["gamma"]
+            rc = self.params["r_c_um"]
+            b = alpha / (gamma * rc**gamma)
+            # Use math.gamma instead of scipy.special.gamma to avoid scipy dependency
+            import math
+            A = (
+                self.number_density_per_m3
+                * gamma
+                * b ** ((alpha + 1) / gamma)
+                / math.gamma((alpha + 1) / gamma)
+            )
+            dn_dr = A * r**alpha * np.exp(-b * r**gamma)
+        else:
+            raise ValueError(f"Unknown kind: {self.kind}")
+        return dn_dr
+
+
+class IntegrationConfig(BaseModel):
+    """Configuration for size-distribution numerical integration."""
+
+    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+
+    n_radius_grid: int = 200
+    radius_min_um: float = 0.001
+    radius_max_um: float = 100.0
