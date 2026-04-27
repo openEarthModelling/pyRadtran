@@ -3,6 +3,7 @@ import pytest
 
 from pyradtran.models.aerosol_composite import (
     IntegrationConfig,
+    MieSpecies,
     ParticleOptics,
     RefractiveIndex,
     SizeDistribution,
@@ -160,3 +161,49 @@ class TestBhmie:
         assert "S2" in result
         assert len(result["S1"]) == 37
         assert len(result["angles_deg"]) == 37
+
+
+class TestMieSpecies:
+    def test_basic_mie_species(self):
+        ri = RefractiveIndex(
+            wavelength_um=[0.5, 0.55],
+            n_real=[1.5, 1.5],
+            k_imag=[0.01, 0.01],
+        )
+        sd = SizeDistribution(
+            kind="monodisperse", params={"radius_um": 0.5}
+        )
+        species = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(n_radius_grid=50),
+        )
+        wl = np.array([0.5, 0.55])
+        optics = species.intensive(wl)
+        assert optics.beta_ext_per_mass.shape == (2,)
+        assert optics.ssa.shape == (2,)
+        assert optics.g.shape == (2,)
+        assert np.all(optics.beta_ext_per_mass >= 0)
+        assert np.all((optics.ssa >= 0) & (optics.ssa <= 1))
+        assert np.all(np.abs(optics.g) <= 1.0)
+
+    def test_lognormal_mie_species(self):
+        ri = RefractiveIndex(
+            wavelength_um=[0.55, 0.6],
+            n_real=[1.5, 1.5],
+            k_imag=[0.01, 0.01],
+        )
+        sd = SizeDistribution(
+            kind="lognormal", params={"r_g_um": 0.3, "sigma_g": 1.5}
+        )
+        species = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=2000.0,
+            integration_config=IntegrationConfig(n_radius_grid=50),
+        )
+        wl = np.array([0.55])
+        optics = species.intensive(wl)
+        assert optics.beta_ext_per_mass[0] > 0
+        assert 0 < optics.ssa[0] <= 1

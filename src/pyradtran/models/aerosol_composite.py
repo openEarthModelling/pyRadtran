@@ -219,3 +219,91 @@ class IntegrationConfig(BaseModel):
     n_radius_grid: int = 200
     radius_min_um: float = 0.001
     radius_max_um: float = 100.0
+
+
+from dataclasses import dataclass
+from typing import Protocol
+
+from numpy.typing import NDArray
+
+
+@dataclass
+class SpeciesOptics:
+    """Mass-normalized intensive optical properties of an aerosol species."""
+
+    beta_ext_per_mass: NDArray
+    ssa: NDArray
+    g: NDArray
+    legendre_moments: NDArray | None = None
+
+
+class Species(Protocol):
+    """Protocol for Tier 2 species classes."""
+
+    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
+        ...
+
+
+class MieSpecies(BaseModel):
+    """Mie-computed species from refractive index + size distribution."""
+
+    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+
+    refractive_index: RefractiveIndex
+    size_distribution: SizeDistribution
+    particle_density_kg_m3: float = Field(gt=0)
+    integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
+
+    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
+        wl = np.asarray(wl_um)
+        n_wl = len(wl)
+        config = self.integration_config
+
+        r_dense = np.logspace(
+            np.log10(config.radius_min_um),
+            np.log10(config.radius_max_um),
+            config.n_radius_grid,
+        )
+        dn_dr = self.size_distribution.evaluate(r_dense)
+
+        from pyradtran.optics.mie import bhmie
+
+        Qext = np.zeros((n_wl, config.n_radius_grid))
+        Qsca = np.zeros((n_wl, config.n_radius_grid))
+        g = np.zeros((n_wl, config.n_radius_grid))
+
+        m_vals = self.refractive_index.at(wl)
+
+        for i_wl in range(n_wl):
+            for i_r in range(config.n_radius_grid):
+                x = 2.0 * np.pi * r_dense[i_r] / wl[i_wl]
+                result = bhmie(x, m_vals[i_wl])
+                Qext[i_wl, i_r] = result["Qext"]
+                Qsca[i_wl, i_r] = result["Qsca"]
+                g[i_wl, i_r] = result["g"]
+
+        from pyradtran.optics.mie import integrate_size_distribution
+
+        particle_optics = ParticleOptics(
+            wavelength_um=wl.tolist(),
+            radius_um=r_dense.tolist(),
+            Qext=Qext,
+            Qsca=Qsca,
+            g=g,
+            legendre_moments=None,
+        )
+
+        internal = integrate_size_distribution(
+            particle_optics=particle_optics,
+            size_distribution=self.size_distribution,
+            particle_density_kg_m3=self.particle_density_kg_m3,
+            config=config,
+            n_legendre=n_legendre,
+        )
+
+        return SpeciesOptics(
+            beta_ext_per_mass=internal.beta_ext_per_mass,
+            ssa=internal.ssa,
+            g=internal.g,
+            legendre_moments=internal.legendre_moments,
+        )

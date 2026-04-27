@@ -177,6 +177,142 @@ def bhmie(x: float, m: complex, n_angles: int = 0) -> dict:
     return result
 
 
-def integrate_size_distribution(*args, **kwargs):
-    """Stub for size-distribution integration (implemented in a later task)."""
-    raise NotImplementedError("integrate_size_distribution is not yet implemented.")
+from typing import Protocol
+
+from pyradtran.models.aerosol_composite import (
+    IntegrationConfig,
+    ParticleOptics,
+    SizeDistribution,
+)
+
+
+class _SpeciesOptics:
+    """Internal dataclass for mass-normalized intensive properties."""
+
+    def __init__(
+        self,
+        beta_ext_per_mass: np.ndarray,
+        ssa: np.ndarray,
+        g: np.ndarray,
+        legendre_moments: np.ndarray | None = None,
+    ):
+        self.beta_ext_per_mass = beta_ext_per_mass
+        self.ssa = ssa
+        self.g = g
+        self.legendre_moments = legendre_moments
+
+
+def _mass_per_particle_avg(r_grid_um: np.ndarray, dn_dr: np.ndarray, rho_kg_m3: float) -> float:
+    """Average particle mass: ρ * ∫ (4/3)πr³ n(r) dr."""
+    r_m = r_grid_um * 1e-6
+    volume = (4.0 / 3.0) * np.pi * r_m**3
+    return rho_kg_m3 * np.trapezoid(volume * dn_dr, r_m)
+
+
+def integrate_size_distribution(
+    particle_optics: ParticleOptics,
+    size_distribution: SizeDistribution,
+    particle_density_kg_m3: float,
+    config: IntegrationConfig,
+    n_legendre: int = 32,
+) -> _SpeciesOptics:
+    """Integrate Q-factors over size distribution to get intensive species optics."""
+    n_wl = len(particle_optics.wavelength_um)
+    r_sparse = np.asarray(particle_optics.radius_um)
+
+    r_dense = np.logspace(
+        np.log10(max(config.radius_min_um, r_sparse[0] * 0.1)),
+        np.log10(min(config.radius_max_um, r_sparse[-1] * 10.0)),
+        config.n_radius_grid,
+    )
+    r_dense = np.clip(r_dense, config.radius_min_um, config.radius_max_um)
+
+    dn_dr = size_distribution.evaluate(r_dense)
+
+    if len(r_sparse) == 1:
+        Qext_dense = np.full((n_wl, config.n_radius_grid), particle_optics.Qext[0, 0])
+        Qsca_dense = np.full((n_wl, config.n_radius_grid), particle_optics.Qsca[0, 0])
+        g_dense = np.full((n_wl, config.n_radius_grid), particle_optics.g[0, 0])
+        if particle_optics.legendre_moments is not None:
+            n_mom = particle_optics.legendre_moments.shape[2]
+            kl_dense = np.full(
+                (n_wl, config.n_radius_grid, n_mom),
+                particle_optics.legendre_moments[0, 0, :],
+            )
+        else:
+            kl_dense = None
+    else:
+        log_r_sparse = np.log(r_sparse)
+        log_r_dense = np.log(r_dense)
+
+        Qext_dense = np.zeros((n_wl, config.n_radius_grid))
+        Qsca_dense = np.zeros((n_wl, config.n_radius_grid))
+        g_dense = np.zeros((n_wl, config.n_radius_grid))
+
+        for i_wl in range(n_wl):
+            log_Qext = np.log(np.clip(particle_optics.Qext[i_wl, :], 1e-30, None))
+            Qext_dense[i_wl, :] = np.exp(
+                np.interp(log_r_dense, log_r_sparse, log_Qext, left=log_Qext[0], right=log_Qext[-1])
+            )
+            log_Qsca = np.log(np.clip(particle_optics.Qsca[i_wl, :], 1e-30, None))
+            Qsca_dense[i_wl, :] = np.exp(
+                np.interp(log_r_dense, log_r_sparse, log_Qsca, left=log_Qsca[0], right=log_Qsca[-1])
+            )
+            g_dense[i_wl, :] = np.interp(
+                r_dense, r_sparse, particle_optics.g[i_wl, :], left=particle_optics.g[i_wl, 0], right=particle_optics.g[i_wl, -1]
+            )
+
+        if particle_optics.legendre_moments is not None:
+            n_mom = particle_optics.legendre_moments.shape[2]
+            kl_dense = np.zeros((n_wl, config.n_radius_grid, n_mom))
+            for i_wl in range(n_wl):
+                for l in range(n_mom):
+                    kl_dense[i_wl, :, l] = np.interp(
+                        r_dense,
+                        r_sparse,
+                        particle_optics.legendre_moments[i_wl, :, l],
+                        left=particle_optics.legendre_moments[i_wl, 0, l],
+                        right=particle_optics.legendre_moments[i_wl, -1, l],
+                    )
+        else:
+            kl_dense = None
+
+    r_m = r_dense * 1e-6
+    area = np.pi * r_m**2
+
+    beta_ext_per_mass = np.zeros(n_wl)
+    ssa = np.zeros(n_wl)
+    g = np.zeros(n_wl)
+
+    m_particle_avg = _mass_per_particle_avg(r_dense, dn_dr, particle_density_kg_m3)
+
+    for i_wl in range(n_wl):
+        integrand_ext = Qext_dense[i_wl, :] * area * dn_dr
+        integrand_sca = Qsca_dense[i_wl, :] * area * dn_dr
+        integrand_g = g_dense[i_wl, :] * Qsca_dense[i_wl, :] * area * dn_dr
+
+        Iext = np.trapezoid(integrand_ext, r_m)
+        Isca = np.trapezoid(integrand_sca, r_m)
+        Ig = np.trapezoid(integrand_g, r_m)
+
+        beta_ext_per_mass[i_wl] = Iext / m_particle_avg if m_particle_avg > 0 else 0.0
+        ssa[i_wl] = Isca / Iext if Iext > 0 else 0.0
+        g[i_wl] = Ig / Isca if Isca > 0 else 0.0
+
+    if kl_dense is not None:
+        n_mom = kl_dense.shape[2]
+        legendre_moments = np.zeros((n_wl, n_mom))
+        for i_wl in range(n_wl):
+            for l in range(n_mom):
+                integrand_kl = kl_dense[i_wl, :, l] * Qsca_dense[i_wl, :] * area * dn_dr
+                Ikl = np.trapezoid(integrand_kl, r_m)
+                legendre_moments[i_wl, l] = Ikl / Isca if Isca > 0 else 0.0
+    else:
+        legendre_moments = None
+
+    return _SpeciesOptics(
+        beta_ext_per_mass=beta_ext_per_mass,
+        ssa=ssa,
+        g=g,
+        legendre_moments=legendre_moments,
+    )
