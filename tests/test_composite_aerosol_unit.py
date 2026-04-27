@@ -280,6 +280,58 @@ class TestPrecomputedSpecies:
         assert 0 < optics.ssa[0] <= 1
 
 
+from pyradtran.models.aerosol_composite import LayerOptics, LoadedSpecies
+
+
+class TestLoadedSpecies:
+    def test_evaluate_uniform_layer(self):
+        """tau = beta_ext * mass * dz for uniform layer."""
+        ri = RefractiveIndex(
+            wavelength_um=[0.55, 0.6],
+            n_real=[1.5, 1.5],
+            k_imag=[0.01, 0.01],
+        )
+        sd = SizeDistribution(
+            kind="monodisperse", params={"radius_um": 0.5}
+        )
+        species = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(n_radius_grid=50),
+        )
+        loaded = LoadedSpecies(
+            species=species,
+            mass_profile_kg_m3=[0.001],  # kg/m^3
+            altitude_km=[10.0, 0.0],
+        )
+        wl = np.array([0.55])
+        z = np.array([10.0, 0.0])
+        layer = loaded.evaluate(wl, z)
+        assert layer.tau.shape == (1, 1)
+        assert layer.ssa.shape == (1, 1)
+        assert layer.g.shape == (1, 1)
+        assert layer.legendre_moments.shape == (1, 1, 32)
+        assert layer.tau[0, 0] > 0
+
+    def test_altitude_must_be_descending(self):
+        ri = RefractiveIndex(
+            wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01]
+        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        mie = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+        )
+        with pytest.raises(ValueError):
+            LoadedSpecies(
+                species=mie,
+                mass_profile_kg_m3=[0.001],
+                altitude_km=[0.0, 10.0],
+            )
+
+
 import os
 import tempfile
 
