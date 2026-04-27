@@ -19,9 +19,23 @@ from pyradtran.models.aerosol import (
     AerosolModel,
     AerosolModifyEntry,
     ExternalAerosol,
+    ExternalFile,
     OpacCustom,
     OpacPreset,
     OpacPresetName,
+)
+from pyradtran.models.aerosol_composite import (
+    CompositeAerosol,
+    IntegrationConfig,
+    LayerOptics,
+    LoadedSpecies,
+    MieSpecies,
+    OPACSpecies,
+    ParticleOptics,
+    PrecomputedSpecies,
+    RefractiveIndex,
+    SizeDistribution,
+    SpeciesOptics,
 )
 from pyradtran.scene import Scene
 
@@ -36,6 +50,19 @@ __all__ = [
     "OpacPresetName",
     "OpacCustom",
     "ExternalAerosol",
+    "ExternalFile",
+    # Composite aerosol classes
+    "RefractiveIndex",
+    "ParticleOptics",
+    "SizeDistribution",
+    "IntegrationConfig",
+    "MieSpecies",
+    "PrecomputedSpecies",
+    "OPACSpecies",
+    "LoadedSpecies",
+    "LayerOptics",
+    "SpeciesOptics",
+    "CompositeAerosol",
     # Convenience functions
     "run_3d",
     "run_solar_transmittance",
