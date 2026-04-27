@@ -3,12 +3,14 @@ import pytest
 
 from pyradtran.models.aerosol_composite import (
     IntegrationConfig,
+    LayerOptics,
     MieSpecies,
     ParticleOptics,
     PrecomputedSpecies,
     RefractiveIndex,
     SizeDistribution,
 )
+from pyradtran.optics.mixing import combine_sources, _fill_hg_moments
 
 
 class TestRefractiveIndex:
@@ -280,7 +282,7 @@ class TestPrecomputedSpecies:
         assert 0 < optics.ssa[0] <= 1
 
 
-from pyradtran.models.aerosol_composite import LayerOptics, LoadedSpecies
+from pyradtran.models.aerosol_composite import LoadedSpecies
 
 
 class TestLoadedSpecies:
@@ -370,3 +372,41 @@ class TestOPACSpecies:
             assert 0 < optics.ssa[0] <= 1
         finally:
             os.unlink(path)
+
+
+class TestMixing:
+    def test_two_source_mixing(self):
+        """Mix two equal sources: tau doubles, ssa/g unchanged."""
+        n_wl, n_layer, n_leg = 2, 3, 4
+        tau = np.ones((n_wl, n_layer)) * 0.1
+        ssa = np.ones((n_wl, n_layer)) * 0.9
+        g = np.ones((n_wl, n_layer)) * 0.7
+        moments = np.ones((n_wl, n_layer, n_leg))
+        moments[:, :, 0] = 1.0
+
+        src1 = LayerOptics(tau=tau, ssa=ssa, g=g, legendre_moments=moments)
+        src2 = LayerOptics(tau=tau, ssa=ssa, g=g, legendre_moments=moments)
+
+        result = combine_sources([src1, src2], n_legendre=n_leg)
+        assert np.allclose(result["tau"], 0.2)
+        assert np.allclose(result["ssa"], 0.9)
+        assert np.allclose(result["g"], 0.7)
+
+    def test_hg_moment_fill(self):
+        g = np.full((1, 1), 0.7)
+        moments = _fill_hg_moments(g, n_legendre=4)
+        assert moments[0, 0, 0] == 1.0
+        assert moments[0, 0, 1] == pytest.approx(3 * 0.7)
+        assert moments[0, 0, 2] == pytest.approx(5 * 0.7**2)
+        assert moments[0, 0, 3] == pytest.approx(7 * 0.7**3)
+
+    def test_zero_tau_layer(self):
+        """Layer with zero tau should have ssa=0, g=0."""
+        tau = np.zeros((1, 1))
+        ssa = np.ones((1, 1)) * 0.9
+        g = np.ones((1, 1)) * 0.7
+        moments = np.ones((1, 1, 4))
+        src = LayerOptics(tau=tau, ssa=ssa, g=g, legendre_moments=moments)
+        result = combine_sources([src], n_legendre=4)
+        assert result["ssa"][0, 0] == 0.0
+        assert result["g"][0, 0] == 0.0
