@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal, Protocol
 
 import numpy as np
@@ -560,3 +561,99 @@ class LoadedSpecies(BaseModel):
             g=g_layer,
             legendre_moments=legendre_layer,
         )
+
+
+from pyradtran.models.aerosol import AerosolModel, ExternalFile, OpacCustom, OpacPreset
+
+
+class CompositeAerosol(AerosolModel):
+    """Tier 4: composite aerosol scene mixing multiple sources."""
+
+    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+
+    sources: list = Field(min_length=1)
+    wavelength_grid_um: list[float] = Field(min_length=1)
+    altitude_grid_km: list[float] = Field(min_length=2)
+    n_legendre: int = 32
+    output_dir: Path | None = None
+
+    @model_validator(mode="after")
+    def validate_grids(self) -> "CompositeAerosol":
+        if self.wavelength_grid_um != sorted(self.wavelength_grid_um):
+            raise ValueError("wavelength_grid_um must be strictly ascending")
+        if self.altitude_grid_km != sorted(self.altitude_grid_km, reverse=True):
+            raise ValueError("altitude_grid_km must be strictly descending")
+
+        # Validate source types
+        for src in self.sources:
+            if not isinstance(src, (LoadedSpecies, OpacPreset, OpacCustom, ExternalFile)):
+                raise ValueError(
+                    f"Invalid source type: {type(src).__name__}. "
+                    f"Expected LoadedSpecies, OpacPreset, OpacCustom, or ExternalFile."
+                )
+
+        # Disallow mixing incompatible source types
+        preset_sources = [s for s in self.sources if isinstance(s, (OpacPreset, OpacCustom))]
+        loaded_sources = [s for s in self.sources if isinstance(s, LoadedSpecies)]
+        external_sources = [s for s in self.sources if isinstance(s, ExternalFile)]
+
+        if len(preset_sources) > 1:
+            raise ValueError("Only one OpacPreset/OpacCustom source allowed in CompositeAerosol")
+        if len(loaded_sources) > 0 and len(preset_sources) > 0:
+            raise ValueError(
+                "Cannot mix LoadedSpecies with OpacPreset/OpacCustom in CompositeAerosol"
+            )
+        if len(loaded_sources) > 0 and len(external_sources) > 0:
+            raise ValueError(
+                "Cannot mix LoadedSpecies with ExternalFile in CompositeAerosol"
+            )
+        if len(preset_sources) > 0 and len(external_sources) > 0:
+            raise ValueError(
+                "Cannot mix OpacPreset/OpacCustom with ExternalFile in CompositeAerosol"
+            )
+
+        return self
+
+    def to_uvspec_lines(self) -> list[str]:
+        """Generate ``aerosol_file explicit <master>`` line.
+
+        For single preset/external sources, delegates directly to their
+        ``to_uvspec_lines()`` to avoid the explicit-file overhead.
+        """
+        from pyradtran.optics.mixing import combine_sources
+        from pyradtran.optics.layer_writer import write_explicit_aerosol
+
+        # Shortcut: single non-composite source
+        if len(self.sources) == 1 and not isinstance(self.sources[0], LoadedSpecies):
+            return self.sources[0].to_uvspec_lines()
+
+        wl = np.asarray(self.wavelength_grid_um)
+        z = np.asarray(self.altitude_grid_km)
+
+        # Evaluate each LoadedSpecies
+        layer_optics_list = []
+        for src in self.sources:
+            if isinstance(src, LoadedSpecies):
+                layer_optics_list.append(src.evaluate(wl, z, n_legendre=self.n_legendre))
+
+        # Mix
+        mixed = combine_sources(layer_optics_list, n_legendre=self.n_legendre)
+
+        # Write files
+        outdir = self.output_dir
+        if outdir is None:
+            outdir = Path.cwd() / "aerosol"
+
+        source_sigs = [str(type(s).__name__) for s in self.sources]
+        master_path = write_explicit_aerosol(
+            tau=mixed["tau"],
+            ssa=mixed["ssa"],
+            g=mixed["g"],
+            legendre_moments=mixed["legendre_moments"],
+            wavelength_um=wl,
+            altitude_km=z,
+            output_dir=outdir,
+            source_signatures=source_sigs,
+        )
+
+        return [f"aerosol_file explicit {master_path}"]

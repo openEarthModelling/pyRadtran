@@ -410,3 +410,74 @@ class TestMixing:
         result = combine_sources([src], n_legendre=4)
         assert result["ssa"][0, 0] == 0.0
         assert result["g"][0, 0] == 0.0
+
+
+from pyradtran.models.aerosol_composite import CompositeAerosol
+
+
+class TestCompositeAerosol:
+    def test_single_loaded_source(self):
+        ri = RefractiveIndex(
+            wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01]
+        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        mie = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(n_radius_grid=50),
+        )
+        loaded = LoadedSpecies(
+            species=mie,
+            mass_profile_kg_m3=[0.001],
+            altitude_km=[10.0, 0.0],
+        )
+        comp = CompositeAerosol(
+            sources=[loaded],
+            wavelength_grid_um=[0.55],
+            altitude_grid_km=[10.0, 0.0],
+            n_legendre=4,
+        )
+        lines = comp.to_uvspec_lines()
+        assert len(lines) == 1
+        assert lines[0].startswith("aerosol_file explicit ")
+
+    def test_single_preset_shortcut(self):
+        from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+
+        preset = OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+        comp = CompositeAerosol(
+            sources=[preset],
+            wavelength_grid_um=[0.55],
+            altitude_grid_km=[10.0, 0.0],
+        )
+        lines = comp.to_uvspec_lines()
+        # Single preset should delegate directly, not go through explicit file
+        assert len(lines) >= 1
+        assert any("aerosol_species" in line for line in lines)
+
+    def test_mixed_sources_raises(self):
+        from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+
+        ri = RefractiveIndex(
+            wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01]
+        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        mie = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+        )
+        loaded = LoadedSpecies(
+            species=mie,
+            mass_profile_kg_m3=[0.001],
+            altitude_km=[10.0, 0.0],
+        )
+        preset = OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+
+        with pytest.raises(ValueError):
+            CompositeAerosol(
+                sources=[loaded, preset],
+                wavelength_grid_um=[0.55],
+                altitude_grid_km=[10.0, 0.0],
+            )
