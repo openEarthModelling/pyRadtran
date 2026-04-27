@@ -304,3 +304,52 @@ def test_set_special():
     )
     text = scene.build_input()
     assert "no_scattering" in text
+
+
+class TestCompositeAerosolScene:
+    def test_scene_with_composite_aerosol(self):
+        from pyradtran.models.aerosol_composite import (
+            CompositeAerosol,
+            IntegrationConfig,
+            LoadedSpecies,
+            MieSpecies,
+            RefractiveIndex,
+            SizeDistribution,
+        )
+
+        wl = [0.55, 0.6]
+        alt = [10.0, 0.0]
+        ri = RefractiveIndex(wavelength_um=wl, n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        mie = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(n_radius_grid=30),
+        )
+        loaded = LoadedSpecies(
+            species=mie,
+            mass_profile_kg_m3=[0.001],
+            altitude_km=alt,
+        )
+
+        import tempfile
+        from pathlib import Path
+        with tempfile.TemporaryDirectory() as tmpdir:
+            comp = CompositeAerosol(
+                sources=[loaded],
+                wavelength_grid_um=wl,
+                altitude_grid_km=alt,
+                n_legendre=4,
+                output_dir=Path(tmpdir),
+            )
+            scene = (
+                Scene()
+                .set_atmosphere(profile="us")
+                .set_source_solar(sza=30.0)
+                .set_wavelength(550.0, 550.0)
+                .set_solver(method="disort", streams=16)
+                .set_aerosol(comp)
+            )
+            input_text = scene.build_input()
+            assert "aerosol_file explicit" in input_text
