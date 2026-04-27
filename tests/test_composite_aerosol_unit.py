@@ -278,3 +278,43 @@ class TestPrecomputedSpecies:
         optics = species.intensive(wl)
         assert optics.beta_ext_per_mass[0] > 0
         assert 0 < optics.ssa[0] <= 1
+
+
+import os
+import tempfile
+
+import netCDF4
+
+from pyradtran.models.aerosol_composite import OPACSpecies
+
+
+class TestOPACSpecies:
+    def _make_synthetic_nc(self, path: str, nlyr: int = 5, nmom: int = 32):
+        with netCDF4.Dataset(path, "w", format="NETCDF4") as ds:
+            ds.createDimension("nlyr", nlyr)
+            ds.createDimension("nphamat", 1)
+            ds.createDimension("nmom+1", nmom)
+
+            dtauc = ds.createVariable("output_dtauc", "f8", ("nlyr",))
+            ssalb = ds.createVariable("output_ssalb", "f8", ("nlyr",))
+            pmom = ds.createVariable("output_pmom", "f8", ("nlyr", "nphamat", "nmom+1"))
+
+            dtauc[:] = np.linspace(0.01, 0.05, nlyr)
+            ssalb[:] = np.full(nlyr, 0.95)
+            pmom_data = np.zeros((nlyr, 1, nmom))
+            pmom_data[:, 0, 0] = 1.0
+            pmom_data[:, 0, 1] = 0.7  # g ≈ pmom[1]/3
+            pmom[:] = pmom_data
+
+    def test_read_synthetic_opac(self):
+        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
+            path = f.name
+        try:
+            self._make_synthetic_nc(path)
+            species = OPACSpecies(netcdf_path=path)
+            wl = np.array([0.55])
+            optics = species.intensive(wl)
+            assert optics.beta_ext_per_mass[0] > 0
+            assert 0 < optics.ssa[0] <= 1
+        finally:
+            os.unlink(path)
