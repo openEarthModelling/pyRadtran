@@ -317,3 +317,77 @@ class MieSpecies(BaseModel):
             g=internal.g,
             legendre_moments=internal.legendre_moments,
         )
+
+
+class PrecomputedSpecies(BaseModel):
+    """Species from precomputed ParticleOptics + size distribution."""
+
+    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+
+    particle_optics: ParticleOptics
+    size_distribution: SizeDistribution
+    particle_density_kg_m3: float = Field(gt=0)
+    integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
+
+    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
+        """Integrate precomputed Q-factors over size distribution."""
+        from pyradtran.optics.mie import integrate_size_distribution
+
+        # Verify wavelength coverage
+        wl = np.asarray(wl_um)
+        wl_tab = np.asarray(self.particle_optics.wavelength_um)
+        if np.any(wl < wl_tab[0]) or np.any(wl > wl_tab[-1]):
+            raise ValueError(
+                f"Wavelength {wl.min():.4f}–{wl.max():.4f} um outside "
+                f"particle optics range {wl_tab[0]:.4f}–{wl_tab[-1]:.4f} um"
+            )
+
+        # Interpolate ParticleOptics to requested wavelengths (log-linear in Q)
+        n_r = len(self.particle_optics.radius_um)
+        n_req = len(wl)
+        Qext_interp = np.zeros((n_req, n_r))
+        Qsca_interp = np.zeros((n_req, n_r))
+        g_interp = np.zeros((n_req, n_r))
+
+        for i_r in range(n_r):
+            log_Qext = np.log(np.clip(self.particle_optics.Qext[:, i_r], 1e-30, None))
+            Qext_interp[:, i_r] = np.exp(np.interp(wl, wl_tab, log_Qext))
+
+            log_Qsca = np.log(np.clip(self.particle_optics.Qsca[:, i_r], 1e-30, None))
+            Qsca_interp[:, i_r] = np.exp(np.interp(wl, wl_tab, log_Qsca))
+
+            g_interp[:, i_r] = np.interp(wl, wl_tab, self.particle_optics.g[:, i_r])
+
+        legendre_interp = None
+        if self.particle_optics.legendre_moments is not None:
+            n_mom = self.particle_optics.legendre_moments.shape[2]
+            legendre_interp = np.zeros((n_req, n_r, n_mom))
+            for i_r in range(n_r):
+                for l in range(n_mom):
+                    legendre_interp[:, i_r, l] = np.interp(
+                        wl, wl_tab, self.particle_optics.legendre_moments[:, i_r, l]
+                    )
+
+        particle_optics_interp = ParticleOptics(
+            wavelength_um=wl.tolist(),
+            radius_um=self.particle_optics.radius_um,
+            Qext=Qext_interp,
+            Qsca=Qsca_interp,
+            g=g_interp,
+            legendre_moments=legendre_interp,
+        )
+
+        internal = integrate_size_distribution(
+            particle_optics=particle_optics_interp,
+            size_distribution=self.size_distribution,
+            particle_density_kg_m3=self.particle_density_kg_m3,
+            config=self.integration_config,
+            n_legendre=n_legendre,
+        )
+
+        return SpeciesOptics(
+            beta_ext_per_mass=internal.beta_ext_per_mass,
+            ssa=internal.ssa,
+            g=internal.g,
+            legendre_moments=internal.legendre_moments,
+        )

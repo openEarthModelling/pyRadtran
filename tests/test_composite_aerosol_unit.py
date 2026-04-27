@@ -5,6 +5,7 @@ from pyradtran.models.aerosol_composite import (
     IntegrationConfig,
     MieSpecies,
     ParticleOptics,
+    PrecomputedSpecies,
     RefractiveIndex,
     SizeDistribution,
 )
@@ -225,6 +226,53 @@ class TestMieSpecies:
             size_distribution=sd,
             particle_density_kg_m3=2000.0,
             integration_config=IntegrationConfig(n_radius_grid=50),
+        )
+        wl = np.array([0.55])
+        optics = species.intensive(wl)
+        assert optics.beta_ext_per_mass[0] > 0
+        assert 0 < optics.ssa[0] <= 1
+
+
+class TestPrecomputedSpecies:
+    def test_single_radius_constant_q(self):
+        """Single radius: Q constant, beta_ext = Q * pi * <r^2> * N / m_avg."""
+        po = ParticleOptics(
+            wavelength_um=[0.55],
+            radius_um=[1.0],
+            Qext=np.array([[2.0]]),
+            Qsca=np.array([[1.5]]),
+            g=np.array([[0.7]]),
+        )
+        sd = SizeDistribution(
+            kind="monodisperse", params={"radius_um": 1.0}
+        )
+        species = PrecomputedSpecies(
+            particle_optics=po,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+        )
+        wl = np.array([0.55])
+        optics = species.intensive(wl)
+        assert optics.beta_ext_per_mass[0] > 0
+        assert optics.ssa[0] == pytest.approx(0.75, abs=0.01)
+        assert optics.g[0] == pytest.approx(0.7, abs=0.01)
+
+    def test_multi_radius_interpolation(self):
+        po = ParticleOptics(
+            wavelength_um=[0.5, 0.6],
+            radius_um=[0.1, 1.0, 10.0],
+            Qext=np.array([[1.0, 2.0, 2.0], [1.0, 2.0, 2.0]]),
+            Qsca=np.array([[0.5, 1.5, 1.5], [0.5, 1.5, 1.5]]),
+            g=np.array([[0.1, 0.7, 0.7], [0.1, 0.7, 0.7]]),
+        )
+        sd = SizeDistribution(
+            kind="lognormal", params={"r_g_um": 1.0, "sigma_g": 2.0}
+        )
+        species = PrecomputedSpecies(
+            particle_optics=po,
+            size_distribution=sd,
+            particle_density_kg_m3=2000.0,
+            integration_config=IntegrationConfig(n_radius_grid=100),
         )
         wl = np.array([0.55])
         optics = species.intensive(wl)
