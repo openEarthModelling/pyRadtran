@@ -181,7 +181,7 @@ class OpacCustom(AerosolModel):
         return lines
 
 
-class ExternalAerosol(AerosolModel):
+class ExternalFile(AerosolModel):
     """External aerosol optical property files.
 
     Attributes:
@@ -192,7 +192,7 @@ class ExternalAerosol(AerosolModel):
     files: list[tuple[str, str]] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_files(self) -> ExternalAerosol:
+    def validate_files(self) -> ExternalFile:
         for file_type, _ in self.files:
             if file_type not in _VALID_FILE_TYPES:
                 raise ValueError(
@@ -203,3 +203,7 @@ class ExternalAerosol(AerosolModel):
 
     def to_uvspec_lines(self) -> list[str]:
         return [f"aerosol_file {ft} {fp}" for ft, fp in self.files]
+
+
+# Backwards-compatibility alias — remove after one release.
+ExternalAerosol = ExternalFile

@@ -939,14 +939,14 @@ class TestOpacCustom:
 
 class TestExternalAerosol:
     def test_single_file(self):
-        from pyradtran.models.aerosol import ExternalAerosol
-        a = ExternalAerosol(files=[("explicit", "/data/profile.dat")])
+        from pyradtran.models.aerosol import ExternalFile
+        a = ExternalFile(files=[("explicit", "/data/profile.dat")])
         lines = a.to_uvspec_lines()
         assert "aerosol_file explicit /data/profile.dat" in lines
 
     def test_multiple_files(self):
-        from pyradtran.models.aerosol import ExternalAerosol
-        a = ExternalAerosol(
+        from pyradtran.models.aerosol import ExternalFile
+        a = ExternalFile(
             files=[("tau", "/data/tau.dat"), ("ssa", "/data/ssa.dat"),
                    ("moments", "/data/mom.dat")],
         )
@@ -956,21 +956,21 @@ class TestExternalAerosol:
         assert "aerosol_file moments /data/mom.dat" in lines
 
     def test_ref_file_type(self):
-        from pyradtran.models.aerosol import ExternalAerosol
-        a = ExternalAerosol(files=[("ref", "/data/refr.dat")])
+        from pyradtran.models.aerosol import ExternalFile
+        a = ExternalFile(files=[("ref", "/data/refr.dat")])
         lines = a.to_uvspec_lines()
         assert "aerosol_file ref /data/refr.dat" in lines
 
     def test_siz_file_type(self):
-        from pyradtran.models.aerosol import ExternalAerosol
-        a = ExternalAerosol(files=[("siz", "/data/sizedist.dat")])
+        from pyradtran.models.aerosol import ExternalFile
+        a = ExternalFile(files=[("siz", "/data/sizedist.dat")])
         lines = a.to_uvspec_lines()
         assert "aerosol_file siz /data/sizedist.dat" in lines
 
     def test_invalid_file_type(self):
-        from pyradtran.models.aerosol import ExternalAerosol
+        from pyradtran.models.aerosol import ExternalFile
         with pytest.raises(Exception):
-            ExternalAerosol(files=[("invalid", "/data/profile.dat")])
+            ExternalFile(files=[("invalid", "/data/profile.dat")])
 
 
 class TestAerosolModel:
@@ -1034,8 +1034,8 @@ class TestAerosolModel:
         assert all(phase == 5 for phase, _ in items)
 
     def test_external_aerosol_set_tau_at_wvl(self):
-        from pyradtran.models.aerosol import ExternalAerosol
-        a = ExternalAerosol(
+        from pyradtran.models.aerosol import ExternalFile
+        a = ExternalFile(
             files=[("explicit", "/data/aerosol.dat")],
             set_tau_at_wvl=(550.0, 0.2),
         )
