@@ -4,6 +4,15 @@ No scipy dependency — uses only numpy for all computations.
 """
 
 import numpy as np
+from dataclasses import dataclass
+
+# Import here to avoid circular import: mie.py uses ParticleOptics/SizeDistribution
+# from this module, and aerosol_composite.py imports integrate_size_distribution.
+from pyradtran.models.aerosol_composite import (
+    IntegrationConfig,
+    ParticleOptics,
+    SizeDistribution,
+)
 
 
 def bhmie(x: float, m: complex, n_angles: int = 0) -> dict:
@@ -175,15 +184,6 @@ def bhmie(x: float, m: complex, n_angles: int = 0) -> dict:
         result["angles_deg"] = angles_deg
 
     return result
-
-
-from dataclasses import dataclass
-
-from pyradtran.models.aerosol_composite import (
-    IntegrationConfig,
-    ParticleOptics,
-    SizeDistribution,
-)
 
 
 @dataclass

@@ -5,6 +5,8 @@ See design spec: docs/superpowers/specs/2026-04-27-composite-aerosol-design.md
 
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field, model_validator
@@ -198,7 +200,6 @@ class SizeDistribution(BaseModel):
             rc = self.params["r_c_um"]
             b = alpha / (gamma * rc**gamma)
             # Use math.gamma instead of scipy.special.gamma to avoid scipy dependency
-            import math
             A = (
                 self.number_density_per_m3
                 * gamma
@@ -255,6 +256,18 @@ class MieSpecies(BaseModel):
     integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
+        """Compute mass-normalized intensive optical properties.
+
+        Args:
+            wl_um: Wavelengths in micrometers.
+            n_legendre: Number of Legendre moments to generate. Because the
+                bhmie() path does not compute angular scattering by default,
+                moments are derived from the Henyey-Greenstein phase function
+                rather than a full Mie phase function.
+
+        Returns:
+            SpeciesOptics with beta_ext_per_mass, ssa, g, and legendre_moments.
+        """
         wl = np.asarray(wl_um)
         n_wl = len(wl)
         config = self.integration_config
@@ -266,6 +279,8 @@ class MieSpecies(BaseModel):
         )
         dn_dr = self.size_distribution.evaluate(r_dense)
 
+        # Deferred imports avoid circular dependency:
+        # mie.py imports ParticleOptics/SizeDistribution from this module.
         from pyradtran.optics.mie import bhmie
 
         Qext = np.zeros((n_wl, config.n_radius_grid))

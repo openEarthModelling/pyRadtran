@@ -187,6 +187,29 @@ class TestMieSpecies:
         assert np.all(optics.beta_ext_per_mass >= 0)
         assert np.all((optics.ssa >= 0) & (optics.ssa <= 1))
         assert np.all(np.abs(optics.g) <= 1.0)
+        assert optics.legendre_moments is not None
+        assert optics.legendre_moments.shape == (2, 32)
+        assert np.isclose(optics.legendre_moments[0, 0], 1.0)
+
+    def test_mie_species_n_legendre(self):
+        ri = RefractiveIndex(
+            wavelength_um=[0.5, 0.55],
+            n_real=[1.5, 1.5],
+            k_imag=[0.01, 0.01],
+        )
+        sd = SizeDistribution(
+            kind="monodisperse", params={"radius_um": 0.5}
+        )
+        species = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(n_radius_grid=50),
+        )
+        wl = np.array([0.5, 0.55])
+        optics = species.intensive(wl, n_legendre=16)
+        assert optics.legendre_moments is not None
+        assert optics.legendre_moments.shape == (2, 16)
 
     def test_lognormal_mie_species(self):
         ri = RefractiveIndex(
