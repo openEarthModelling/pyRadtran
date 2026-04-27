@@ -177,7 +177,7 @@ def bhmie(x: float, m: complex, n_angles: int = 0) -> dict:
     return result
 
 
-from typing import Protocol
+from dataclasses import dataclass
 
 from pyradtran.models.aerosol_composite import (
     IntegrationConfig,
@@ -186,20 +186,14 @@ from pyradtran.models.aerosol_composite import (
 )
 
 
+@dataclass
 class _SpeciesOptics:
     """Internal dataclass for mass-normalized intensive properties."""
 
-    def __init__(
-        self,
-        beta_ext_per_mass: np.ndarray,
-        ssa: np.ndarray,
-        g: np.ndarray,
-        legendre_moments: np.ndarray | None = None,
-    ):
-        self.beta_ext_per_mass = beta_ext_per_mass
-        self.ssa = ssa
-        self.g = g
-        self.legendre_moments = legendre_moments
+    beta_ext_per_mass: np.ndarray
+    ssa: np.ndarray
+    g: np.ndarray
+    legendre_moments: np.ndarray | None = None
 
 
 def _mass_per_particle_avg(r_grid_um: np.ndarray, dn_dr: np.ndarray, rho_kg_m3: float) -> float:
@@ -308,7 +302,11 @@ def integrate_size_distribution(
                 Ikl = np.trapezoid(integrand_kl, r_m)
                 legendre_moments[i_wl, l] = Ikl / Isca if Isca > 0 else 0.0
     else:
-        legendre_moments = None
+        # Compute Henyey-Greenstein Legendre moments from integrated g
+        legendre_moments = np.zeros((n_wl, n_legendre))
+        l_vals = np.arange(n_legendre)
+        for i_wl in range(n_wl):
+            legendre_moments[i_wl, :] = (2 * l_vals + 1) * g[i_wl] ** l_vals
 
     return _SpeciesOptics(
         beta_ext_per_mass=beta_ext_per_mass,
