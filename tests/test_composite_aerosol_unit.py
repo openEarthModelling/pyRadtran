@@ -111,3 +111,52 @@ class TestSizeDistribution:
         assert cfg.n_radius_grid == 200
         assert cfg.radius_min_um == 0.001
         assert cfg.radius_max_um == 100.0
+
+
+from pyradtran.optics.mie import bhmie
+
+
+class TestBhmie:
+    """Tests against published Mie reference values."""
+
+    def test_zero_size_parameter(self):
+        result = bhmie(0.0, 1.5 + 0.0j)
+        assert result["Qext"] == 0.0
+        assert result["Qsca"] == 0.0
+        assert result["g"] == 0.0
+
+    def test_rayleigh_limit_small_x(self):
+        """For x << 1, Qsca ~ (8/3) * x^4 * |(m^2-1)/(m^2+2)|^2."""
+        x = 0.01
+        m = 1.5 + 0.0j
+        result = bhmie(x, m)
+        expected_Qsca = (8.0 / 3.0) * x**4 * abs((m**2 - 1) / (m**2 + 2)) ** 2
+        assert result["Qsca"] == pytest.approx(expected_Qsca, rel=0.01)
+
+    def test_geometric_optics_large_x(self):
+        """For x >> 1, Qext -> 2 (with ripple-structure tolerance)."""
+        x = 100.0
+        m = 1.33 + 0.0j
+        result = bhmie(x, m)
+        assert result["Qext"] == pytest.approx(2.0, abs=0.15)
+
+    def test_standard_sphere_bohren_huffman(self):
+        """B&H Table 4.1: x=1, m=1.5+1.0i -> Qext~2.336, Qsca~0.663."""
+        result = bhmie(1.0, 1.5 + 1.0j)
+        assert result["Qext"] == pytest.approx(2.336, abs=0.05)
+        assert result["Qsca"] == pytest.approx(0.663, abs=0.05)
+        assert abs(result["g"]) <= 1.0
+
+    def test_absorbing_particle(self):
+        """Absorbing particle: Qext > Qsca."""
+        result = bhmie(5.0, 1.5 + 0.5j)
+        assert result["Qext"] > result["Qsca"]
+        assert result["Qsca"] >= 0.0
+        assert result["Qext"] >= 0.0
+
+    def test_angular_output_shape(self):
+        result = bhmie(5.0, 1.33 + 0.0j, n_angles=37)
+        assert "S1" in result
+        assert "S2" in result
+        assert len(result["S1"]) == 37
+        assert len(result["angles_deg"]) == 37
