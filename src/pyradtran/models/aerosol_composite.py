@@ -6,11 +6,12 @@ See design spec: docs/superpowers/specs/2026-04-27-composite-aerosol-design.md
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
+from typing import Literal, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
 from pydantic import BaseModel, Field, model_validator
-from typing import Literal
 
 
 class RefractiveIndex(BaseModel):
@@ -220,12 +221,6 @@ class IntegrationConfig(BaseModel):
     n_radius_grid: int = 200
     radius_min_um: float = 0.001
     radius_max_um: float = 100.0
-
-
-from dataclasses import dataclass
-from typing import Protocol
-
-from numpy.typing import NDArray
 
 
 @dataclass
