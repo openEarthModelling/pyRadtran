@@ -78,7 +78,7 @@ def write_explicit_aerosol(
     # Write NULL.LAYER
     null_path = output_dir / "NULL.LAYER"
     if not null_path.exists():
-        null_vals = [0.0, 0.0, 1.0, 1.0] + [0.0] * (n_legendre - 1)
+        null_vals = [0.0, 0.0, 1.0, 0.0] + [0.0] * (n_legendre - 1)
         with open(null_path, "w") as f:
             f.write(" ".join(f"{v:.6e}" for v in null_vals) + "\n")
 

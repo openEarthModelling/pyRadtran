@@ -41,3 +41,8 @@ def data_path():
 def has_uvspec(uvspec_exe):
     """Marker fixture — test requires uvspec. Yields exe path."""
     return uvspec_exe
+
+
+def pytest_configure(config):
+    """Register custom markers."""
+    config.addinivalue_line("markers", "slow: marks tests as slow (deselect with -m 'not slow')")

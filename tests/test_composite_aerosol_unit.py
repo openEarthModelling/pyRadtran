@@ -93,7 +93,7 @@ class TestSizeDistribution:
         )
         r = np.logspace(-2, 2, 10000)
         dn = sd.evaluate(r)
-        total = np.trapezoid(dn, r)
+        total = np.trapz(dn, r)
         assert np.isclose(total, 1.0, rtol=0.01)
 
     def test_monodisperse_peak_location(self):
@@ -115,6 +115,37 @@ class TestSizeDistribution:
         assert cfg.n_radius_grid == 200
         assert cfg.radius_min_um == 0.001
         assert cfg.radius_max_um == 100.0
+
+    def test_modified_gamma_normalization(self):
+        sd = SizeDistribution(
+            kind="modified_gamma",
+            params={"alpha": 2.0, "gamma": 1.0, "r_c_um": 0.5},
+        )
+        r = np.logspace(-2, 2, 10000)
+        dn = sd.evaluate(r)
+        total = np.trapz(dn, r)
+        assert np.isclose(total, 1.0, rtol=0.01)
+
+    def test_discrete_normalization(self):
+        sd = SizeDistribution(
+            kind="discrete",
+            params={"radius_um": [0.1, 1.0, 10.0], "weights": [1.0, 2.0, 1.0]},
+        )
+        r = np.logspace(-2, 2, 10000)
+        dn = sd.evaluate(r)
+        total = np.trapz(dn, r)
+        assert np.isclose(total, 1.0, rtol=0.01)
+
+    def test_modified_gamma_invalid_params_raises(self):
+        with pytest.raises(ValueError):
+            SizeDistribution(kind="modified_gamma", params={"alpha": 2.0})
+
+    def test_discrete_mismatched_lengths_raises(self):
+        with pytest.raises(ValueError):
+            SizeDistribution(
+                kind="discrete",
+                params={"radius_um": [0.1, 1.0], "weights": [1.0]},
+            )
 
 
 from pyradtran.optics.mie import bhmie
@@ -145,11 +176,11 @@ class TestBhmie:
         assert result["Qext"] == pytest.approx(2.0, abs=0.15)
 
     def test_standard_sphere_bohren_huffman(self):
-        """B&H Table 4.1: x=1, m=1.5+1.0i -> Qext~2.336, Qsca~0.663."""
+        """B&H Table 4.2: x=1, m=1.5+1.0i -> Qext~2.336, Qsca~0.663, g~0.192."""
         result = bhmie(1.0, 1.5 + 1.0j)
         assert result["Qext"] == pytest.approx(2.336, abs=0.05)
         assert result["Qsca"] == pytest.approx(0.663, abs=0.05)
-        assert abs(result["g"]) <= 1.0
+        assert result["g"] == pytest.approx(0.192, abs=0.01)
 
     def test_absorbing_particle(self):
         """Absorbing particle: Qext > Qsca."""

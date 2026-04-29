@@ -357,7 +357,9 @@ class PrecomputedSpecies(BaseModel):
             log_Qsca = np.log(np.clip(self.particle_optics.Qsca[:, i_r], 1e-30, None))
             Qsca_interp[:, i_r] = np.exp(np.interp(wl, wl_tab, log_Qsca))
 
-            g_interp[:, i_r] = np.interp(wl, wl_tab, self.particle_optics.g[:, i_r])
+            g_interp[:, i_r] = np.clip(
+                np.interp(wl, wl_tab, self.particle_optics.g[:, i_r]), -1.0, 1.0
+            )
 
         legendre_interp = None
         if self.particle_optics.legendre_moments is not None:
@@ -526,12 +528,26 @@ class LoadedSpecies(BaseModel):
             alt_centers[::-1],  # ascending for np.interp
             np.array(self.mass_profile_kg_m3)[::-1],
         )
+        mass_interp = np.clip(mass_interp, 0.0, None)  # mass cannot be negative
 
-        # Compute optical depth per layer: tau = beta_ext * mass * dz
-        # beta_ext [m^2/kg] * mass [kg/m^3] * dz [m] = dimensionless
+        # Compute optical depth per layer
         tau = np.zeros((n_wl, n_layer))
-        for i_wl in range(n_wl):
-            tau[i_wl, :] = beta_ext[i_wl] * mass_interp * dz_m
+        if isinstance(self.species, OPACSpecies):
+            # OPACSpecies returns per-layer optical depth directly in
+            # beta_ext_per_mass (netCDF dtauc is already dimensionless).
+            # Interpolate to the output layer grid using the species altitude grid.
+            species_alt_centers = alt_centers
+            output_alt_centers = layer_centers
+            for i_wl in range(n_wl):
+                tau[i_wl, :] = np.interp(
+                    output_alt_centers,
+                    species_alt_centers[::-1],
+                    np.full(n_layer, beta_ext[i_wl])[::-1],
+                )
+        else:
+            # beta_ext [m^2/kg] * mass [kg/m^3] * dz [m] = dimensionless
+            for i_wl in range(n_wl):
+                tau[i_wl, :] = beta_ext[i_wl] * mass_interp * dz_m
 
         # Broadcast ssa and g to (n_wl, n_layer)
         ssa_layer = np.broadcast_to(ssa[:, np.newaxis], (n_wl, n_layer))
