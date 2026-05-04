@@ -43,7 +43,7 @@ Homepage = "https://github.com/openEarthModelling/pyRadtran"
 Repository = "https://github.com/openEarthModelling/pyRadtran"
 Issues = "https://github.com/openEarthModelling/pyRadtran/issues"
 Changelog = "https://github.com/openEarthModelling/pyRadtran/blob/main/CHANGELOG.md"
-Documentation = "https://pyradtran.readthedocs.io"
+Documentation = "https://openearthmodelling.github.io/pyRadtran/"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pyradtran"]

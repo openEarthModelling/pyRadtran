@@ -3,7 +3,7 @@
 [![CI](https://github.com/openEarthModelling/pyRadtran/actions/workflows/ci.yml/badge.svg)](https://github.com/openEarthModelling/pyRadtran/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/pyradtran.svg)](https://pypi.org/project/pyradtran/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Docs](https://readthedocs.org/projects/pyradtran/badge/?version=latest)](https://pyradtran.readthedocs.io/en/latest/)
+[![Docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue.svg)](https://openearthmodelling.github.io/pyRadtran/)
 
 A complete Python wrapper for [libRadtran](https://www.libradtran.org) radiative transfer simulations, built on [Pydantic](https://docs.pydantic.dev) for validation and [xarray](https://docs.xarray.dev) for output.
 
@@ -56,7 +56,7 @@ result = Runner.execute(scene, data_path="/usr/local/share/libRadtran/data")
 result.edir.plot()
 ```
 
-See the [documentation](https://pyradtran.readthedocs.io) for more examples, including aerosol configurations, 3D scenes, and satellite simulations.
+See the [documentation](https://openearthmodelling.github.io/pyRadtran/) for more examples, including aerosol configurations, 3D scenes, and satellite simulations.
 
 ## Key Features
 
@@ -68,7 +68,7 @@ See the [documentation](https://pyradtran.readthedocs.io) for more examples, inc
 
 ## Documentation
 
-Full documentation is hosted at [pyradtran.readthedocs.io](https://pyradtran.readthedocs.io), including API reference, tutorials, and example notebooks.
+Full documentation is hosted on [GitHub Pages](https://openearthmodelling.github.io/pyRadtran/), including API reference, tutorials, and example notebooks.
 
 ## Contributing
 
