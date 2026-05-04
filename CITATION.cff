@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "pyRadtran"
+abstract: "A complete Python wrapper for libRadtran radiative transfer simulations"
+authors:
+  - family-names: "Zhang"
+    given-names: "Fan"
+    email: "vanvonzhang@gmail.com"
+repository-code: "https://github.com/openEarthModelling/pyRadtran"
+url: "https://github.com/openEarthModelling/pyRadtran"
+license: MIT
