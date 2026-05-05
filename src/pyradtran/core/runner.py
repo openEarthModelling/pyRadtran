@@ -37,7 +37,7 @@ class RunnerConfig:
 
     uvspec_exe: str | None = None
     data_path: str | None = None
-    max_workers: int = 1
+    max_workers: int = 4
     keep_temp: bool = False
     timeout: int | None = None
 

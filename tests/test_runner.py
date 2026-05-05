@@ -12,7 +12,7 @@ class TestRunnerConfig:
         cfg = RunnerConfig()
         assert cfg.uvspec_exe is None
         assert cfg.data_path is None
-        assert cfg.max_workers == 1
+        assert cfg.max_workers == 4
         assert cfg.keep_temp is False
 
     def test_custom_config(self):
@@ -103,6 +103,43 @@ class TestRunnerGlobalConfig:
         result = Runner.execute(scene, config=local_cfg)
         assert isinstance(result, xr.Dataset)
         assert result.attrs["uvspec_exe"] == has_uvspec
+
+    def test_execute_many_uses_global_defaults(self, has_uvspec, data_path):
+        Runner.configure(uvspec_exe=has_uvspec, data_path=data_path)
+        scenes = [
+            Scene()
+            .set_atmosphere(profile="us")
+            .set_source_solar(sza=30.0)
+            .set_wavelength(300.0, 400.0)
+            .set_solver(method="disort", streams=16)
+            .set_output(quantities=["lambda", "edir"], format="ascii")
+            .set_surface(albedo=0.2)
+            for _ in range(2)
+        ]
+        results = Runner.execute_many(scenes, max_workers=2)
+        assert len(results) == 2
+        for r in results:
+            assert isinstance(r, xr.Dataset)
+            assert r.attrs["uvspec_exe"] == has_uvspec
+
+    def test_execute_many_config_param_overrides_global(self, has_uvspec, data_path):
+        Runner.configure(uvspec_exe="/nonexistent/uvspec", data_path="/nonexistent/data")
+        scenes = [
+            Scene()
+            .set_atmosphere(profile="us")
+            .set_source_solar(sza=30.0)
+            .set_wavelength(300.0, 400.0)
+            .set_solver(method="disort", streams=16)
+            .set_output(quantities=["lambda", "edir"], format="ascii")
+            .set_surface(albedo=0.2)
+            for _ in range(2)
+        ]
+        local_cfg = RunnerConfig(uvspec_exe=has_uvspec, data_path=data_path)
+        results = Runner.execute_many(scenes, max_workers=2, config=local_cfg)
+        assert len(results) == 2
+        for r in results:
+            assert isinstance(r, xr.Dataset)
+            assert r.attrs["uvspec_exe"] == has_uvspec
 
 
 class TestRunnerExecute:
