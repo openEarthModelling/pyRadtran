@@ -3,10 +3,12 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../src"))
 
+from importlib.metadata import version as get_version
+
 project = "pyRadtran"
 copyright = "2026, Fan Zhang"
 author = "Fan Zhang"
-release = "0.1.0"
+release = get_version("pyradtran")
 
 extensions = [
     "sphinx.ext.autodoc",
