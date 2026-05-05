@@ -49,7 +49,36 @@ class Runner:
 
         result = Runner.execute(scene, data_path="/path/to/data")
         results = Runner.execute_many(scenes, max_workers=4)
+
+    Global defaults may be set once via :py:meth:`configure` so that
+    ``uvspec_exe`` and ``data_path`` do not need to be repeated on
+    every call::
+
+        Runner.configure(uvspec_exe="/opt/libRadtran/bin/uvspec",
+                         data_path="/opt/libRadtran/data")
+        result = Runner.execute(scene)
     """
+
+    _config: RunnerConfig = RunnerConfig()
+
+    @classmethod
+    def configure(
+        cls, config: RunnerConfig | None = None, **kwargs
+    ) -> RunnerConfig:
+        """Set global default configuration for all Runner executions.
+
+        Args:
+            config: A complete ``RunnerConfig`` instance, or ``None``.
+            **kwargs: Individual fields (e.g. ``uvspec_exe=..., data_path=...``).
+
+        Returns:
+            The newly set configuration.
+        """
+        if config is not None:
+            cls._config = config
+        else:
+            cls._config = RunnerConfig(**kwargs)
+        return cls._config
 
     @staticmethod
     def _find_uvspec(exe: str | None = None) -> str:
@@ -89,8 +118,9 @@ class Runner:
         scene: Scene,
         uvspec_exe: str | None = None,
         data_path: str | None = None,
-        keep_temp: bool = False,
+        keep_temp: bool | None = None,
         timeout: int | None = None,
+        config: RunnerConfig | None = None,
     ) -> xr.Dataset:
         """Execute a single uvspec simulation.
 
@@ -100,12 +130,25 @@ class Runner:
             data_path: Path to libRadtran data directory. Auto-detected if None.
             keep_temp: Keep temporary files after execution.
             timeout: Maximum execution time in seconds.
+            config: Optional ``RunnerConfig`` overriding global defaults for
+                this call only.
 
         Returns:
             xarray.Dataset with simulation results.
         """
-        uvspec = Runner._find_uvspec(uvspec_exe)
-        resolved_data_path = Runner._find_data_path(data_path)
+        cfg = config or Runner._config
+        uvspec = Runner._find_uvspec(
+            uvspec_exe if uvspec_exe is not None else cfg.uvspec_exe
+        )
+        resolved_data_path = Runner._find_data_path(
+            data_path if data_path is not None else cfg.data_path
+        )
+        resolved_keep_temp = (
+            keep_temp if keep_temp is not None else cfg.keep_temp
+        )
+        resolved_timeout = (
+            timeout if timeout is not None else cfg.timeout
+        )
 
         input_text = scene.build_input(data_files_path=resolved_data_path)
 
@@ -128,7 +171,7 @@ class Runner:
                     stdout=stdout_f,
                     stderr=subprocess.PIPE,
                     env=env,
-                    timeout=timeout,
+                    timeout=resolved_timeout,
                     text=True,
                 )
 
@@ -151,20 +194,52 @@ class Runner:
         scenes: list[Scene],
         uvspec_exe: str | None = None,
         data_path: str | None = None,
-        max_workers: int = 4,
-        keep_temp: bool = False,
+        max_workers: int | None = None,
+        keep_temp: bool | None = None,
         timeout: int | None = None,
+        config: RunnerConfig | None = None,
     ) -> list[xr.Dataset]:
         """Execute multiple uvspec simulations in parallel.
+
+        Args:
+            scenes: List of configured Scene objects.
+            uvspec_exe: Path to uvspec binary. Auto-detected if None.
+            data_path: Path to libRadtran data directory. Auto-detected if None.
+            max_workers: Maximum parallel workers.
+            keep_temp: Keep temporary files after execution.
+            timeout: Maximum execution time in seconds per scene.
+            config: Optional ``RunnerConfig`` overriding global defaults.
 
         Returns:
             List of xarray.Dataset results, one per scene.
         """
+        cfg = config or Runner._config
+        resolved_max_workers = (
+            max_workers if max_workers is not None else cfg.max_workers
+        )
+        resolved_uvspec_exe = (
+            uvspec_exe if uvspec_exe is not None else cfg.uvspec_exe
+        )
+        resolved_data_path = (
+            data_path if data_path is not None else cfg.data_path
+        )
+        resolved_keep_temp = (
+            keep_temp if keep_temp is not None else cfg.keep_temp
+        )
+        resolved_timeout = (
+            timeout if timeout is not None else cfg.timeout
+        )
+
         results = []
-        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        with ProcessPoolExecutor(max_workers=resolved_max_workers) as executor:
             futures = {
                 executor.submit(
-                    Runner.execute, scene, uvspec_exe, data_path, keep_temp, timeout
+                    Runner.execute,
+                    scene,
+                    uvspec_exe=resolved_uvspec_exe,
+                    data_path=resolved_data_path,
+                    keep_temp=resolved_keep_temp,
+                    timeout=resolved_timeout,
                 ): i
                 for i, scene in enumerate(scenes)
             }
