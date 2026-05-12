@@ -1,5 +1,9 @@
 """pyRadtran — A complete Python wrapper for libRadtran radiative transfer."""
 
+from importlib.metadata import version
+
+__version__ = version("pyradtran")
+
 from pyradtran.convenience import (
     run_3d,
     run_cloudy_scene,

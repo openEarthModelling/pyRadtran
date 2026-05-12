@@ -206,7 +206,7 @@ def _mass_per_particle_avg(r_grid_um: np.ndarray, dn_dr: np.ndarray, rho_kg_m3: 
     """Average particle mass: ρ * ∫ (4/3)πr³ n(r) dr."""
     r_m = r_grid_um * 1e-6
     volume = (4.0 / 3.0) * np.pi * r_m**3
-    return rho_kg_m3 * np.trapz(volume * dn_dr, r_m)
+    return rho_kg_m3 * np.trapezoid(volume * dn_dr, r_m)
 
 
 def integrate_size_distribution(
@@ -291,9 +291,9 @@ def integrate_size_distribution(
         integrand_sca = Qsca_dense[i_wl, :] * area * dn_dr
         integrand_g = g_dense[i_wl, :] * Qsca_dense[i_wl, :] * area * dn_dr
 
-        Iext = np.trapz(integrand_ext, r_m)
-        Isca = np.trapz(integrand_sca, r_m)
-        Ig = np.trapz(integrand_g, r_m)
+        Iext = np.trapezoid(integrand_ext, r_m)
+        Isca = np.trapezoid(integrand_sca, r_m)
+        Ig = np.trapezoid(integrand_g, r_m)
 
         beta_ext_per_mass[i_wl] = Iext / m_particle_avg if m_particle_avg > 0 else 0.0
         ssa[i_wl] = Isca / Iext if Iext > 0 else 0.0
@@ -305,10 +305,10 @@ def integrate_size_distribution(
         for i_wl in range(n_wl):
             # Recompute Isca for this wavelength
             integrand_sca = Qsca_dense[i_wl, :] * area * dn_dr
-            Isca_wl = np.trapz(integrand_sca, r_m)
+            Isca_wl = np.trapezoid(integrand_sca, r_m)
             for l in range(n_mom):
                 integrand_kl = kl_dense[i_wl, :, l] * Qsca_dense[i_wl, :] * area * dn_dr
-                Ikl = np.trapz(integrand_kl, r_m)
+                Ikl = np.trapezoid(integrand_kl, r_m)
                 legendre_moments[i_wl, l] = Ikl / Isca_wl if Isca_wl > 0 else 0.0
     else:
         # Compute Henyey-Greenstein Legendre moments from integrated g
