@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-05-04
+## [0.1.0] - 2026-05-12
 
 ### Added
 - Initial release of pyRadtran.
@@ -19,3 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Convenience functions for common simulation configurations (3D, cloudy, lidar, polarized, satellite, etc.).
 - Full test suite with pytest.
 - Documentation with Sphinx and ReadTheDocs theme.
+- `__version__` attribute exposed via `importlib.metadata`.
+- Codecov coverage reporting in CI.
+- Dedicated `lint.yml` workflow with ruff check and format check.
+- Automated release notes generation from CHANGELOG in publish workflow.
+
+### Fixed
+- NumPy 2.0 compatibility: replaced deprecated `np.trapz` with `np.trapezoid`.
+- CI branch triggers aligned to `master`.
+- Added `twine check` to PyPI publish workflow.
