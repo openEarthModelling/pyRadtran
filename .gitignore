@@ -14,4 +14,5 @@ build/
 .venv/
 venv/
 .worktrees/
+docs/_build/
 docs/superpowers/
