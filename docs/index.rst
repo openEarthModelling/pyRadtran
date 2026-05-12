@@ -3,37 +3,31 @@ pyRadtran
 
 A complete Python wrapper for `libRadtran <https://www.libradtran.org>`_ radiative transfer simulations.
 
-Prerequisites
--------------
-
-This library requires libRadtran to be installed separately. See the `README <https://github.com/openEarthModelling/pyRadtran/blob/main/README.md#prerequisites>`_ for installation instructions.
-
-Quick Start
------------
-
-.. code-block:: python
-
-   from pyradtran import Scene, Runner
-
-   scene = (
-       Scene()
-       .set_atmosphere(profile="us", altitude=2.663)
-       .set_source_solar(sza=30.0)
-       .set_wavelength(250.0, 1200.0)
-       .set_solver(method="disort", streams=16)
-       .set_output(quantities=["lambda", "edir"], quantity="transmittance")
-   )
-
-   result = Runner.execute(scene, data_path="/usr/local/share/libRadtran/data")
-   result.edir.plot()
-
-API Reference
--------------
+pyRadtran provides a Pythonic, type-safe API for configuring and executing libRadtran's ``uvspec`` radiative transfer code. It features an immutable scene builder with a fluent interface, comprehensive aerosol model support, and high-level convenience functions for common atmospheric science tasks.
 
 .. toctree::
    :maxdepth: 2
+   :caption: User Guide
+
+   guide/installation
+   guide/quickstart
+   guide/scene_builder
+   guide/aerosols
+   guide/convenience
+   guide/parallel
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference
 
    api
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   contributing
+   changelog
 
 Indices and tables
 ------------------
