@@ -186,7 +186,19 @@ class Runner:
                 )
 
             n_zout = len(scene.output.zout) if scene.output and scene.output.zout else 1
-            result = parse_output(out_file, format=output_format, n_zout=n_zout)
+
+            # Derive column names from output_user quantities for ASCII parsing
+            col_names = None
+            if output_format != "netcdf" and scene.output and scene.output.quantities:
+                col_names = [
+                    "wavelength" if q == "lambda" else q
+                    for q in scene.output.quantities
+                ]
+
+            result = parse_output(
+                out_file, format=output_format, n_zout=n_zout,
+                column_names=col_names,
+            )
 
         result.attrs["input_config"] = input_text.strip()
         result.attrs["uvspec_exe"] = uvspec

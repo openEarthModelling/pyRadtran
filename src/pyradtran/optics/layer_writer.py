@@ -17,6 +17,8 @@ def _content_hash(
     altitude_grid_km: list[float],
     n_legendre: int,
     source_signatures: list[str],
+    tau: np.ndarray | None = None,
+    ssa: np.ndarray | None = None,
 ) -> str:
     """Deterministic content hash for cache key."""
     data = (
@@ -25,6 +27,10 @@ def _content_hash(
         + str(n_legendre)
         + str(sorted(source_signatures))
     )
+    if tau is not None:
+        data += tau.tobytes().hex()
+    if ssa is not None:
+        data += ssa.tobytes().hex()
     return hashlib.sha256(data.encode()).hexdigest()[:16]
 
 
@@ -60,12 +66,14 @@ def write_explicit_aerosol(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Content hash for cache/filename
+    # Content hash for cache/filename (includes optical properties to distinguish different aerosol)
     content_hash = _content_hash(
         wavelength_um.tolist(),
         altitude_km.tolist(),
         n_legendre,
         source_signatures,
+        tau=tau,
+        ssa=ssa,
     )
     prefix = f"scene_{content_hash}_layer"
 
