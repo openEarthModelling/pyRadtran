@@ -159,6 +159,10 @@ class Runner:
             ext = "nc" if output_format == "netcdf" else "out"
             out_file = Path(tmp_dir) / f"uvspec.{ext}"
 
+            # libRadtran requires output_file directive for netCDF output
+            if output_format == "netcdf":
+                input_text += f"\noutput_file {out_file}\n"
+
             inp_file.write_text(input_text)
 
             env = os.environ.copy()

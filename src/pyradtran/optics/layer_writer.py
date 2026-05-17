@@ -83,11 +83,11 @@ def write_explicit_aerosol(
             f.write(" ".join(f"{v:.6e}" for v in null_vals) + "\n")
 
     # Write per-layer .LAYER files
-    layer_names = []
+    layer_paths = []
     for i_layer in range(n_layer):
         layer_name = f"{prefix}_{i_layer:02d}.LAYER"
         layer_path = output_dir / layer_name
-        layer_names.append(layer_name)
+        layer_paths.append(layer_path)
 
         with open(layer_path, "w") as f:
             for i_wl in range(n_wl):
@@ -102,12 +102,13 @@ def write_explicit_aerosol(
                 f.write(" ".join(f"{v:.6e}" for v in vals) + "\n")
 
     # Write master file
+    # libRadtran requires the first entry to be a zero-optical-thickness layer
     with open(master_path, "w") as f:
+        # Top boundary -> NULL.LAYER (zero optical thickness, required by libRadtran)
+        z_top = altitude_km[0]
+        f.write(f"{z_top:.6f}  {null_path}\n")
         for i_layer in range(n_layer):
-            z_top = altitude_km[i_layer]
-            f.write(f"{z_top:.6f}  {layer_names[i_layer]}\n")
-        # Bottom boundary -> NULL.LAYER
-        z_bottom = altitude_km[-1]
-        f.write(f"{z_bottom:.6f}  NULL.LAYER\n")
+            z_boundary = altitude_km[i_layer + 1]
+            f.write(f"{z_boundary:.6f}  {layer_paths[i_layer]}\n")
 
     return master_path

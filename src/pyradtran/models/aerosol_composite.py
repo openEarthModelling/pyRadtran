@@ -672,4 +672,4 @@ class CompositeAerosol(AerosolModel):
             source_signatures=source_sigs,
         )
 
-        return [f"aerosol_file explicit {master_path}"]
+        return ["aerosol_default", f"aerosol_file explicit {master_path}"]
