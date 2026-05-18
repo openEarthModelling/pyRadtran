@@ -132,6 +132,43 @@ class ParticleOptics(BaseModel):
             legendre_moments=legendre_moments,
         )
 
+    @classmethod
+    def from_aerosol3d(cls, data) -> "ParticleOptics":
+        """Create ParticleOptics from Aerosol3D AerosolOpticsData.
+
+        Handles unit conversion (nm -> um, nm^2 -> um^2) and Legendre
+        convention (prefers beta_l, falls back to k_l conversion).
+
+        Args:
+            data: Object with wavelength_nm, C_ext, C_sca, g, r_eff_nm,
+                  n_legendre, legendre_moments_beta, legendre_moments fields.
+
+        Returns:
+            ParticleOptics ready for use in PrecomputedSpecies.
+        """
+        wavelengths_um = (data.wavelength_nm / 1000.0).tolist()
+        r_eff_um = data.r_eff_nm / 1000.0
+
+        legendre = None
+        if data.legendre_moments_beta is not None:
+            legendre = data.legendre_moments_beta.reshape(
+                (-1, 1, data.n_legendre)
+            )
+        elif data.legendre_moments is not None:
+            l = np.arange(data.n_legendre)
+            legendre = (data.legendre_moments / (2 * l + 1)).reshape(
+                (-1, 1, data.n_legendre)
+            )
+
+        return cls.from_cross_sections(
+            wavelength_um=wavelengths_um,
+            radius_um=[r_eff_um],
+            Cext_um2=(data.C_ext * 1e-6).reshape((-1, 1)),
+            Csca_um2=(data.C_sca * 1e-6).reshape((-1, 1)),
+            g=data.g.reshape((-1, 1)),
+            legendre_moments=legendre,
+        )
+
 
 class SizeDistribution(BaseModel):
     """Aerosol particle size distribution."""

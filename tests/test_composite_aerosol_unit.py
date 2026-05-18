@@ -85,6 +85,73 @@ class TestParticleOptics:
                 g=np.array([[1.1]]),
             )
 
+    def test_from_aerosol3d_with_beta_l(self):
+        from types import SimpleNamespace
+
+        data = SimpleNamespace(
+            wavelength_nm=np.array([400.0, 550.0, 700.0]),
+            C_ext=np.array([100.0, 120.0, 80.0]),
+            C_sca=np.array([80.0, 96.0, 64.0]),
+            g=np.array([0.7, 0.72, 0.68]),
+            r_eff_nm=200.0,
+            n_legendre=8,
+            legendre_moments_beta=np.array([
+                [1.0, 0.7, 0.49, 0.343, 0.2401, 0.16807, 0.117649, 0.0823543],
+                [1.0, 0.72, 0.5184, 0.373248, 0.26873856, 0.19349176, 0.13931407, 0.10030613],
+                [1.0, 0.68, 0.4624, 0.314432, 0.21381376, 0.14539336, 0.09886748, 0.06722989],
+            ]),
+            legendre_moments=None,
+        )
+        po = ParticleOptics.from_aerosol3d(data)
+
+        assert po.wavelength_um == [0.4, 0.55, 0.7]
+        assert po.radius_um == [0.2]
+        assert po.Qext.shape == (3, 1)
+        r_um = 0.2
+        expected_Qext = np.array([100.0, 120.0, 80.0]) * 1e-6 / (np.pi * r_um**2)
+        assert np.allclose(po.Qext[:, 0], expected_Qext, rtol=1e-6)
+        assert po.legendre_moments is not None
+        assert po.legendre_moments.shape == (3, 1, 8)
+        assert np.allclose(po.legendre_moments[:, 0, :], data.legendre_moments_beta)
+
+    def test_from_aerosol3d_fallback_to_kl(self):
+        from types import SimpleNamespace
+
+        l_vals = np.arange(8)
+        kl = (2 * l_vals + 1) * np.array([1.0, 0.7, 0.49, 0.343, 0.2401, 0.16807, 0.117649, 0.0823543])
+        data = SimpleNamespace(
+            wavelength_nm=np.array([550.0]),
+            C_ext=np.array([100.0]),
+            C_sca=np.array([80.0]),
+            g=np.array([0.7]),
+            r_eff_nm=200.0,
+            n_legendre=8,
+            legendre_moments_beta=None,
+            legendre_moments=kl.reshape(1, 8),
+        )
+        po = ParticleOptics.from_aerosol3d(data)
+
+        assert po.legendre_moments is not None
+        expected_beta = kl / (2 * l_vals + 1)
+        assert np.allclose(po.legendre_moments[0, 0, :], expected_beta, atol=1e-10)
+
+    def test_from_aerosol3d_no_legendre(self):
+        from types import SimpleNamespace
+
+        data = SimpleNamespace(
+            wavelength_nm=np.array([550.0]),
+            C_ext=np.array([100.0]),
+            C_sca=np.array([80.0]),
+            g=np.array([0.7]),
+            r_eff_nm=200.0,
+            n_legendre=32,
+            legendre_moments_beta=None,
+            legendre_moments=None,
+        )
+        po = ParticleOptics.from_aerosol3d(data)
+
+        assert po.legendre_moments is None
+
 
 class TestSizeDistribution:
     def test_lognormal_normalization(self):
