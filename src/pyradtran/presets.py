@@ -28,7 +28,5 @@ def resolve_altitude(altitude: float | str) -> float:
     if isinstance(altitude, str):
         if altitude in SITES:
             return SITES[altitude]["altitude"]
-        raise ValueError(
-            f"Unknown site '{altitude}'. Available: {sorted(SITES.keys())}"
-        )
+        raise ValueError(f"Unknown site '{altitude}'. Available: {sorted(SITES.keys())}")
     raise TypeError(f"altitude must be float or str, got {type(altitude)}")

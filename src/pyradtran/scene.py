@@ -11,7 +11,7 @@ import copy
 
 from pyradtran.core.input_builder import build_input_text
 from pyradtran.models.advanced import AdvancedConfig
-from pyradtran.models.aerosol import AerosolModifyEntry, AerosolModel, OpacPreset, OpacPresetName
+from pyradtran.models.aerosol import AerosolModel, AerosolModifyEntry, OpacPreset, OpacPresetName
 from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.cloud import CloudConfig
 from pyradtran.models.mc import McConfig
@@ -151,9 +151,7 @@ class Scene:
         new.aerosol = aerosol
         return new
 
-    def set_aerosol_modify(
-        self, variable: str, action: str, value: float
-    ) -> Scene:
+    def set_aerosol_modify(self, variable: str, action: str, value: float) -> Scene:
         """Add an aerosol modification directive.
 
         Args:
@@ -224,9 +222,9 @@ class Scene:
             new.special = SpecialConfig(**kwargs)
         return new
 
-    def set_satellite(self, geometry: str | None = None,
-                      pixel: tuple[int, int] | None = None,
-                      **source_kwargs) -> Scene:
+    def set_satellite(
+        self, geometry: str | None = None, pixel: tuple[int, int] | None = None, **source_kwargs
+    ) -> Scene:
         new = self.clone()
         sat_updates = {}
         if geometry is not None:
@@ -239,8 +237,9 @@ class Scene:
             new.source = SourceConfig(source="solar", sza=0.0, **sat_updates, **source_kwargs)
         return new
 
-    def set_dynamic(self, method: str = "dynamic_tenstream",
-                    iterations: int | None = None, **kwargs) -> Scene:
+    def set_dynamic(
+        self, method: str = "dynamic_tenstream", iterations: int | None = None, **kwargs
+    ) -> Scene:
         new = self.clone()
         solver_kwargs = {"method": method, **kwargs}
         if iterations is not None:
@@ -264,22 +263,15 @@ class Scene:
             ValueError: If required components are missing.
         """
         if self.atmosphere is None:
-            raise ValueError(
-                "Scene is missing atmosphere. Call .set_atmosphere() first."
-            )
+            raise ValueError("Scene is missing atmosphere. Call .set_atmosphere() first.")
         if self.source is None:
             raise ValueError(
-                "Scene is missing source. Call .set_source_solar() or "
-                ".set_source_thermal() first."
+                "Scene is missing source. Call .set_source_solar() or .set_source_thermal() first."
             )
         if self.wavelength is None:
-            raise ValueError(
-                "Scene is missing wavelength. Call .set_wavelength() first."
-            )
+            raise ValueError("Scene is missing wavelength. Call .set_wavelength() first.")
         if self.solver is None:
-            raise ValueError(
-                "Scene is missing solver. Call .set_solver() first."
-            )
+            raise ValueError("Scene is missing solver. Call .set_solver() first.")
         output = self.output if self.output is not None else OutputConfig(quiet=True)
 
         return build_input_text(

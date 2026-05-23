@@ -11,13 +11,31 @@ from pydantic import Field, model_validator
 
 from pyradtran.models.base import UvspecOption
 
-VALID_SOLVERS = frozenset({
-    "disort", "twostr", "mystic", "rodents", "sslidar",
-    "null", "sdisort", "fdisort1", "fdisort2", "sos",
-    "ftwostr", "montecarlo", "tzs", "sssi", "sss",
-    "twostrebe", "schwarzschild", "twomaxrnd", "twomaxrnd3C",
-    "dynamic_twostream", "dynamic_tenstream",
-})
+VALID_SOLVERS = frozenset(
+    {
+        "disort",
+        "twostr",
+        "mystic",
+        "rodents",
+        "sslidar",
+        "null",
+        "sdisort",
+        "fdisort1",
+        "fdisort2",
+        "sos",
+        "ftwostr",
+        "montecarlo",
+        "tzs",
+        "sssi",
+        "sss",
+        "twostrebe",
+        "schwarzschild",
+        "twomaxrnd",
+        "twomaxrnd3C",
+        "dynamic_twostream",
+        "dynamic_tenstream",
+    }
+)
 
 VALID_HEAT_UNITS = frozenset({"K_per_day", "W_per_m2_and_dz", "W_per_m3"})
 
@@ -51,9 +69,7 @@ class SolverConfig(UvspecOption):
     @model_validator(mode="after")
     def validate_solver(self) -> SolverConfig:
         if self.method not in VALID_SOLVERS:
-            raise ValueError(
-                f"Unknown solver '{self.method}'. Valid: {sorted(VALID_SOLVERS)}"
-            )
+            raise ValueError(f"Unknown solver '{self.method}'. Valid: {sorted(VALID_SOLVERS)}")
         if self.dynamic_heat_unit is not None and self.dynamic_heat_unit not in VALID_HEAT_UNITS:
             raise ValueError(
                 f"Invalid dynamic_heat_unit '{self.dynamic_heat_unit}'. "

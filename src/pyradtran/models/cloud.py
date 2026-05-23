@@ -12,27 +12,59 @@ from pydantic import Field, model_validator
 
 from pyradtran.models.base import UvspecOption
 
-_VALID_IC_PROPERTIES = frozenset({
-    "fu", "echam4", "yang", "key", "baum", "baum_v36",
-    "hey", "yang2013", "raytracing", "mie",
-})
+_VALID_IC_PROPERTIES = frozenset(
+    {
+        "fu",
+        "echam4",
+        "yang",
+        "key",
+        "baum",
+        "baum_v36",
+        "hey",
+        "yang2013",
+        "raytracing",
+        "mie",
+    }
+)
 
-_VALID_IC_HABITS = frozenset({
-    "solid-column", "hollow-column", "rough-aggregate",
-    "rosette-4", "rosette-6", "plate", "droxtal", "dendrite", "ghm",
-})
+_VALID_IC_HABITS = frozenset(
+    {
+        "solid-column",
+        "hollow-column",
+        "rough-aggregate",
+        "rosette-4",
+        "rosette-6",
+        "plate",
+        "droxtal",
+        "dendrite",
+        "ghm",
+    }
+)
 
-_VALID_YANG2013_HABITS = frozenset({
-    "column_8elements", "droxtal", "hollow_bullet_rosette",
-    "hollow_column", "plate", "plate_10elements", "plate_5elements",
-    "solid_bullet_rosette", "solid_column",
-})
+_VALID_YANG2013_HABITS = frozenset(
+    {
+        "column_8elements",
+        "droxtal",
+        "hollow_bullet_rosette",
+        "hollow_column",
+        "plate",
+        "plate_10elements",
+        "plate_5elements",
+        "solid_bullet_rosette",
+        "solid_column",
+    }
+)
 
 _VALID_WC_PROPERTIES = frozenset({"hu", "echam4", "mie"})
 
-_VALID_CLOUD_OVERLAP = frozenset({
-    "max", "maxrand", "off", "rand",
-})
+_VALID_CLOUD_OVERLAP = frozenset(
+    {
+        "max",
+        "maxrand",
+        "off",
+        "rand",
+    }
+)
 
 _VALID_MODIFY_VARIABLES = frozenset({"gg", "ssa", "tau", "tau550"})
 _VALID_MODIFY_ACTIONS = frozenset({"scale", "set"})
@@ -132,9 +164,7 @@ class CloudConfig(UvspecOption):
             and self.cloud_cover_type is not None
             and self.cloud_cover_type not in ("ic", "wc")
         ):
-            raise ValueError(
-                    f"Invalid cloud_cover_type '{self.cloud_cover_type}'. Valid: ic, wc"
-                )
+            raise ValueError(f"Invalid cloud_cover_type '{self.cloud_cover_type}'. Valid: ic, wc")
         return self
 
     def to_uvspec_lines(self) -> list[str]:
@@ -148,9 +178,7 @@ class CloudConfig(UvspecOption):
         if self.ic_habit is not None:
             lines.append(f"ic_habit {self.ic_habit}")
             if self.ic_habit_roughness is not None:
-                lines.append(
-                    f"ic_habit_yang2013 {self.ic_habit} {self.ic_habit_roughness}"
-                )
+                lines.append(f"ic_habit_yang2013 {self.ic_habit} {self.ic_habit_roughness}")
         for entry in self.ic_modify:
             lines.append(f"ic_modify {entry.variable} {entry.action} {entry.value}")
         if self.wc_file is not None:

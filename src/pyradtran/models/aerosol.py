@@ -22,10 +22,20 @@ from pyradtran.models.base import UvspecOption
 _VALID_FILE_TYPES = frozenset({"gg", "ssa", "tau", "explicit", "moments", "ref", "siz"})
 _VALID_MODIFY_VARIABLES = frozenset({"gg", "ssa", "tau", "tau550"})
 _VALID_MODIFY_ACTIONS = frozenset({"scale", "set"})
-_VALID_OPAC_SPECIES = frozenset({
-    "inso", "waso", "soot", "ssam", "sscm",
-    "minm", "miam", "micm", "mitr", "suso",
-})
+_VALID_OPAC_SPECIES = frozenset(
+    {
+        "inso",
+        "waso",
+        "soot",
+        "ssam",
+        "sscm",
+        "minm",
+        "miam",
+        "micm",
+        "mitr",
+        "suso",
+    }
+)
 
 
 def _validate_opac_species_names(names: list[str]) -> None:
@@ -33,8 +43,7 @@ def _validate_opac_species_names(names: list[str]) -> None:
     invalid = set(names) - _VALID_OPAC_SPECIES
     if invalid:
         raise ValueError(
-            f"Invalid OPAC species: {sorted(invalid)}. "
-            f"Valid: {sorted(_VALID_OPAC_SPECIES)}"
+            f"Invalid OPAC species: {sorted(invalid)}. Valid: {sorted(_VALID_OPAC_SPECIES)}"
         )
 
 
@@ -43,6 +52,7 @@ class OpacPresetName(str, Enum):
 
     These correspond to files in data/aerosol/OPAC/standard_aerosol_files/.
     """
+
     CONTINENTAL_AVERAGE = "continental_average"
     CONTINENTAL_CLEAN = "continental_clean"
     CONTINENTAL_POLLUTED = "continental_polluted"
@@ -100,8 +110,7 @@ class AerosolModel(UvspecOption):
     modify: list[AerosolModifyEntry] = Field(default_factory=list)
 
     @abstractmethod
-    def to_uvspec_lines(self) -> list[str]:
-        ...
+    def to_uvspec_lines(self) -> list[str]: ...
 
     def to_uvspec_items(self) -> list[tuple[int, str]]:
         phase = 5
@@ -196,8 +205,7 @@ class ExternalFile(AerosolModel):
         for file_type, _ in self.files:
             if file_type not in _VALID_FILE_TYPES:
                 raise ValueError(
-                    f"Unknown aerosol file type '{file_type}'. "
-                    f"Valid: {sorted(_VALID_FILE_TYPES)}"
+                    f"Unknown aerosol file type '{file_type}'. Valid: {sorted(_VALID_FILE_TYPES)}"
                 )
         return self
 

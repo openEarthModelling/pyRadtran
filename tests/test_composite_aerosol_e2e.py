@@ -6,7 +6,6 @@ These are marked slow and skipped when uvspec is absent.
 import tempfile
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from pyradtran.models.aerosol import OpacPreset, OpacPresetName
@@ -19,7 +18,6 @@ from pyradtran.models.aerosol_composite import (
     SizeDistribution,
 )
 from pyradtran.scene import Scene
-
 
 pytestmark = pytest.mark.slow
 

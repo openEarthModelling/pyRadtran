@@ -52,9 +52,7 @@ class WavelengthConfig(UvspecOption):
     @model_validator(mode="after")
     def validate_wavelength_set(self) -> WavelengthConfig:
         if self.wavelength_min is None and self.wavelength_grid_file is None:
-            raise ValueError(
-                "At least one of wavelength_min or wavelength_grid_file must be set"
-            )
+            raise ValueError("At least one of wavelength_min or wavelength_grid_file must be set")
         return self
 
     def to_uvspec_lines(self) -> list[str]:

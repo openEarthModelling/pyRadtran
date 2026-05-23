@@ -22,14 +22,22 @@ class TestAirmassConversion:
 class TestRunSolarTransmittance:
     def test_returns_dataset(self, has_uvspec, data_path):
         result = run_solar_transmittance(
-            airmass=1.5, pwv=5.0, ozone=300.0, data_path=data_path, uvspec_exe=has_uvspec,
+            airmass=1.5,
+            pwv=5.0,
+            ozone=300.0,
+            data_path=data_path,
+            uvspec_exe=has_uvspec,
         )
         assert isinstance(result, xr.Dataset)
 
     def test_with_altitude(self, has_uvspec, data_path):
         result = run_solar_transmittance(
-            airmass=1.0, pwv=3.0, ozone=300.0, altitude="LSST",
-            data_path=data_path, uvspec_exe=has_uvspec,
+            airmass=1.0,
+            pwv=3.0,
+            ozone=300.0,
+            altitude="LSST",
+            data_path=data_path,
+            uvspec_exe=has_uvspec,
         )
         assert isinstance(result, xr.Dataset)
 
@@ -37,8 +45,12 @@ class TestRunSolarTransmittance:
 class TestRunThermalBrightness:
     def test_returns_dataset(self, has_uvspec, data_path):
         from pyradtran.convenience import run_thermal_brightness
+
         result = run_thermal_brightness(
-            pwv=10.0, altitude=2.2, data_path=data_path, uvspec_exe=has_uvspec,
+            pwv=10.0,
+            altitude=2.2,
+            data_path=data_path,
+            uvspec_exe=has_uvspec,
         )
         assert isinstance(result, xr.Dataset)
 
@@ -136,6 +148,7 @@ def test_run_polarized_creates_scene():
         assert scene_arg.mc.backward is True
         assert scene_arg.aerosol is not None
         from pyradtran.models.aerosol import OpacPreset
+
         assert isinstance(scene_arg.aerosol, OpacPreset)
         assert scene_arg.aerosol.name.value == "continental_average"
         assert scene_arg.solver.method == "mystic"
@@ -145,6 +158,7 @@ def test_run_polarized_creates_scene():
 class TestRun3D:
     def test_returns_dataset(self, uvspec_exe, data_path):
         from pyradtran.convenience import run_3d
+
         result = run_3d(
             data_path=data_path,
             uvspec_exe=uvspec_exe,
@@ -156,6 +170,7 @@ class TestRun3D:
 class TestRunSatellite:
     def test_returns_dataset(self, uvspec_exe, data_path):
         from pyradtran.convenience import run_satellite
+
         result = run_satellite(
             geometry="MPS",
             pixel=(10, 20),
@@ -178,6 +193,7 @@ def test_run_with_opac_preset_creates_scene():
         scene_arg = _get_scene_arg(mock_exec)
         assert scene_arg.aerosol is not None
         from pyradtran.models.aerosol import OpacPreset
+
         assert isinstance(scene_arg.aerosol, OpacPreset)
         assert scene_arg.aerosol.name.value == "maritime_clean"
 
@@ -194,5 +210,6 @@ def test_run_with_opac_custom_creates_scene():
         scene_arg = _get_scene_arg(mock_exec)
         assert scene_arg.aerosol is not None
         from pyradtran.models.aerosol import OpacCustom
+
         assert isinstance(scene_arg.aerosol, OpacCustom)
         assert scene_arg.aerosol.species_file == "/data/my_aerosol.dat"

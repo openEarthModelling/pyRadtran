@@ -28,7 +28,7 @@ class RefractiveIndex(BaseModel):
     k_imag: list[float] = Field(min_length=1)
 
     @model_validator(mode="after")
-    def validate_lengths_and_sorted(self) -> "RefractiveIndex":
+    def validate_lengths_and_sorted(self) -> RefractiveIndex:
         n = len(self.wavelength_um)
         if len(self.n_real) != n or len(self.k_imag) != n:
             raise ValueError(
@@ -78,7 +78,7 @@ class ParticleOptics(BaseModel):
     legendre_moments: NDArray | None = None
 
     @model_validator(mode="after")
-    def validate_shapes(self) -> "ParticleOptics":
+    def validate_shapes(self) -> ParticleOptics:
         n_wl = len(self.wavelength_um)
         n_r = len(self.radius_um)
         expected = (n_wl, n_r)
@@ -98,12 +98,11 @@ class ParticleOptics(BaseModel):
         if np.any(np.abs(self.g) > 1.0 + 1e-12):
             raise ValueError("|g| must be <= 1")
 
-        if self.legendre_moments is not None:
-            if self.legendre_moments.shape[:2] != expected:
-                raise ValueError(
-                    f"legendre_moments leading dims {self.legendre_moments.shape[:2]} "
-                    f"!= expected {expected}"
-                )
+        if self.legendre_moments is not None and self.legendre_moments.shape[:2] != expected:
+            raise ValueError(
+                f"legendre_moments leading dims {self.legendre_moments.shape[:2]} "
+                f"!= expected {expected}"
+            )
         return self
 
     @classmethod
@@ -116,9 +115,8 @@ class ParticleOptics(BaseModel):
         Csca_um2: NDArray,
         g: NDArray,
         legendre_moments: NDArray | None = None,
-    ) -> "ParticleOptics":
+    ) -> ParticleOptics:
         """Build from cross-sections (convert to Q-factors)."""
-        wl = np.asarray(wavelength_um).reshape(-1, 1)
         r = np.asarray(radius_um).reshape(1, -1)
         area = np.pi * r**2
         Qext = np.asarray(Cext_um2) / area
@@ -133,7 +131,7 @@ class ParticleOptics(BaseModel):
         )
 
     @classmethod
-    def from_aerosol3d(cls, data) -> "ParticleOptics":
+    def from_aerosol3d(cls, data) -> ParticleOptics:
         """Create ParticleOptics from Aerosol3D AerosolOpticsData.
 
         Handles unit conversion (nm -> um, nm^2 -> um^2) and Legendre
@@ -151,14 +149,10 @@ class ParticleOptics(BaseModel):
 
         legendre = None
         if data.legendre_moments_beta is not None:
-            legendre = data.legendre_moments_beta.reshape(
-                (-1, 1, data.n_legendre)
-            )
+            legendre = data.legendre_moments_beta.reshape((-1, 1, data.n_legendre))
         elif data.legendre_moments is not None:
             l = np.arange(data.n_legendre)
-            legendre = (data.legendre_moments / (2 * l + 1)).reshape(
-                (-1, 1, data.n_legendre)
-            )
+            legendre = (data.legendre_moments / (2 * l + 1)).reshape((-1, 1, data.n_legendre))
 
         return cls.from_cross_sections(
             wavelength_um=wavelengths_um,
@@ -180,7 +174,7 @@ class SizeDistribution(BaseModel):
     number_density_per_m3: float = 1.0
 
     @model_validator(mode="after")
-    def validate_params(self) -> "SizeDistribution":
+    def validate_params(self) -> SizeDistribution:
         if self.kind == "lognormal":
             if "r_g_um" not in self.params or "sigma_g" not in self.params:
                 raise ValueError("lognormal requires r_g_um and sigma_g")
@@ -225,7 +219,7 @@ class SizeDistribution(BaseModel):
             weights = np.asarray(self.params["weights"])
             weights = weights / weights.sum()
             dn_dr = np.zeros_like(r, dtype=float)
-            for rad, w in zip(radii, weights):
+            for rad, w in zip(radii, weights, strict=False):
                 sigma = rad * 0.01
                 dn_dr += (
                     w
@@ -274,8 +268,7 @@ class SpeciesOptics:
 class Species(Protocol):
     """Protocol for Tier 2 species classes."""
 
-    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
-        ...
+    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics: ...
 
 
 class MieSpecies(BaseModel):
@@ -310,7 +303,7 @@ class MieSpecies(BaseModel):
             np.log10(config.radius_max_um),
             config.n_radius_grid,
         )
-        dn_dr = self.size_distribution.evaluate(r_dense)
+        self.size_distribution.evaluate(r_dense)
 
         # Deferred imports avoid circular dependency:
         # mie.py imports ParticleOptics/SizeDistribution from this module.
@@ -461,8 +454,6 @@ class OPACSpecies(BaseModel):
         ssalb = data["ssalb"]  # (nlyr,)
         pmom = data["pmom"]  # (nlyr, nmom)
 
-        nlyr = len(dtauc)
-
         # For SpeciesOptics we need per-wavelength values.
         # If the netCDF has a single wavelength, average over layers.
         # If it has per-layer data at one wavelength, average.
@@ -508,7 +499,7 @@ class LoadedSpecies(BaseModel):
     rh_profile: list[float] | None = None  # required for OPACSpecies
 
     @model_validator(mode="after")
-    def validate_profiles(self) -> "LoadedSpecies":
+    def validate_profiles(self) -> LoadedSpecies:
         n_layers = len(self.altitude_km) - 1
         if len(self.mass_profile_kg_m3) != n_layers:
             raise ValueError(
@@ -521,7 +512,8 @@ class LoadedSpecies(BaseModel):
             raise ValueError("rh_profile is required when species is OPACSpecies")
         if self.rh_profile is not None and len(self.rh_profile) != n_layers:
             raise ValueError(
-                f"rh_profile length ({len(self.rh_profile)}) must equal number of layers ({n_layers})"
+                f"rh_profile length ({len(self.rh_profile)}) "
+                f"must equal number of layers ({n_layers})"
             )
         return self
 
@@ -544,7 +536,6 @@ class LoadedSpecies(BaseModel):
         wl = np.asarray(wl_um)
         z = np.asarray(z_km)
         n_wl = len(wl)
-        n_z = len(z)
 
         # Get intensive properties from species
         intensive = self.species.intensive(wl, n_legendre=n_legendre)
@@ -631,7 +622,7 @@ class CompositeAerosol(AerosolModel):
     output_dir: Path | None = None
 
     @model_validator(mode="after")
-    def validate_grids(self) -> "CompositeAerosol":
+    def validate_grids(self) -> CompositeAerosol:
         if self.wavelength_grid_um != sorted(self.wavelength_grid_um):
             raise ValueError("wavelength_grid_um must be strictly ascending")
         if self.altitude_grid_km != sorted(self.altitude_grid_km, reverse=True):
@@ -639,14 +630,14 @@ class CompositeAerosol(AerosolModel):
 
         # Validate source types
         for src in self.sources:
-            if not isinstance(src, (LoadedSpecies, OpacPreset, OpacCustom, ExternalFile)):
+            if not isinstance(src, LoadedSpecies | OpacPreset | OpacCustom | ExternalFile):
                 raise ValueError(
                     f"Invalid source type: {type(src).__name__}. "
                     f"Expected LoadedSpecies, OpacPreset, OpacCustom, or ExternalFile."
                 )
 
         # Disallow mixing incompatible source types
-        preset_sources = [s for s in self.sources if isinstance(s, (OpacPreset, OpacCustom))]
+        preset_sources = [s for s in self.sources if isinstance(s, OpacPreset | OpacCustom)]
         loaded_sources = [s for s in self.sources if isinstance(s, LoadedSpecies)]
         external_sources = [s for s in self.sources if isinstance(s, ExternalFile)]
 
@@ -657,9 +648,7 @@ class CompositeAerosol(AerosolModel):
                 "Cannot mix LoadedSpecies with OpacPreset/OpacCustom in CompositeAerosol"
             )
         if len(loaded_sources) > 0 and len(external_sources) > 0:
-            raise ValueError(
-                "Cannot mix LoadedSpecies with ExternalFile in CompositeAerosol"
-            )
+            raise ValueError("Cannot mix LoadedSpecies with ExternalFile in CompositeAerosol")
         if len(preset_sources) > 0 and len(external_sources) > 0:
             raise ValueError(
                 "Cannot mix OpacPreset/OpacCustom with ExternalFile in CompositeAerosol"
@@ -673,8 +662,8 @@ class CompositeAerosol(AerosolModel):
         For single preset/external sources, delegates directly to their
         ``to_uvspec_lines()`` to avoid the explicit-file overhead.
         """
-        from pyradtran.optics.mixing import combine_sources
         from pyradtran.optics.layer_writer import write_explicit_aerosol
+        from pyradtran.optics.mixing import combine_sources
 
         # Shortcut: single non-composite source
         if len(self.sources) == 1 and not isinstance(self.sources[0], LoadedSpecies):

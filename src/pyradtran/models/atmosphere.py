@@ -62,19 +62,50 @@ class AtmosphereConfig(UvspecOption):
     rayleigh_depol: float | None = Field(default=None, ge=0.0, le=1.0)
     raman: bool = False
 
-    _VALID_MOL_SPECIES = frozenset({
-        "O3", "O2", "H2O", "CO2", "NO2", "BRO", "OCLO",
-        "HCHO", "O4", "SO2", "CH4", "N2O", "CO", "N2",
-    })
+    _VALID_MOL_SPECIES = frozenset(
+        {
+            "O3",
+            "O2",
+            "H2O",
+            "CO2",
+            "NO2",
+            "BRO",
+            "OCLO",
+            "HCHO",
+            "O4",
+            "SO2",
+            "CH4",
+            "N2O",
+            "CO",
+            "N2",
+        }
+    )
     _VALID_MOL_UNITS = frozenset({"DU", "CM_2", "MM", "precip_cm", "ppmv"})
-    _VALID_CRS_SPECIES = frozenset({
-        "rayleigh", "o3", "no2", "o4",
-    })
-    _VALID_CRS_MODELS = frozenset({
-        "Bass_and_Paur", "Bodhaine", "Bodhaine29", "Bogumil", "Burrows",
-        "Daumont", "Greenblatt", "Molina", "Nicolet", "Penndorf",
-        "Serdyuchenko", "Thalman", "Vandaele",
-    })
+    _VALID_CRS_SPECIES = frozenset(
+        {
+            "rayleigh",
+            "o3",
+            "no2",
+            "o4",
+        }
+    )
+    _VALID_CRS_MODELS = frozenset(
+        {
+            "Bass_and_Paur",
+            "Bodhaine",
+            "Bodhaine29",
+            "Bogumil",
+            "Burrows",
+            "Daumont",
+            "Greenblatt",
+            "Molina",
+            "Nicolet",
+            "Penndorf",
+            "Serdyuchenko",
+            "Thalman",
+            "Vandaele",
+        }
+    )
 
     @model_validator(mode="after")
     def validate_mol_modify_entries(self) -> AtmosphereConfig:
@@ -89,9 +120,7 @@ class AtmosphereConfig(UvspecOption):
                     f"Invalid mol_modify unit '{unit}'. Valid: {sorted(self._VALID_MOL_UNITS)}"
                 )
             if value < 0 or value > 1e6:
-                raise ValueError(
-                    f"mol_modify column value {value} out of range [0, 1e6]"
-                )
+                raise ValueError(f"mol_modify column value {value} out of range [0, 1e6]")
         return self
 
     @model_validator(mode="after")
@@ -108,8 +137,7 @@ class AtmosphereConfig(UvspecOption):
                     )
                 if md not in self._VALID_CRS_MODELS:
                     raise ValueError(
-                        f"Invalid crs_model model '{md}'. "
-                        f"Valid: {sorted(self._VALID_CRS_MODELS)}"
+                        f"Invalid crs_model model '{md}'. Valid: {sorted(self._VALID_CRS_MODELS)}"
                     )
         return self
 

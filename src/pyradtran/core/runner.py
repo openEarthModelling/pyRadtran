@@ -62,9 +62,7 @@ class Runner:
     _config: RunnerConfig = RunnerConfig()
 
     @classmethod
-    def configure(
-        cls, config: RunnerConfig | None = None, **kwargs
-    ) -> RunnerConfig:
+    def configure(cls, config: RunnerConfig | None = None, **kwargs) -> RunnerConfig:
         """Set global default configuration for all Runner executions.
 
         Args:
@@ -137,18 +135,11 @@ class Runner:
             xarray.Dataset with simulation results.
         """
         cfg = config or Runner._config
-        uvspec = Runner._find_uvspec(
-            uvspec_exe if uvspec_exe is not None else cfg.uvspec_exe
-        )
+        uvspec = Runner._find_uvspec(uvspec_exe if uvspec_exe is not None else cfg.uvspec_exe)
         resolved_data_path = Runner._find_data_path(
             data_path if data_path is not None else cfg.data_path
         )
-        resolved_keep_temp = (
-            keep_temp if keep_temp is not None else cfg.keep_temp
-        )
-        resolved_timeout = (
-            timeout if timeout is not None else cfg.timeout
-        )
+        resolved_timeout = timeout if timeout is not None else cfg.timeout
 
         input_text = scene.build_input(data_files_path=resolved_data_path)
 
@@ -181,8 +172,7 @@ class Runner:
 
             if proc.returncode != 0:
                 raise RuntimeError(
-                    f"uvspec failed (exit code {proc.returncode}):\n"
-                    f"stderr: {proc.stderr}"
+                    f"uvspec failed (exit code {proc.returncode}):\nstderr: {proc.stderr}"
                 )
 
             n_zout = len(scene.output.zout) if scene.output and scene.output.zout else 1
@@ -190,13 +180,12 @@ class Runner:
             # Derive column names from output_user quantities for ASCII parsing
             col_names = None
             if output_format != "netcdf" and scene.output and scene.output.quantities:
-                col_names = [
-                    "wavelength" if q == "lambda" else q
-                    for q in scene.output.quantities
-                ]
+                col_names = ["wavelength" if q == "lambda" else q for q in scene.output.quantities]
 
             result = parse_output(
-                out_file, format=output_format, n_zout=n_zout,
+                out_file,
+                format=output_format,
+                n_zout=n_zout,
                 column_names=col_names,
             )
 
@@ -230,21 +219,11 @@ class Runner:
             List of xarray.Dataset results, one per scene.
         """
         cfg = config or Runner._config
-        resolved_max_workers = (
-            max_workers if max_workers is not None else cfg.max_workers
-        )
-        resolved_uvspec_exe = (
-            uvspec_exe if uvspec_exe is not None else cfg.uvspec_exe
-        )
-        resolved_data_path = (
-            data_path if data_path is not None else cfg.data_path
-        )
-        resolved_keep_temp = (
-            keep_temp if keep_temp is not None else cfg.keep_temp
-        )
-        resolved_timeout = (
-            timeout if timeout is not None else cfg.timeout
-        )
+        resolved_max_workers = max_workers if max_workers is not None else cfg.max_workers
+        resolved_uvspec_exe = uvspec_exe if uvspec_exe is not None else cfg.uvspec_exe
+        resolved_data_path = data_path if data_path is not None else cfg.data_path
+        resolved_keep_temp = keep_temp if keep_temp is not None else cfg.keep_temp
+        resolved_timeout = timeout if timeout is not None else cfg.timeout
 
         results = []
         with ProcessPoolExecutor(max_workers=resolved_max_workers) as executor:

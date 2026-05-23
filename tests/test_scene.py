@@ -73,6 +73,7 @@ class TestSceneBuilder:
 
     def test_set_aerosol(self):
         from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+
         scene = Scene().set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
         assert scene.aerosol is not None
         assert scene.aerosol.name == OpacPresetName.CONTINENTAL_AVERAGE
@@ -125,8 +126,11 @@ class TestSceneBuilder:
 
 def test_set_aerosol_modify():
     from pyradtran.models.aerosol import OpacPreset, OpacPresetName
-    scene = Scene().set_atmosphere(profile="us").set_aerosol(
-        OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
     )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     items = scene2.aerosol.to_uvspec_items()
@@ -136,8 +140,11 @@ def test_set_aerosol_modify():
 
 def test_set_aerosol_modify_multiple():
     from pyradtran.models.aerosol import OpacPreset, OpacPresetName
-    scene = Scene().set_atmosphere(profile="us").set_aerosol(
-        OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
     )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     scene3 = scene2.set_aerosol_modify("gg", "set", 0.7)
@@ -171,8 +178,11 @@ def test_set_surface_brdf():
 
 def test_immutable_set_aerosol_modify():
     from pyradtran.models.aerosol import OpacPreset, OpacPresetName
-    scene = Scene().set_atmosphere(profile="us").set_aerosol(
-        OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+
+    scene = (
+        Scene()
+        .set_atmosphere(profile="us")
+        .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
     )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     assert len(scene.aerosol.modify) == 0
@@ -183,12 +193,7 @@ def test_immutable_set_aerosol_modify():
 
 
 def test_set_mc():
-    scene = (
-        Scene()
-        .set_atmosphere(profile="us")
-        .set_source_solar(sza=30.0)
-        .set_mc(photons=100000)
-    )
+    scene = Scene().set_atmosphere(profile="us").set_source_solar(sza=30.0).set_mc(photons=100000)
     assert scene.mc.photons == 100000
 
 
@@ -335,6 +340,7 @@ class TestCompositeAerosolScene:
 
         import tempfile
         from pathlib import Path
+
         with tempfile.TemporaryDirectory() as tmpdir:
             comp = CompositeAerosol(
                 sources=[loaded],

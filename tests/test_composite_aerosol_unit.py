@@ -10,7 +10,7 @@ from pyradtran.models.aerosol_composite import (
     RefractiveIndex,
     SizeDistribution,
 )
-from pyradtran.optics.mixing import combine_sources, _fill_hg_moments
+from pyradtran.optics.mixing import _fill_hg_moments, combine_sources
 
 
 class TestRefractiveIndex:
@@ -95,11 +95,13 @@ class TestParticleOptics:
             g=np.array([0.7, 0.72, 0.68]),
             r_eff_nm=200.0,
             n_legendre=8,
-            legendre_moments_beta=np.array([
-                [1.0, 0.7, 0.49, 0.343, 0.2401, 0.16807, 0.117649, 0.0823543],
-                [1.0, 0.72, 0.5184, 0.373248, 0.26873856, 0.19349176, 0.13931407, 0.10030613],
-                [1.0, 0.68, 0.4624, 0.314432, 0.21381376, 0.14539336, 0.09886748, 0.06722989],
-            ]),
+            legendre_moments_beta=np.array(
+                [
+                    [1.0, 0.7, 0.49, 0.343, 0.2401, 0.16807, 0.117649, 0.0823543],
+                    [1.0, 0.72, 0.5184, 0.373248, 0.26873856, 0.19349176, 0.13931407, 0.10030613],
+                    [1.0, 0.68, 0.4624, 0.314432, 0.21381376, 0.14539336, 0.09886748, 0.06722989],
+                ]
+            ),
             legendre_moments=None,
         )
         po = ParticleOptics.from_aerosol3d(data)
@@ -118,7 +120,9 @@ class TestParticleOptics:
         from types import SimpleNamespace
 
         l_vals = np.arange(8)
-        kl = (2 * l_vals + 1) * np.array([1.0, 0.7, 0.49, 0.343, 0.2401, 0.16807, 0.117649, 0.0823543])
+        kl = (2 * l_vals + 1) * np.array(
+            [1.0, 0.7, 0.49, 0.343, 0.2401, 0.16807, 0.117649, 0.0823543]
+        )
         data = SimpleNamespace(
             wavelength_nm=np.array([550.0]),
             C_ext=np.array([100.0]),
@@ -155,27 +159,21 @@ class TestParticleOptics:
 
 class TestSizeDistribution:
     def test_lognormal_normalization(self):
-        sd = SizeDistribution(
-            kind="lognormal", params={"r_g_um": 0.5, "sigma_g": 2.0}
-        )
+        sd = SizeDistribution(kind="lognormal", params={"r_g_um": 0.5, "sigma_g": 2.0})
         r = np.logspace(-2, 2, 10000)
         dn = sd.evaluate(r)
         total = np.trapezoid(dn, r)
         assert np.isclose(total, 1.0, rtol=0.01)
 
     def test_monodisperse_peak_location(self):
-        sd = SizeDistribution(
-            kind="monodisperse", params={"radius_um": 1.0}
-        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 1.0})
         r = np.linspace(0.5, 1.5, 1000)
         dn = sd.evaluate(r)
         assert r[np.argmax(dn)] == pytest.approx(1.0, abs=0.02)
 
     def test_invalid_sigma_g_raises(self):
         with pytest.raises(ValueError):
-            SizeDistribution(
-                kind="lognormal", params={"r_g_um": 0.5, "sigma_g": 1.0}
-            )
+            SizeDistribution(kind="lognormal", params={"r_g_um": 0.5, "sigma_g": 1.0})
 
     def test_integration_config_defaults(self):
         cfg = IntegrationConfig()
@@ -271,9 +269,7 @@ class TestMieSpecies:
             n_real=[1.5, 1.5],
             k_imag=[0.01, 0.01],
         )
-        sd = SizeDistribution(
-            kind="monodisperse", params={"radius_um": 0.5}
-        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         species = MieSpecies(
             refractive_index=ri,
             size_distribution=sd,
@@ -298,9 +294,7 @@ class TestMieSpecies:
             n_real=[1.5, 1.5],
             k_imag=[0.01, 0.01],
         )
-        sd = SizeDistribution(
-            kind="monodisperse", params={"radius_um": 0.5}
-        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         species = MieSpecies(
             refractive_index=ri,
             size_distribution=sd,
@@ -318,9 +312,7 @@ class TestMieSpecies:
             n_real=[1.5, 1.5],
             k_imag=[0.01, 0.01],
         )
-        sd = SizeDistribution(
-            kind="lognormal", params={"r_g_um": 0.3, "sigma_g": 1.5}
-        )
+        sd = SizeDistribution(kind="lognormal", params={"r_g_um": 0.3, "sigma_g": 1.5})
         species = MieSpecies(
             refractive_index=ri,
             size_distribution=sd,
@@ -343,9 +335,7 @@ class TestPrecomputedSpecies:
             Qsca=np.array([[1.5]]),
             g=np.array([[0.7]]),
         )
-        sd = SizeDistribution(
-            kind="monodisperse", params={"radius_um": 1.0}
-        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 1.0})
         species = PrecomputedSpecies(
             particle_optics=po,
             size_distribution=sd,
@@ -365,9 +355,7 @@ class TestPrecomputedSpecies:
             Qsca=np.array([[0.5, 1.5, 1.5], [0.5, 1.5, 1.5]]),
             g=np.array([[0.1, 0.7, 0.7], [0.1, 0.7, 0.7]]),
         )
-        sd = SizeDistribution(
-            kind="lognormal", params={"r_g_um": 1.0, "sigma_g": 2.0}
-        )
+        sd = SizeDistribution(kind="lognormal", params={"r_g_um": 1.0, "sigma_g": 2.0})
         species = PrecomputedSpecies(
             particle_optics=po,
             size_distribution=sd,
@@ -391,9 +379,7 @@ class TestLoadedSpecies:
             n_real=[1.5, 1.5],
             k_imag=[0.01, 0.01],
         )
-        sd = SizeDistribution(
-            kind="monodisperse", params={"radius_um": 0.5}
-        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         species = MieSpecies(
             refractive_index=ri,
             size_distribution=sd,
@@ -415,9 +401,7 @@ class TestLoadedSpecies:
         assert layer.tau[0, 0] > 0
 
     def test_altitude_must_be_descending(self):
-        ri = RefractiveIndex(
-            wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01]
-        )
+        ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
         sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         mie = MieSpecies(
             refractive_index=ri,
@@ -515,9 +499,7 @@ from pyradtran.models.aerosol_composite import CompositeAerosol
 
 class TestCompositeAerosol:
     def test_single_loaded_source(self):
-        ri = RefractiveIndex(
-            wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01]
-        )
+        ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
         sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         mie = MieSpecies(
             refractive_index=ri,
@@ -537,8 +519,8 @@ class TestCompositeAerosol:
             n_legendre=4,
         )
         lines = comp.to_uvspec_lines()
-        assert len(lines) == 1
-        assert lines[0].startswith("aerosol_file explicit ")
+        assert len(lines) == 2
+        assert lines[1].startswith("aerosol_file explicit ")
 
     def test_single_preset_shortcut(self):
         from pyradtran.models.aerosol import OpacPreset, OpacPresetName
@@ -557,9 +539,7 @@ class TestCompositeAerosol:
     def test_mixed_sources_raises(self):
         from pyradtran.models.aerosol import OpacPreset, OpacPresetName
 
-        ri = RefractiveIndex(
-            wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01]
-        )
+        ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
         sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         mie = MieSpecies(
             refractive_index=ri,

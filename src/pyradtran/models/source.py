@@ -79,13 +79,9 @@ class SourceConfig(UvspecOption):
     @model_validator(mode="after")
     def check_satellite_consistency(self) -> SourceConfig:
         if self.satellite_pixel is not None and self.satellite_geometry is None:
-            raise ValueError(
-                "satellite_pixel requires satellite_geometry to be set"
-            )
+            raise ValueError("satellite_pixel requires satellite_geometry to be set")
         if self.satellite_geometry is not None and self.satellite_pixel is None:
-            raise ValueError(
-                "satellite_geometry requires satellite_pixel to be set"
-            )
+            raise ValueError("satellite_geometry requires satellite_pixel to be set")
         return self
 
     def to_uvspec_lines(self) -> list[str]:

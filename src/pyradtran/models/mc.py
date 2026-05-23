@@ -17,24 +17,45 @@ from pydantic import Field, model_validator
 
 from pyradtran.models.base import UvspecOption
 
-VALID_BACKWARD_OUTPUTS = frozenset({
-    "edir", "edn", "eup", "fdir", "fdn", "fup",
-    "act", "abs", "emis", "heat", "exp", "exn", "eyp", "eyn", "ednpv",
-})
+VALID_BACKWARD_OUTPUTS = frozenset(
+    {
+        "edir",
+        "edn",
+        "eup",
+        "fdir",
+        "fdn",
+        "fup",
+        "act",
+        "abs",
+        "emis",
+        "heat",
+        "exp",
+        "exn",
+        "eyp",
+        "eyn",
+        "ednpv",
+    }
+)
 
 VALID_BACKWARD_HEAT = frozenset({"HYBRID", "EMABS", "EMABSOPT", "DENET"})
 
 VALID_FORWARD_OUTPUTS = frozenset({"heating", "actinic"})
 
-VALID_OUTPUT_UNITS = frozenset({
-    "W_per_m2_and_dz",
-    "W_per_m3",
-    "K_per_day",
-})
+VALID_OUTPUT_UNITS = frozenset(
+    {
+        "W_per_m2_and_dz",
+        "W_per_m3",
+        "K_per_day",
+    }
+)
 
-VALID_BPDF_MODELS = frozenset({
-    "litvinov", "maignan", "tsang_u10",
-})
+VALID_BPDF_MODELS = frozenset(
+    {
+        "litvinov",
+        "maignan",
+        "tsang_u10",
+    }
+)
 
 _VALID_BCOND = frozenset({"periodic", "mirror", "absorb"})
 
@@ -180,13 +201,9 @@ class McConfig(UvspecOption):
             raise ValueError(f"mc_tipa must be 'dir' or 'dir3d', got '{self.tipa}'")
 
         if self.bpdf is not None and self.bpdf not in VALID_BPDF_MODELS:
-            raise ValueError(
-                f"Invalid bpdf '{self.bpdf}'. Valid: {sorted(VALID_BPDF_MODELS)}"
-            )
+            raise ValueError(f"Invalid bpdf '{self.bpdf}'. Valid: {sorted(VALID_BPDF_MODELS)}")
         if self.bcond is not None and self.bcond not in _VALID_BCOND:
-            raise ValueError(
-                f"Invalid bcond '{self.bcond}'. Valid: {sorted(_VALID_BCOND)}"
-            )
+            raise ValueError(f"Invalid bcond '{self.bcond}'. Valid: {sorted(_VALID_BCOND)}")
 
         return self
 

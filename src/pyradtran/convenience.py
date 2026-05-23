@@ -353,11 +353,13 @@ def run_with_opac_custom(
             zout=[0, "toa"],
         )
         .set_surface(albedo=albedo)
-        .set_aerosol(OpacCustom(
-            species_file=species_file,
-            library=library,
-            species_names=species_names,
-        ))
+        .set_aerosol(
+            OpacCustom(
+                species_file=species_file,
+                library=library,
+                species_names=species_names,
+            )
+        )
     )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
@@ -487,8 +489,12 @@ def run_lidar(
         .set_wavelength(wl_min, wl_max)
         .set_solver(method="sslidar", streams=streams)
         .set_sslidar(
-            area=area, E0=E0, efficiency=efficiency,
-            position=position, range_bin=range_bin, n_ranges=n_ranges,
+            area=area,
+            E0=E0,
+            efficiency=efficiency,
+            position=position,
+            range_bin=range_bin,
+            n_ranges=n_ranges,
         )
         .set_output(format="netcdf", quiet=True)
     )

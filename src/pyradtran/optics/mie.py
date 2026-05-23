@@ -3,10 +3,11 @@
 No scipy dependency — uses only numpy for all computations.
 """
 
-import numpy as np
 from dataclasses import dataclass
 
-_trapz = getattr(np, "trapezoid", np.trapz)
+import numpy as np
+
+_trapz = np.trapezoid
 
 # Import here to avoid circular import: mie.py uses ParticleOptics/SizeDistribution
 # from this module, and aerosol_composite.py imports integrate_size_distribution.
@@ -101,16 +102,9 @@ def bhmie(x: float, m: complex, n_angles: int = 0) -> dict:
         # Asymmetry parameter recurrence (B&H Eq. 4.77)
         if n > 1:
             g_num += (
-                (n - 1)
-                * (n + 1)
-                / n
-                * (g_prev_a * an.conjugate() + g_prev_b * bn.conjugate()).real
+                (n - 1) * (n + 1) / n * (g_prev_a * an.conjugate() + g_prev_b * bn.conjugate()).real
             )
-            g_num += (
-                (2.0 * n - 1)
-                / (n * (n - 1))
-                * (g_prev_a * g_prev_b.conjugate()).real
-            )
+            g_num += (2.0 * n - 1) / (n * (n - 1)) * (g_prev_a * g_prev_b.conjugate()).real
 
         g_prev_a = an
         g_prev_b = bn
@@ -261,7 +255,11 @@ def integrate_size_distribution(
                 np.interp(log_r_dense, log_r_sparse, log_Qsca, left=log_Qsca[0], right=log_Qsca[-1])
             )
             g_dense[i_wl, :] = np.interp(
-                r_dense, r_sparse, particle_optics.g[i_wl, :], left=particle_optics.g[i_wl, 0], right=particle_optics.g[i_wl, -1]
+                r_dense,
+                r_sparse,
+                particle_optics.g[i_wl, :],
+                left=particle_optics.g[i_wl, 0],
+                right=particle_optics.g[i_wl, -1],
             )
 
         if particle_optics.legendre_moments is not None:

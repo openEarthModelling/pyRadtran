@@ -17,10 +17,17 @@ _VALID_AMBRALS_PARAMS = frozenset({"geo", "iso", "vol"})
 _VALID_HAPKE_PARAMS = frozenset({"b0", "h", "w"})
 _VALID_RPV_PARAMS = frozenset({"rho0", "k", "theta", "scale"})
 _VALID_CAM_PARAMS = frozenset({"pcl", "sal", "u10"})
-_VALID_LITVINOV_PARAMS = frozenset({
-    "albedo", "rms_slope", "fresnel", "shadowing",
-    "refr_index", "refr_index_i", "rms_slope2",
-})
+_VALID_LITVINOV_PARAMS = frozenset(
+    {
+        "albedo",
+        "rms_slope",
+        "fresnel",
+        "shadowing",
+        "refr_index",
+        "refr_index_i",
+        "rms_slope2",
+    }
+)
 _VALID_MAIGNAN_PARAMS = frozenset({"c_maign", "arvi", "refr_index", "refr_index_i"})
 
 
@@ -63,18 +70,18 @@ class SurfaceConfig(UvspecOption):
     @model_validator(mode="after")
     def check_mutual_exclusion(self) -> SurfaceConfig:
         brdf_or_bpdf = (
-            self.brdf_ambrals or self.brdf_hapke or self.brdf_rpv
-            or self.brdf_cam or self.bpdf_litvinov or self.bpdf_maignan
+            self.brdf_ambrals
+            or self.brdf_hapke
+            or self.brdf_rpv
+            or self.brdf_cam
+            or self.bpdf_litvinov
+            or self.bpdf_maignan
             or self.bpdf_tsang_u10 is not None
         )
         if self.albedo is not None and brdf_or_bpdf:
-            raise ValueError(
-                "Cannot set albedo together with BRDF/BPDF options"
-            )
+            raise ValueError("Cannot set albedo together with BRDF/BPDF options")
         if self.albedo_file is not None and brdf_or_bpdf:
-            raise ValueError(
-                "Cannot set albedo_file together with BRDF/BPDF options"
-            )
+            raise ValueError("Cannot set albedo_file together with BRDF/BPDF options")
         if self.albedo is not None and self.albedo_file is not None:
             raise ValueError("Cannot set both albedo and albedo_file")
         if self.albedo is not None and self.albedo_map is not None:
@@ -99,15 +106,13 @@ class SurfaceConfig(UvspecOption):
             for key in self.brdf_rpv:
                 if key not in _VALID_RPV_PARAMS:
                     raise ValueError(
-                        f"Invalid brdf_rpv parameter '{key}'. "
-                        f"Valid: {sorted(_VALID_RPV_PARAMS)}"
+                        f"Invalid brdf_rpv parameter '{key}'. Valid: {sorted(_VALID_RPV_PARAMS)}"
                     )
         if self.brdf_cam is not None:
             for key in self.brdf_cam:
                 if key not in _VALID_CAM_PARAMS:
                     raise ValueError(
-                        f"Invalid brdf_cam parameter '{key}'. "
-                        f"Valid: {sorted(_VALID_CAM_PARAMS)}"
+                        f"Invalid brdf_cam parameter '{key}'. Valid: {sorted(_VALID_CAM_PARAMS)}"
                     )
         return self
 

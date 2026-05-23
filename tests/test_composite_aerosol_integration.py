@@ -9,10 +9,10 @@ from pyradtran.models.aerosol_composite import (
     IntegrationConfig,
     LoadedSpecies,
     MieSpecies,
+    ParticleOptics,
     PrecomputedSpecies,
     RefractiveIndex,
     SizeDistribution,
-    ParticleOptics,
 )
 from pyradtran.optics.layer_writer import write_explicit_aerosol
 
@@ -44,10 +44,10 @@ class TestLayerWriter:
             master_text = master.read_text()
             lines = master_text.strip().split("\n")
             assert len(lines) == 3  # 2 layers + NULL
-            assert "NULL.LAYER" in lines[-1]
+            assert "NULL.LAYER" in lines[0]
 
             # Verify layer file exists and has correct format
-            layer_line = lines[0].split()
+            layer_line = lines[1].split()
             layer_file = outdir / layer_line[1]
             assert layer_file.exists()
             layer_text = layer_file.read_text().strip()
@@ -67,16 +67,26 @@ class TestLayerWriter:
             alt = np.array([10.0, 0.0])
 
             master1 = write_explicit_aerosol(
-                tau=tau, ssa=ssa, g=g, legendre_moments=moments,
-                wavelength_um=wl, altitude_km=alt,
-                output_dir=outdir, source_signatures=["test"],
+                tau=tau,
+                ssa=ssa,
+                g=g,
+                legendre_moments=moments,
+                wavelength_um=wl,
+                altitude_km=alt,
+                output_dir=outdir,
+                source_signatures=["test"],
             )
             mtime1 = master1.stat().st_mtime
 
             master2 = write_explicit_aerosol(
-                tau=tau, ssa=ssa, g=g, legendre_moments=moments,
-                wavelength_um=wl, altitude_km=alt,
-                output_dir=outdir, source_signatures=["test"],
+                tau=tau,
+                ssa=ssa,
+                g=g,
+                legendre_moments=moments,
+                wavelength_um=wl,
+                altitude_km=alt,
+                output_dir=outdir,
+                source_signatures=["test"],
             )
             mtime2 = master2.stat().st_mtime
             assert mtime1 == mtime2
@@ -93,7 +103,7 @@ class TestFullPipeline:
         alt = [10.0, 5.0, 0.0]
 
         # Source 1: Mie species
-        ri1 = RefractiveIndex(wavelength_um=wl, n_real=[1.5]*3, k_imag=[0.01]*3)
+        ri1 = RefractiveIndex(wavelength_um=wl, n_real=[1.5] * 3, k_imag=[0.01] * 3)
         sd1 = SizeDistribution(kind="lognormal", params={"r_g_um": 0.3, "sigma_g": 1.5})
         mie = MieSpecies(
             refractive_index=ri1,
@@ -136,11 +146,11 @@ class TestFullPipeline:
                 output_dir=Path(tmpdir),
             )
             lines = comp.to_uvspec_lines()
-            assert len(lines) == 1
-            assert lines[0].startswith("aerosol_file explicit ")
+            assert len(lines) == 2
+            assert lines[1].startswith("aerosol_file explicit ")
 
             # Verify files exist
-            master_path = Path(lines[0].split()[-1])
+            master_path = Path(lines[1].split()[-1])
             assert master_path.exists()
 
     def test_format_invariants(self):
@@ -153,12 +163,15 @@ class TestFullPipeline:
         ri = RefractiveIndex(wavelength_um=wl, n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
         sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         mie = MieSpecies(
-            refractive_index=ri, size_distribution=sd,
+            refractive_index=ri,
+            size_distribution=sd,
             particle_density_kg_m3=1000.0,
             integration_config=IntegrationConfig(n_radius_grid=30),
         )
         loaded = LoadedSpecies(
-            species=mie, mass_profile_kg_m3=[0.001], altitude_km=alt,
+            species=mie,
+            mass_profile_kg_m3=[0.001],
+            altitude_km=alt,
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -170,13 +183,13 @@ class TestFullPipeline:
                 output_dir=Path(tmpdir),
             )
             lines = comp.to_uvspec_lines()
-            master_path = Path(lines[0].split()[-1])
+            master_path = Path(lines[1].split()[-1])
             master_text = master_path.read_text()
             master_lines = master_text.strip().split("\n")
-            assert "NULL.LAYER" in master_lines[-1]
+            assert "NULL.LAYER" in master_lines[0]
 
             # Check layer file format (2 wavelengths x 7 values each)
-            layer_file = Path(tmpdir) / master_lines[0].split()[1]
+            layer_file = Path(tmpdir) / master_lines[1].split()[1]
             layer_text = layer_file.read_text().strip()
             vals = [float(v) for v in layer_text.split()]
             assert len(vals) == 2 * (3 + 4)  # 2 wl x (wl, beta_ext, ssa + 4 moments)

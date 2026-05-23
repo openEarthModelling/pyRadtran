@@ -14,10 +14,18 @@ from pyradtran.models.base import UvspecOption
 
 VALID_OUTPUT_FORMATS = frozenset({"ascii", "flexstor", "netcdf", "sat_picture"})
 VALID_HEATING_RATE_MODES = frozenset({"none", "local", "layer_fd", "layer_cd", "ipa3d"})
-VALID_OUTPUT_PROCESSES = frozenset({
-    "integrate", "sum", "rgbraw", "rgb_raw", "rgb",
-    "per_nm", "per_cm-1", "per_band",
-})
+VALID_OUTPUT_PROCESSES = frozenset(
+    {
+        "integrate",
+        "sum",
+        "rgbraw",
+        "rgb_raw",
+        "rgb",
+        "per_nm",
+        "per_cm-1",
+        "per_band",
+    }
+)
 
 
 class OutputConfig(UvspecOption):
@@ -56,10 +64,7 @@ class OutputConfig(UvspecOption):
             )
         if self.quiet and self.verbose:
             raise ValueError("Cannot set both quiet=True and verbose=True")
-        if (
-            self.heating_rate is not None
-            and self.heating_rate not in VALID_HEATING_RATE_MODES
-        ):
+        if self.heating_rate is not None and self.heating_rate not in VALID_HEATING_RATE_MODES:
             raise ValueError(
                 f"Unknown heating_rate "
                 f"'{self.heating_rate}'. Valid: {sorted(VALID_HEATING_RATE_MODES)}"

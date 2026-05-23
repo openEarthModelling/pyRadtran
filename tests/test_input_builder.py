@@ -18,8 +18,12 @@ def test_basic_solar_scene():
     output = OutputConfig(quantities=["lambda", "edir"])
     surface = SurfaceConfig(albedo=0.2)
     text = build_input_text(
-        atmosphere=atmosphere, source=source, wavelength=wavelength,
-        solver=solver, output=output, surface=surface,
+        atmosphere=atmosphere,
+        source=source,
+        wavelength=wavelength,
+        solver=solver,
+        output=output,
+        surface=surface,
     )
     lines = text.strip().split("\n")
     assert "atmosphere_file US-standard" in lines

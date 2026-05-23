@@ -20,9 +20,7 @@ def _fill_hg_moments(g: np.ndarray, n_legendre: int) -> np.ndarray:
     return moments
 
 
-def _normalize_moments(
-    moments: np.ndarray | None, g: np.ndarray, n_legendre: int
-) -> np.ndarray:
+def _normalize_moments(moments: np.ndarray | None, g: np.ndarray, n_legendre: int) -> np.ndarray:
     """Ensure moments have shape (n_wl, n_layer, n_legendre).
 
     - If None: H-G fill from g.
