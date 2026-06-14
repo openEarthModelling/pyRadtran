@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-_trapz = np.trapezoid
+_trapz = getattr(np, "trapezoid", np.trapz)
 
 # Import here to avoid circular import: mie.py uses SizeDistribution
 # from this module, and aerosol_composite.py imports integrate_size_distribution.
