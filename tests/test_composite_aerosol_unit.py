@@ -328,9 +328,9 @@ class TestMixing:
         g = np.full((1, 1), 0.7)
         moments = _fill_hg_moments(g, n_legendre=4)
         assert moments[0, 0, 0] == 1.0
-        assert moments[0, 0, 1] == pytest.approx(3 * 0.7)
-        assert moments[0, 0, 2] == pytest.approx(5 * 0.7**2)
-        assert moments[0, 0, 3] == pytest.approx(7 * 0.7**3)
+        assert moments[0, 0, 1] == pytest.approx(0.7)
+        assert moments[0, 0, 2] == pytest.approx(0.7**2)
+        assert moments[0, 0, 3] == pytest.approx(0.7**3)
 
     def test_zero_tau_layer(self):
         """Layer with zero tau should have ssa=0, g=0."""

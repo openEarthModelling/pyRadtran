@@ -4,19 +4,24 @@ import numpy as np
 
 
 def _fill_hg_moments(g: np.ndarray, n_legendre: int) -> np.ndarray:
-    """Fill Legendre moments with Henyey-Greenstein expansion.
+    """Fill Legendre moments with Henyey-Greenstein expansion in g_l (PMOM) form.
+
+    The phase function is expanded as
+    ``P(mu) = sum_l (2l+1) g_l P_l(mu)`` where the g_l are the PMOM
+    coefficients libRadtran expects in ``aerosol_file explicit``.
+    For Henyey-Greenstein, ``g_l = g^l`` (so g_0 = 1, g_1 = g, ...).
 
     Args:
         g: Asymmetry parameter, shape (n_wl, n_layer).
         n_legendre: Number of moments.
 
     Returns:
-        Array of shape (n_wl, n_layer, n_legendre).
+        Array of shape (n_wl, n_layer, n_legendre) holding the g_l moments.
     """
     n_wl, n_layer = g.shape
     moments = np.zeros((n_wl, n_layer, n_legendre))
     for l in range(n_legendre):
-        moments[:, :, l] = (2 * l + 1) * g**l
+        moments[:, :, l] = g**l
     return moments
 
 
