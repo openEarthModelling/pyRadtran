@@ -475,10 +475,10 @@ class LoadedSpecies(BaseModel):
             for l in range(n_mom, n_legendre):
                 legendre_layer[:, :, l] = 0.0
         else:
-            # Henyey-Greenstein fill: k_l = (2l+1) g^l
+            # Henyey-Greenstein fill: g_l = g^l (PMOM form, matches _fill_hg_moments / BulkSpecies)
             legendre_layer = np.zeros((n_wl, n_layer, n_legendre))
             for l in range(n_legendre):
-                legendre_layer[:, :, l] = (2 * l + 1) * g_layer**l
+                legendre_layer[:, :, l] = g_layer**l
 
         return LayerOptics(
             tau=tau,
