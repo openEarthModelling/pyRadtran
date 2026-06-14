@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 import numpy as np
 from numpy.typing import NDArray
@@ -269,6 +269,71 @@ class Species(Protocol):
     """Protocol for Tier 2 species classes."""
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics: ...
+
+
+class BulkSpecies(BaseModel):
+    """Species backed by an aerosol3D BulkAerosolOpticsData.
+
+    The size-distribution integration is already done in aerosol3D; this class
+    only rescales cross-sections to per-mass, resamples wavelength, and selects
+    the Legendre convention. Duck-typed: accepts any object exposing the
+    BulkAerosolOpticsData attributes (no hard aerosol3D import).
+    """
+
+    model_config = {"extra": "forbid", "frozen": True, "arbitrary_types_allowed": True}
+
+    bulk: Any  # BulkAerosolOpticsData-like
+
+    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
+        wl = np.asarray(wl_um, dtype=float)
+        wl_tab_um = np.asarray(self.bulk.wavelength_nm, dtype=float) / 1000.0
+
+        def _loglog(col):
+            return np.exp(
+                np.interp(wl, wl_tab_um, np.log(np.clip(np.asarray(col) * 1e-6, 1e-30, None)))
+            )
+
+        def _lin(col):
+            return np.interp(wl, wl_tab_um, np.asarray(col, dtype=float))
+
+        C_ext_m2 = _loglog(self.bulk.C_ext)  # nm^2 -> um^2 -> m^2 (below)
+        ssa = _lin(self.bulk.SSA)
+        g = np.clip(_lin(self.bulk.g), -1.0, 1.0)
+
+        rho = self.bulk.effective_density_kg_m3
+        if rho is None:
+            raise ValueError("BulkAerosolOpticsData.effective_density_kg_m3 is required")
+        if self.bulk.size_distribution is None:
+            raise ValueError("BulkAerosolOpticsData.size_distribution is required")
+        r3_nm3 = self.bulk.size_distribution.moment(3)
+        vol_m3 = (4.0 / 3.0) * np.pi * r3_nm3 * 1e-27  # nm^3 -> m^3
+        mass_per_particle = rho * vol_m3
+        beta_ext_per_mass = C_ext_m2 * 1e-12 / mass_per_particle  # um^2 -> m^2
+
+        moments = self._select_and_resample_moments(wl, wl_tab_um, n_legendre)
+        return SpeciesOptics(
+            beta_ext_per_mass=beta_ext_per_mass,
+            ssa=ssa,
+            g=g,
+            legendre_moments=moments,
+        )
+
+    def _select_and_resample_moments(self, wl, wl_tab_um, n_legendre):
+        # Hypothesis (spec §4.5): libRadtran explicit .LAYER wants the g_l form.
+        src = getattr(self.bulk, "legendre_moments_beta", None)
+        if src is None:
+            src = getattr(self.bulk, "beta", None)
+            if src is not None:
+                l_vals = np.arange(src.shape[-1])
+                src = src / (2 * l_vals + 1)
+        if src is None:
+            return None
+        n_have = src.shape[-1]
+        n_use = min(n_have, n_legendre)
+        out = np.zeros((len(wl), n_legendre))
+        for l in range(n_use):
+            out[:, l] = np.interp(wl, wl_tab_um, src[:, l])
+        return out
 
 
 class MieSpecies(BaseModel):
