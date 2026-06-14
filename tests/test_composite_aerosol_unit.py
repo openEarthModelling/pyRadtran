@@ -5,8 +5,6 @@ from pyradtran.models.aerosol_composite import (
     IntegrationConfig,
     LayerOptics,
     MieSpecies,
-    ParticleOptics,
-    PrecomputedSpecies,
     RefractiveIndex,
     SizeDistribution,
 )
@@ -50,111 +48,6 @@ class TestRefractiveIndex:
                 n_real=[1.5, 1.45],
                 k_imag=[0.01, -0.001],
             )
-
-
-class TestParticleOptics:
-    def test_from_cross_sections(self):
-        wl = [0.5, 0.6]
-        r = [0.1, 1.0]
-        Cext = np.array([[0.0314, 3.14], [0.0452, 4.52]])
-        Csca = np.array([[0.0251, 2.51], [0.0362, 3.62]])
-        g = np.array([[0.1, 0.7], [0.15, 0.65]])
-        po = ParticleOptics.from_cross_sections(
-            wavelength_um=wl, radius_um=r, Cext_um2=Cext, Csca_um2=Csca, g=g
-        )
-        assert po.Qext.shape == (2, 2)
-        assert np.isclose(po.Qext[0, 0], 1.0, atol=1e-3)
-
-    def test_qsca_greater_than_qext_raises(self):
-        with pytest.raises(ValueError):
-            ParticleOptics(
-                wavelength_um=[0.5],
-                radius_um=[0.1],
-                Qext=np.array([[1.0]]),
-                Qsca=np.array([[1.1]]),
-                g=np.array([[0.0]]),
-            )
-
-    def test_g_out_of_range_raises(self):
-        with pytest.raises(ValueError):
-            ParticleOptics(
-                wavelength_um=[0.5],
-                radius_um=[0.1],
-                Qext=np.array([[1.0]]),
-                Qsca=np.array([[0.5]]),
-                g=np.array([[1.1]]),
-            )
-
-    def test_from_aerosol3d_with_beta_l(self):
-        from types import SimpleNamespace
-
-        data = SimpleNamespace(
-            wavelength_nm=np.array([400.0, 550.0, 700.0]),
-            C_ext=np.array([100.0, 120.0, 80.0]),
-            C_sca=np.array([80.0, 96.0, 64.0]),
-            g=np.array([0.7, 0.72, 0.68]),
-            r_eff_nm=200.0,
-            n_legendre=8,
-            legendre_moments_beta=np.array(
-                [
-                    [1.0, 0.7, 0.49, 0.343, 0.2401, 0.16807, 0.117649, 0.0823543],
-                    [1.0, 0.72, 0.5184, 0.373248, 0.26873856, 0.19349176, 0.13931407, 0.10030613],
-                    [1.0, 0.68, 0.4624, 0.314432, 0.21381376, 0.14539336, 0.09886748, 0.06722989],
-                ]
-            ),
-            legendre_moments=None,
-        )
-        po = ParticleOptics.from_aerosol3d(data)
-
-        assert po.wavelength_um == [0.4, 0.55, 0.7]
-        assert po.radius_um == [0.2]
-        assert po.Qext.shape == (3, 1)
-        r_um = 0.2
-        expected_Qext = np.array([100.0, 120.0, 80.0]) * 1e-6 / (np.pi * r_um**2)
-        assert np.allclose(po.Qext[:, 0], expected_Qext, rtol=1e-6)
-        assert po.legendre_moments is not None
-        assert po.legendre_moments.shape == (3, 1, 8)
-        assert np.allclose(po.legendre_moments[:, 0, :], data.legendre_moments_beta)
-
-    def test_from_aerosol3d_fallback_to_kl(self):
-        from types import SimpleNamespace
-
-        l_vals = np.arange(8)
-        kl = (2 * l_vals + 1) * np.array(
-            [1.0, 0.7, 0.49, 0.343, 0.2401, 0.16807, 0.117649, 0.0823543]
-        )
-        data = SimpleNamespace(
-            wavelength_nm=np.array([550.0]),
-            C_ext=np.array([100.0]),
-            C_sca=np.array([80.0]),
-            g=np.array([0.7]),
-            r_eff_nm=200.0,
-            n_legendre=8,
-            legendre_moments_beta=None,
-            legendre_moments=kl.reshape(1, 8),
-        )
-        po = ParticleOptics.from_aerosol3d(data)
-
-        assert po.legendre_moments is not None
-        expected_beta = kl / (2 * l_vals + 1)
-        assert np.allclose(po.legendre_moments[0, 0, :], expected_beta, atol=1e-10)
-
-    def test_from_aerosol3d_no_legendre(self):
-        from types import SimpleNamespace
-
-        data = SimpleNamespace(
-            wavelength_nm=np.array([550.0]),
-            C_ext=np.array([100.0]),
-            C_sca=np.array([80.0]),
-            g=np.array([0.7]),
-            r_eff_nm=200.0,
-            n_legendre=32,
-            legendre_moments_beta=None,
-            legendre_moments=None,
-        )
-        po = ParticleOptics.from_aerosol3d(data)
-
-        assert po.legendre_moments is None
 
 
 class TestSizeDistribution:
@@ -318,49 +211,6 @@ class TestMieSpecies:
             size_distribution=sd,
             particle_density_kg_m3=2000.0,
             integration_config=IntegrationConfig(n_radius_grid=50),
-        )
-        wl = np.array([0.55])
-        optics = species.intensive(wl)
-        assert optics.beta_ext_per_mass[0] > 0
-        assert 0 < optics.ssa[0] <= 1
-
-
-class TestPrecomputedSpecies:
-    def test_single_radius_constant_q(self):
-        """Single radius: Q constant, beta_ext = Q * pi * <r^2> * N / m_avg."""
-        po = ParticleOptics(
-            wavelength_um=[0.55],
-            radius_um=[1.0],
-            Qext=np.array([[2.0]]),
-            Qsca=np.array([[1.5]]),
-            g=np.array([[0.7]]),
-        )
-        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 1.0})
-        species = PrecomputedSpecies(
-            particle_optics=po,
-            size_distribution=sd,
-            particle_density_kg_m3=1000.0,
-        )
-        wl = np.array([0.55])
-        optics = species.intensive(wl)
-        assert optics.beta_ext_per_mass[0] > 0
-        assert optics.ssa[0] == pytest.approx(0.75, abs=0.01)
-        assert optics.g[0] == pytest.approx(0.7, abs=0.01)
-
-    def test_multi_radius_interpolation(self):
-        po = ParticleOptics(
-            wavelength_um=[0.5, 0.6],
-            radius_um=[0.1, 1.0, 10.0],
-            Qext=np.array([[1.0, 2.0, 2.0], [1.0, 2.0, 2.0]]),
-            Qsca=np.array([[0.5, 1.5, 1.5], [0.5, 1.5, 1.5]]),
-            g=np.array([[0.1, 0.7, 0.7], [0.1, 0.7, 0.7]]),
-        )
-        sd = SizeDistribution(kind="lognormal", params={"r_g_um": 1.0, "sigma_g": 2.0})
-        species = PrecomputedSpecies(
-            particle_optics=po,
-            size_distribution=sd,
-            particle_density_kg_m3=2000.0,
-            integration_config=IntegrationConfig(n_radius_grid=100),
         )
         wl = np.array([0.55])
         optics = species.intensive(wl)

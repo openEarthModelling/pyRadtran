@@ -29,14 +29,13 @@ from pyradtran.models.aerosol import (
     OpacPresetName,
 )
 from pyradtran.models.aerosol_composite import (
+    BulkSpecies,
     CompositeAerosol,
     IntegrationConfig,
     LayerOptics,
     LoadedSpecies,
     MieSpecies,
     OPACSpecies,
-    ParticleOptics,
-    PrecomputedSpecies,
     RefractiveIndex,
     SizeDistribution,
     SpeciesOptics,
@@ -58,11 +57,10 @@ __all__ = [
     "ExternalFile",
     # Composite aerosol classes
     "RefractiveIndex",
-    "ParticleOptics",
     "SizeDistribution",
     "IntegrationConfig",
     "MieSpecies",
-    "PrecomputedSpecies",
+    "BulkSpecies",
     "OPACSpecies",
     "LoadedSpecies",
     "LayerOptics",

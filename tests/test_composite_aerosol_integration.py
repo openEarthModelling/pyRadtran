@@ -9,8 +9,6 @@ from pyradtran.models.aerosol_composite import (
     IntegrationConfig,
     LoadedSpecies,
     MieSpecies,
-    ParticleOptics,
-    PrecomputedSpecies,
     RefractiveIndex,
     SizeDistribution,
 )
@@ -94,65 +92,6 @@ class TestLayerWriter:
 
 
 class TestFullPipeline:
-    def test_mie_plus_precomputed_pipeline(self):
-        """Two LoadedSpecies -> mixed -> explicit files."""
-        import tempfile
-        from pathlib import Path
-
-        wl = [0.5, 0.55, 0.6]
-        alt = [10.0, 5.0, 0.0]
-
-        # Source 1: Mie species
-        ri1 = RefractiveIndex(wavelength_um=wl, n_real=[1.5] * 3, k_imag=[0.01] * 3)
-        sd1 = SizeDistribution(kind="lognormal", params={"r_g_um": 0.3, "sigma_g": 1.5})
-        mie = MieSpecies(
-            refractive_index=ri1,
-            size_distribution=sd1,
-            particle_density_kg_m3=2000.0,
-            integration_config=IntegrationConfig(n_radius_grid=50),
-        )
-        loaded1 = LoadedSpecies(
-            species=mie,
-            mass_profile_kg_m3=[0.001, 0.002],
-            altitude_km=alt,
-        )
-
-        # Source 2: Precomputed species
-        po = ParticleOptics(
-            wavelength_um=wl,
-            radius_um=[0.5, 1.0],
-            Qext=np.full((3, 2), 2.0),
-            Qsca=np.full((3, 2), 1.5),
-            g=np.full((3, 2), 0.7),
-        )
-        sd2 = SizeDistribution(kind="monodisperse", params={"radius_um": 1.0})
-        precomp = PrecomputedSpecies(
-            particle_optics=po,
-            size_distribution=sd2,
-            particle_density_kg_m3=1000.0,
-        )
-        loaded2 = LoadedSpecies(
-            species=precomp,
-            mass_profile_kg_m3=[0.0005, 0.001],
-            altitude_km=alt,
-        )
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            comp = CompositeAerosol(
-                sources=[loaded1, loaded2],
-                wavelength_grid_um=wl,
-                altitude_grid_km=alt,
-                n_legendre=8,
-                output_dir=Path(tmpdir),
-            )
-            lines = comp.to_uvspec_lines()
-            assert len(lines) == 2
-            assert lines[1].startswith("aerosol_file explicit ")
-
-            # Verify files exist
-            master_path = Path(lines[1].split()[-1])
-            assert master_path.exists()
-
     def test_format_invariants(self):
         """k_0 = 1, last row is NULL.LAYER, beta_ext in 1/km."""
         import tempfile

@@ -60,110 +60,6 @@ class RefractiveIndex(BaseModel):
         return n_interp + 1j * k_interp
 
 
-class ParticleOptics(BaseModel):
-    """Single-particle optical properties vs wavelength and radius."""
-
-    model_config = {
-        "extra": "forbid",
-        "frozen": True,
-        "populate_by_name": True,
-        "arbitrary_types_allowed": True,
-    }
-
-    wavelength_um: list[float] = Field(min_length=1)
-    radius_um: list[float] = Field(min_length=1)
-    Qext: NDArray
-    Qsca: NDArray
-    g: NDArray
-    legendre_moments: NDArray | None = None
-
-    @model_validator(mode="after")
-    def validate_shapes(self) -> ParticleOptics:
-        n_wl = len(self.wavelength_um)
-        n_r = len(self.radius_um)
-        expected = (n_wl, n_r)
-
-        if self.Qext.shape != expected:
-            raise ValueError(f"Qext shape {self.Qext.shape} != expected {expected}")
-        if self.Qsca.shape != expected:
-            raise ValueError(f"Qsca shape {self.Qsca.shape} != expected {expected}")
-        if self.g.shape != expected:
-            raise ValueError(f"g shape {self.g.shape} != expected {expected}")
-        if self.wavelength_um != sorted(self.wavelength_um):
-            raise ValueError("wavelength_um must be strictly ascending")
-        if self.radius_um != sorted(self.radius_um):
-            raise ValueError("radius_um must be strictly ascending")
-        if np.any(self.Qsca > self.Qext + 1e-12):
-            raise ValueError("Qsca must be <= Qext")
-        if np.any(np.abs(self.g) > 1.0 + 1e-12):
-            raise ValueError("|g| must be <= 1")
-
-        if self.legendre_moments is not None and self.legendre_moments.shape[:2] != expected:
-            raise ValueError(
-                f"legendre_moments leading dims {self.legendre_moments.shape[:2]} "
-                f"!= expected {expected}"
-            )
-        return self
-
-    @classmethod
-    def from_cross_sections(
-        cls,
-        *,
-        wavelength_um: list[float],
-        radius_um: list[float],
-        Cext_um2: NDArray,
-        Csca_um2: NDArray,
-        g: NDArray,
-        legendre_moments: NDArray | None = None,
-    ) -> ParticleOptics:
-        """Build from cross-sections (convert to Q-factors)."""
-        r = np.asarray(radius_um).reshape(1, -1)
-        area = np.pi * r**2
-        Qext = np.asarray(Cext_um2) / area
-        Qsca = np.asarray(Csca_um2) / area
-        return cls(
-            wavelength_um=wavelength_um,
-            radius_um=radius_um,
-            Qext=Qext,
-            Qsca=Qsca,
-            g=g,
-            legendre_moments=legendre_moments,
-        )
-
-    @classmethod
-    def from_aerosol3d(cls, data) -> ParticleOptics:
-        """Create ParticleOptics from Aerosol3D AerosolOpticsData.
-
-        Handles unit conversion (nm -> um, nm^2 -> um^2) and Legendre
-        convention (prefers beta_l, falls back to k_l conversion).
-
-        Args:
-            data: Object with wavelength_nm, C_ext, C_sca, g, r_eff_nm,
-                  n_legendre, legendre_moments_beta, legendre_moments fields.
-
-        Returns:
-            ParticleOptics ready for use in PrecomputedSpecies.
-        """
-        wavelengths_um = (data.wavelength_nm / 1000.0).tolist()
-        r_eff_um = data.r_eff_nm / 1000.0
-
-        legendre = None
-        if data.legendre_moments_beta is not None:
-            legendre = data.legendre_moments_beta.reshape((-1, 1, data.n_legendre))
-        elif data.legendre_moments is not None:
-            l = np.arange(data.n_legendre)
-            legendre = (data.legendre_moments / (2 * l + 1)).reshape((-1, 1, data.n_legendre))
-
-        return cls.from_cross_sections(
-            wavelength_um=wavelengths_um,
-            radius_um=[r_eff_um],
-            Cext_um2=(data.C_ext * 1e-6).reshape((-1, 1)),
-            Csca_um2=(data.C_sca * 1e-6).reshape((-1, 1)),
-            g=data.g.reshape((-1, 1)),
-            legendre_moments=legendre,
-        )
-
-
 class SizeDistribution(BaseModel):
     """Aerosol particle size distribution."""
 
@@ -371,7 +267,7 @@ class MieSpecies(BaseModel):
         self.size_distribution.evaluate(r_dense)
 
         # Deferred imports avoid circular dependency:
-        # mie.py imports ParticleOptics/SizeDistribution from this module.
+        # mie.py imports SizeDistribution from this module.
         from pyradtran.optics.mie import bhmie
 
         Qext = np.zeros((n_wl, config.n_radius_grid))
@@ -390,96 +286,16 @@ class MieSpecies(BaseModel):
 
         from pyradtran.optics.mie import integrate_size_distribution
 
-        particle_optics = ParticleOptics(
+        internal = integrate_size_distribution(
             wavelength_um=wl.tolist(),
             radius_um=r_dense.tolist(),
             Qext=Qext,
             Qsca=Qsca,
             g=g,
             legendre_moments=None,
-        )
-
-        internal = integrate_size_distribution(
-            particle_optics=particle_optics,
             size_distribution=self.size_distribution,
             particle_density_kg_m3=self.particle_density_kg_m3,
             config=config,
-            n_legendre=n_legendre,
-        )
-
-        return SpeciesOptics(
-            beta_ext_per_mass=internal.beta_ext_per_mass,
-            ssa=internal.ssa,
-            g=internal.g,
-            legendre_moments=internal.legendre_moments,
-        )
-
-
-class PrecomputedSpecies(BaseModel):
-    """Species from precomputed ParticleOptics + size distribution."""
-
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
-
-    particle_optics: ParticleOptics
-    size_distribution: SizeDistribution
-    particle_density_kg_m3: float = Field(gt=0)
-    integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
-
-    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
-        """Integrate precomputed Q-factors over size distribution."""
-        from pyradtran.optics.mie import integrate_size_distribution
-
-        # Verify wavelength coverage
-        wl = np.asarray(wl_um)
-        wl_tab = np.asarray(self.particle_optics.wavelength_um)
-        if np.any(wl < wl_tab[0]) or np.any(wl > wl_tab[-1]):
-            raise ValueError(
-                f"Wavelength {wl.min():.4f}–{wl.max():.4f} um outside "
-                f"particle optics range {wl_tab[0]:.4f}–{wl_tab[-1]:.4f} um"
-            )
-
-        # Interpolate ParticleOptics to requested wavelengths (log-linear in Q)
-        n_r = len(self.particle_optics.radius_um)
-        n_req = len(wl)
-        Qext_interp = np.zeros((n_req, n_r))
-        Qsca_interp = np.zeros((n_req, n_r))
-        g_interp = np.zeros((n_req, n_r))
-
-        for i_r in range(n_r):
-            log_Qext = np.log(np.clip(self.particle_optics.Qext[:, i_r], 1e-30, None))
-            Qext_interp[:, i_r] = np.exp(np.interp(wl, wl_tab, log_Qext))
-
-            log_Qsca = np.log(np.clip(self.particle_optics.Qsca[:, i_r], 1e-30, None))
-            Qsca_interp[:, i_r] = np.exp(np.interp(wl, wl_tab, log_Qsca))
-
-            g_interp[:, i_r] = np.clip(
-                np.interp(wl, wl_tab, self.particle_optics.g[:, i_r]), -1.0, 1.0
-            )
-
-        legendre_interp = None
-        if self.particle_optics.legendre_moments is not None:
-            n_mom = self.particle_optics.legendre_moments.shape[2]
-            legendre_interp = np.zeros((n_req, n_r, n_mom))
-            for i_r in range(n_r):
-                for l in range(n_mom):
-                    legendre_interp[:, i_r, l] = np.interp(
-                        wl, wl_tab, self.particle_optics.legendre_moments[:, i_r, l]
-                    )
-
-        particle_optics_interp = ParticleOptics(
-            wavelength_um=wl.tolist(),
-            radius_um=self.particle_optics.radius_um,
-            Qext=Qext_interp,
-            Qsca=Qsca_interp,
-            g=g_interp,
-            legendre_moments=legendre_interp,
-        )
-
-        internal = integrate_size_distribution(
-            particle_optics=particle_optics_interp,
-            size_distribution=self.size_distribution,
-            particle_density_kg_m3=self.particle_density_kg_m3,
-            config=self.integration_config,
             n_legendre=n_legendre,
         )
 
@@ -558,7 +374,7 @@ class LoadedSpecies(BaseModel):
 
     model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
 
-    species: MieSpecies | PrecomputedSpecies | OPACSpecies
+    species: MieSpecies | BulkSpecies | OPACSpecies
     mass_profile_kg_m3: list[float] = Field(min_length=1)
     altitude_km: list[float] = Field(min_length=2)  # layer boundaries, descending
     rh_profile: list[float] | None = None  # required for OPACSpecies
