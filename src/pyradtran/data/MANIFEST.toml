@@ -66,12 +66,9 @@ category = "aerosol_library"
 name = "OPAC"
 uvspec_keyword = "aerosol_species_library"
 files = [
-  "aerosol/OPAC/Makefile",
   "aerosol/OPAC/Makefile.in",
-  "aerosol/OPAC/optprop/Makefile",
   "aerosol/OPAC/optprop/Makefile.in",
   "aerosol/OPAC/optprop/aerosol_species_names.dat",
-  "aerosol/OPAC/refractive_indices/Makefile",
   "aerosol/OPAC/refractive_indices/Makefile.in",
   "aerosol/OPAC/refractive_indices/cir100_refr.dat",
   "aerosol/OPAC/refractive_indices/cir200_refr.dat",
@@ -121,7 +118,6 @@ files = [
   "aerosol/OPAC/refractive_indices/waso98_refr.dat",
   "aerosol/OPAC/refractive_indices/waso99_refr.dat",
   "aerosol/OPAC/size_distr.cfg",
-  "aerosol/OPAC/standard_aerosol_files/Makefile",
   "aerosol/OPAC/standard_aerosol_files/Makefile.in",
   "aerosol/OPAC/standard_aerosol_files/antarctic.dat",
   "aerosol/OPAC/standard_aerosol_files/continental_average.dat",
@@ -140,7 +136,6 @@ category = "aerosol_library"
 name = "shettle"
 uvspec_keyword = "aerosol_species_library"
 files = [
-  "aerosol/shettle/Makefile",
   "aerosol/shettle/Makefile.in",
   "aerosol/shettle/tau550.1.1",
   "aerosol/shettle/tau550.1.2",
@@ -182,7 +177,6 @@ category = "cross_section"
 name = "molecular cross-sections"
 uvspec_keyword = "crs"
 files = [
-  "crs/Makefile",
   "crs/Makefile.in",
   "crs/Minschwaner_O2_fitcoef_cold.txt",
   "crs/Minschwaner_O2_fitcoef_hot.txt",
@@ -212,7 +206,6 @@ files = [
   "crs/crs_o3_pab.dat",
   "crs/crs_o3_pab_cf.dat",
   "crs/crs_o4_greenblatt.dat",
-  "crs/crs_o4_greenblatt.py",
   "crs/crs_oclo.dat",
   "crs/qy_hno2.dat",
   "crs/qy_no2_004.dat",
