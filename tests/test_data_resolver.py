@@ -1,5 +1,7 @@
 """Tests for the data access layer (DataResolver + manifest)."""
 
+from pathlib import Path
+
 import pytest
 
 from pyradtran.data.manifest import Asset, load_manifest
@@ -82,3 +84,23 @@ def test_is_available_unknown_name_is_permissive(_clean_env):
 def test_list_bundled_empty_in_phase_a(_clean_env):
     r = DataResolver()
     assert r.list_bundled() == []
+
+
+def test_bundled_only_ignores_explicit_root(_clean_env, tmp_path):
+    root = tmp_path / "explicit"
+    root.mkdir()
+    r = DataResolver(data_root=root, bundled_only=True)
+    assert r.data_root == _bundled_root_path()
+    assert r.data_root != root.resolve()
+
+
+def test_bundled_only_ignores_env_var(_clean_env, tmp_path, monkeypatch):
+    monkeypatch.setenv("LIBRADTRAN_DATA_FILES", str(tmp_path))
+    r = DataResolver(bundled_only=True)
+    assert r.data_root == _bundled_root_path()
+
+
+def _bundled_root_path() -> Path:
+    from pyradtran.data.resolver import _BUNDLED_ROOT
+
+    return _BUNDLED_ROOT

@@ -43,6 +43,9 @@ class DataResolver:
         return self._cached_root
 
     def _resolve_root(self) -> Path:
+        if self._bundled_only:
+            return _BUNDLED_ROOT
+
         if self._explicit_root is not None:
             if not self._explicit_root.is_dir():
                 raise FileNotFoundError(f"Data directory not found: {self._explicit_root}")
