@@ -6,5 +6,6 @@ optional ``bundled_only`` mode for reproducible runs.
 """
 
 from pyradtran.data.manifest import Asset, load_manifest
+from pyradtran.data.resolver import DataResolver
 
-__all__ = ["Asset", "load_manifest"]
+__all__ = ["Asset", "DataResolver", "load_manifest"]
