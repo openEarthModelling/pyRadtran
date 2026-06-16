@@ -7,7 +7,7 @@ Resolution priority for the data root (``data_files_path``):
     4. bundled subset at ``pyradtran/data/assets``
 
 ``bundled_only=True`` overrides 1-3 and always uses the bundled root
-(implemented in a later task; here it is accepted but not yet enforced).
+(for reproducible runs / CI).
 """
 
 from __future__ import annotations

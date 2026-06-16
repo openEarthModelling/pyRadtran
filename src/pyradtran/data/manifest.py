@@ -53,8 +53,7 @@ class ValidationIssue:
 def load_manifest() -> list[Asset]:
     """Load bundled MANIFEST.toml into a list of Asset objects.
 
-    Returns an empty list when the manifest contains no ``[[assets]]`` entries
-    (Phase A: no data files committed yet).
+    Returns an empty list when the manifest contains no ``[[assets]]`` entries.
     """
     if not _MANIFEST_PATH.is_file():
         return []
@@ -86,7 +85,7 @@ def check_consistency(assets: list[Asset], assets_dir: Path) -> list[str]:
 
     Consistent == every manifest path exists on disk AND every file under
     assets_dir is claimed by some manifest asset. An empty assets_dir and an
-    empty manifest are consistent (Phase A state).
+    empty manifest are consistent.
     """
     messages: list[str] = []
 
