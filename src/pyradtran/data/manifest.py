@@ -33,6 +33,23 @@ class Asset:
     paths: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class ValidationIssue:
+    """A single data-reference problem found when validating a Scene.
+
+    Attributes:
+        severity: "warning" (default) or "error".
+        category: Manifest category of the missing/referenced asset.
+        name: The user-facing reference value that could not be satisfied.
+        message: Human-readable explanation.
+    """
+
+    severity: str
+    category: str
+    name: str
+    message: str
+
+
 def load_manifest() -> list[Asset]:
     """Load bundled MANIFEST.toml into a list of Asset objects.
 

@@ -5,7 +5,7 @@ priority (explicit path > environment variable > bundled subset) and an
 optional ``bundled_only`` mode for reproducible runs.
 """
 
-from pyradtran.data.manifest import Asset, load_manifest
+from pyradtran.data.manifest import Asset, ValidationIssue, load_manifest
 from pyradtran.data.resolver import DataResolver
 
-__all__ = ["Asset", "DataResolver", "load_manifest"]
+__all__ = ["Asset", "ValidationIssue", "DataResolver", "load_manifest"]

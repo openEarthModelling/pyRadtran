@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from pyradtran.data.manifest import Asset, load_manifest
+from pyradtran.data.manifest import Asset, ValidationIssue, load_manifest
 
 _BUNDLED_ROOT = Path(__file__).resolve().parent / "assets"
 
@@ -106,3 +106,103 @@ class DataResolver:
         if category is None:
             return list(self._manifest)
         return [a for a in self._manifest if a.category == category]
+
+    def validate_scene(self, scene) -> list[ValidationIssue]:
+        """Check high-value data references in a Scene against available data.
+
+        Returns a list of ValidationIssue for references whose bundled-asset
+        files are missing under the current data root. References absent from
+        the bundled manifest are treated as permissively available (externally).
+
+        First batch covers: atmosphere profile, solar_flux_file,
+        mol_abs_param, and OPAC aerosol library.
+        """
+        from pyradtran.models.atmosphere import PROFILE_ALIASES
+
+        issues: list[ValidationIssue] = []
+
+        # atmosphere profile
+        atm = getattr(scene, "atmosphere", None)
+        if atm is not None:
+            profile = getattr(atm, "profile", None)
+            if profile and not _looks_like_path(profile):
+                resolved = PROFILE_ALIASES.get(profile.strip(), profile.strip())
+                if not self.is_available("atmosphere_profile", resolved):
+                    issues.append(
+                        ValidationIssue(
+                            severity="warning",
+                            category="atmosphere_profile",
+                            name=resolved,
+                            message=(
+                                f"Atmosphere profile {resolved!r} is not available "
+                                f"under data root {self.data_root}"
+                            ),
+                        )
+                    )
+            mol = getattr(atm, "mol_abs_param", None)
+            if mol and not self.is_available("ckd", mol):
+                issues.append(
+                    ValidationIssue(
+                        severity="warning",
+                        category="ckd",
+                        name=mol,
+                        message=(
+                            f"mol_abs_param {mol!r} is not available under "
+                            f"data root {self.data_root}"
+                        ),
+                    )
+                )
+
+        # solar flux file
+        src = getattr(scene, "source", None)
+        if src is not None:
+            sff = getattr(src, "solar_flux_file", None)
+            # bare filename (logical reference); full paths are user-supplied
+            if (
+                sff
+                and "/" not in sff
+                and "\\" not in sff
+                and not self.is_available("solar_flux", sff)
+            ):
+                issues.append(
+                    ValidationIssue(
+                        severity="warning",
+                        category="solar_flux",
+                        name=sff,
+                        message=(
+                            f"solar_flux_file {sff!r} is not available under "
+                            f"data root {self.data_root}"
+                        ),
+                    )
+                )
+
+        # OPAC aerosol library
+        aero = getattr(scene, "aerosol", None)
+        if aero is not None:
+            lib = getattr(aero, "library", None)
+            if lib and not self.is_available("aerosol_library", lib):
+                issues.append(
+                    ValidationIssue(
+                        severity="warning",
+                        category="aerosol_library",
+                        name=lib,
+                        message=(
+                            f"aerosol library {lib!r} is not available under "
+                            f"data root {self.data_root}"
+                        ),
+                    )
+                )
+
+        return issues
+
+
+def _looks_like_path(value: str) -> bool:
+    """Heuristic: treat values with a separator or data-file extension as
+    user-supplied file paths (not logical names to validate)."""
+    return (
+        "/" in value
+        or "\\" in value
+        or value.endswith(".dat")
+        or value.endswith(".cdf")
+        or value.endswith(".nc")
+    )
