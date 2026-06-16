@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 import xarray as xr
 
 from pyradtran.core.output_parser import parse_output
+from pyradtran.data.resolver import DataResolver
 
 if TYPE_CHECKING:
     from pyradtran.scene import Scene
@@ -33,6 +34,8 @@ class RunnerConfig:
         max_workers: Maximum parallel workers for execute_many().
         keep_temp: Keep temporary files after execution (for debugging).
         timeout: Maximum uvspec execution time in seconds. None = no timeout.
+        bundled_only: Force use of the bundled data subset, ignoring env vars
+            and explicit data_path. For reproducible runs / CI.
     """
 
     uvspec_exe: str | None = None
@@ -40,6 +43,7 @@ class RunnerConfig:
     max_workers: int = 4
     keep_temp: bool = False
     timeout: int | None = None
+    bundled_only: bool = False
 
 
 class Runner:
@@ -93,25 +97,6 @@ class Runner:
         return exe
 
     @staticmethod
-    def _find_data_path(path: str | None = None) -> str:
-        """Locate libRadtran data directory."""
-        if path is not None:
-            if not os.path.isdir(path):
-                raise FileNotFoundError(f"Data directory not found: {path}")
-            return os.path.abspath(path)
-        for env_var in ("LIBRADTRAN_DATA_FILES", "LIBRADTRANDIR"):
-            val = os.environ.get(env_var)
-            if val:
-                if env_var == "LIBRADTRANDIR":
-                    val = os.path.join(val, "data")
-                if os.path.isdir(val):
-                    return val
-        raise FileNotFoundError(
-            "libRadtran data directory not found. "
-            "Set LIBRADTRAN_DATA_FILES or pass data_path explicitly."
-        )
-
-    @staticmethod
     def execute(
         scene: Scene,
         uvspec_exe: str | None = None,
@@ -136,9 +121,11 @@ class Runner:
         """
         cfg = config or Runner._config
         uvspec = Runner._find_uvspec(uvspec_exe if uvspec_exe is not None else cfg.uvspec_exe)
-        resolved_data_path = Runner._find_data_path(
-            data_path if data_path is not None else cfg.data_path
+        resolver = DataResolver(
+            data_root=data_path if data_path is not None else cfg.data_path,
+            bundled_only=cfg.bundled_only,
         )
+        resolved_data_path = str(resolver.data_root)
         resolved_timeout = timeout if timeout is not None else cfg.timeout
 
         input_text = scene.build_input(data_files_path=resolved_data_path)
