@@ -19,14 +19,19 @@ def test_asset_is_frozen_dataclass():
     assert a.paths == ("solar_flux/kurudz_1.0nm.dat",)
 
 
-def test_load_manifest_phase_a_is_empty():
-    """Phase A ships an empty manifest (no data files committed yet)."""
+def test_load_manifest_is_populated():
+    """Phase B: the manifest declares the curated bundled data subset."""
     assets = load_manifest()
-    assert assets == []
+    assert len(assets) > 0
+    for a in assets:
+        assert isinstance(a, Asset)
+    names = {a.name for a in assets}
+    assert "US-standard" in names
+    assert "kurudz_1.0nm.dat" in names
 
 
 def test_load_manifest_returns_list_of_assets():
-    # Manifest is empty in phase A; just assert return type contract.
+    # Just assert the return type contract.
     assets = load_manifest()
     assert isinstance(assets, list)
     for a in assets:
@@ -71,8 +76,8 @@ def test_data_root_falls_back_to_bundled(_clean_env):
 
 def test_resolve_missing_raises(_clean_env):
     r = DataResolver()
-    with pytest.raises(FileNotFoundError, match="kurudz_1.0nm.dat"):
-        r.resolve("solar_flux", "kurudz_1.0nm.dat")  # not in phase-A manifest
+    with pytest.raises(FileNotFoundError, match="definitely_not_bundled.dat"):
+        r.resolve("solar_flux", "definitely_not_bundled.dat")
 
 
 def test_is_available_unknown_name_is_permissive(_clean_env):
@@ -81,9 +86,13 @@ def test_is_available_unknown_name_is_permissive(_clean_env):
     assert r.is_available("solar_flux", "whatever_not_in_manifest") is True
 
 
-def test_list_bundled_empty_in_phase_a(_clean_env):
+def test_list_bundled_returns_assets(_clean_env):
     r = DataResolver()
-    assert r.list_bundled() == []
+    all_assets = r.list_bundled()
+    assert len(all_assets) > 0
+    profiles = r.list_bundled("atmosphere_profile")
+    assert all(a.category == "atmosphere_profile" for a in profiles)
+    assert len(profiles) >= 6
 
 
 def test_bundled_only_ignores_explicit_root(_clean_env, tmp_path):
