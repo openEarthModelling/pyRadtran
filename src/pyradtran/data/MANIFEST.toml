@@ -1,6 +1,220 @@
-# pyRadtran bundled-data manifest.
-# Phase A: empty (no [[assets]] entries). Data files are added in a separate,
-# user-approved commit (Phase B), at which point this file is regenerated.
-
 version = 1
 libradtran_source = "2.0.6"
+
+[[assets]]
+category = "atmosphere_profile"
+name = "midlatitude_summer"
+uvspec_keyword = "atmosphere_file"
+path = "atmmod/afglms.dat"
+
+[[assets]]
+category = "atmosphere_profile"
+name = "midlatitude_winter"
+uvspec_keyword = "atmosphere_file"
+path = "atmmod/afglmw.dat"
+
+[[assets]]
+category = "atmosphere_profile"
+name = "subarctic_summer"
+uvspec_keyword = "atmosphere_file"
+path = "atmmod/afglss.dat"
+
+[[assets]]
+category = "atmosphere_profile"
+name = "subarctic_winter"
+uvspec_keyword = "atmosphere_file"
+path = "atmmod/afglsw.dat"
+
+[[assets]]
+category = "atmosphere_profile"
+name = "tropics"
+uvspec_keyword = "atmosphere_file"
+path = "atmmod/afglt.dat"
+
+[[assets]]
+category = "atmosphere_profile"
+name = "US-standard"
+uvspec_keyword = "atmosphere_file"
+path = "atmmod/afglus.dat"
+
+[[assets]]
+category = "atmosphere_aux"
+name = "afglus gas profiles"
+uvspec_keyword = "vmr"
+files = [
+  "atmmod/afglus_ch4_vmr.dat",
+  "atmmod/afglus_co_vmr.dat",
+  "atmmod/afglus_n2_vmr.dat",
+  "atmmod/afglus_n2o_vmr.dat",
+  "atmmod/afglus_no2.dat",
+]
+
+[[assets]]
+category = "solar_flux"
+name = "kurudz_0.1nm.dat"
+uvspec_keyword = "source"
+path = "solar_flux/kurudz_0.1nm.dat"
+
+[[assets]]
+category = "solar_flux"
+name = "kurudz_1.0nm.dat"
+uvspec_keyword = "source"
+path = "solar_flux/kurudz_1.0nm.dat"
+
+[[assets]]
+category = "aerosol_library"
+name = "OPAC"
+uvspec_keyword = "aerosol_species_library"
+files = [
+  "aerosol/OPAC/Makefile",
+  "aerosol/OPAC/Makefile.in",
+  "aerosol/OPAC/optprop/Makefile",
+  "aerosol/OPAC/optprop/Makefile.in",
+  "aerosol/OPAC/optprop/aerosol_species_names.dat",
+  "aerosol/OPAC/refractive_indices/Makefile",
+  "aerosol/OPAC/refractive_indices/Makefile.in",
+  "aerosol/OPAC/refractive_indices/cir100_refr.dat",
+  "aerosol/OPAC/refractive_indices/cir200_refr.dat",
+  "aerosol/OPAC/refractive_indices/cir300_refr.dat",
+  "aerosol/OPAC/refractive_indices/cucc00_refr.dat",
+  "aerosol/OPAC/refractive_indices/cucp00_refr.dat",
+  "aerosol/OPAC/refractive_indices/cuma00_refr.dat",
+  "aerosol/OPAC/refractive_indices/fogr00_refr.dat",
+  "aerosol/OPAC/refractive_indices/inso00_refr.dat",
+  "aerosol/OPAC/refractive_indices/miam00_refr.dat",
+  "aerosol/OPAC/refractive_indices/micm00_refr.dat",
+  "aerosol/OPAC/refractive_indices/minm00_refr.dat",
+  "aerosol/OPAC/refractive_indices/mitr00_refr.dat",
+  "aerosol/OPAC/refractive_indices/soot00_refr.dat",
+  "aerosol/OPAC/refractive_indices/ssam00_refr.dat",
+  "aerosol/OPAC/refractive_indices/ssam50_refr.dat",
+  "aerosol/OPAC/refractive_indices/ssam70_refr.dat",
+  "aerosol/OPAC/refractive_indices/ssam80_refr.dat",
+  "aerosol/OPAC/refractive_indices/ssam90_refr.dat",
+  "aerosol/OPAC/refractive_indices/ssam95_refr.dat",
+  "aerosol/OPAC/refractive_indices/ssam98_refr.dat",
+  "aerosol/OPAC/refractive_indices/ssam99_refr.dat",
+  "aerosol/OPAC/refractive_indices/sscm00_refr.dat",
+  "aerosol/OPAC/refractive_indices/sscm50_refr.dat",
+  "aerosol/OPAC/refractive_indices/sscm70_refr.dat",
+  "aerosol/OPAC/refractive_indices/sscm80_refr.dat",
+  "aerosol/OPAC/refractive_indices/sscm90_refr.dat",
+  "aerosol/OPAC/refractive_indices/sscm95_refr.dat",
+  "aerosol/OPAC/refractive_indices/sscm98_refr.dat",
+  "aerosol/OPAC/refractive_indices/sscm99_refr.dat",
+  "aerosol/OPAC/refractive_indices/stco00_refr.dat",
+  "aerosol/OPAC/refractive_indices/stma00_refr.dat",
+  "aerosol/OPAC/refractive_indices/suso00_refr.dat",
+  "aerosol/OPAC/refractive_indices/suso50_refr.dat",
+  "aerosol/OPAC/refractive_indices/suso70_refr.dat",
+  "aerosol/OPAC/refractive_indices/suso80_refr.dat",
+  "aerosol/OPAC/refractive_indices/suso90_refr.dat",
+  "aerosol/OPAC/refractive_indices/suso95_refr.dat",
+  "aerosol/OPAC/refractive_indices/suso98_refr.dat",
+  "aerosol/OPAC/refractive_indices/suso99_refr.dat",
+  "aerosol/OPAC/refractive_indices/waso00_refr.dat",
+  "aerosol/OPAC/refractive_indices/waso50_refr.dat",
+  "aerosol/OPAC/refractive_indices/waso70_refr.dat",
+  "aerosol/OPAC/refractive_indices/waso80_refr.dat",
+  "aerosol/OPAC/refractive_indices/waso90_refr.dat",
+  "aerosol/OPAC/refractive_indices/waso95_refr.dat",
+  "aerosol/OPAC/refractive_indices/waso98_refr.dat",
+  "aerosol/OPAC/refractive_indices/waso99_refr.dat",
+  "aerosol/OPAC/size_distr.cfg",
+  "aerosol/OPAC/standard_aerosol_files/Makefile",
+  "aerosol/OPAC/standard_aerosol_files/Makefile.in",
+  "aerosol/OPAC/standard_aerosol_files/antarctic.dat",
+  "aerosol/OPAC/standard_aerosol_files/continental_average.dat",
+  "aerosol/OPAC/standard_aerosol_files/continental_clean.dat",
+  "aerosol/OPAC/standard_aerosol_files/continental_polluted.dat",
+  "aerosol/OPAC/standard_aerosol_files/desert.dat",
+  "aerosol/OPAC/standard_aerosol_files/desert_spheroids.dat",
+  "aerosol/OPAC/standard_aerosol_files/maritime_clean.dat",
+  "aerosol/OPAC/standard_aerosol_files/maritime_polluted.dat",
+  "aerosol/OPAC/standard_aerosol_files/maritime_tropical.dat",
+  "aerosol/OPAC/standard_aerosol_files/urban.dat",
+]
+
+[[assets]]
+category = "aerosol_library"
+name = "shettle"
+uvspec_keyword = "aerosol_species_library"
+files = [
+  "aerosol/shettle/Makefile",
+  "aerosol/shettle/Makefile.in",
+  "aerosol/shettle/tau550.1.1",
+  "aerosol/shettle/tau550.1.2",
+  "aerosol/shettle/tau550.2.1",
+  "aerosol/shettle/tau550.2.2",
+  "aerosol/shettle/tau550.3.1",
+  "aerosol/shettle/tau550.3.2",
+  "aerosol/shettle/tau550.4.1",
+  "aerosol/shettle/tau550.4.2",
+]
+
+[[assets]]
+category = "ckd"
+name = "reptran coarse"
+uvspec_keyword = "mol_abs_param"
+files = [
+  "correlated_k/reptran/reptran_solar_coarse.cdf",
+  "correlated_k/reptran/reptran_solar_coarse.lookup.CH4.cdf",
+  "correlated_k/reptran/reptran_solar_coarse.lookup.CO.cdf",
+  "correlated_k/reptran/reptran_solar_coarse.lookup.CO2.cdf",
+  "correlated_k/reptran/reptran_solar_coarse.lookup.H2O.cdf",
+  "correlated_k/reptran/reptran_solar_coarse.lookup.N2.cdf",
+  "correlated_k/reptran/reptran_solar_coarse.lookup.N2O.cdf",
+  "correlated_k/reptran/reptran_solar_coarse.lookup.O2.cdf",
+  "correlated_k/reptran/reptran_solar_coarse.lookup.O3.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.lookup.CH4.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.lookup.CO.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.lookup.CO2.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.lookup.H2O.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.lookup.N2.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.lookup.N2O.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.lookup.O2.cdf",
+  "correlated_k/reptran/reptran_thermal_coarse.lookup.O3.cdf",
+]
+
+[[assets]]
+category = "cross_section"
+name = "molecular cross-sections"
+uvspec_keyword = "crs"
+files = [
+  "crs/Makefile",
+  "crs/Makefile.in",
+  "crs/Minschwaner_O2_fitcoef_cold.txt",
+  "crs/Minschwaner_O2_fitcoef_hot.txt",
+  "crs/Minschwaner_O2_fitcoef_mid.txt",
+  "crs/crs_NO2_UBremen_cf.dat",
+  "crs/crs_O3_UBremen_cf.dat",
+  "crs/crs_SO2_UBremen_cf.dat",
+  "crs/crs_bro_cox.dat",
+  "crs/crs_bro_wahner_228.dat",
+  "crs/crs_co2_lew_cf.dat",
+  "crs/crs_co2_yoshino96_295K.dat",
+  "crs/crs_hcho_cantrell.dat",
+  "crs/crs_hno2_007.dat",
+  "crs/crs_no2_012.dat",
+  "crs/crs_no2_davidson.dat",
+  "crs/crs_no2_gom.dat",
+  "crs/crs_o2.dat",
+  "crs/crs_o2_lewis1983.dat",
+  "crs/crs_o2_ogawa1975.dat",
+  "crs/crs_o2_yoshino1988.dat",
+  "crs/crs_o2_yoshino2005.dat",
+  "crs/crs_o3_Molina.dat",
+  "crs/crs_o3_all.dat",
+  "crs/crs_o3_dau.dat",
+  "crs/crs_o3_dau_cf.dat",
+  "crs/crs_o3_mol_cf.dat",
+  "crs/crs_o3_pab.dat",
+  "crs/crs_o3_pab_cf.dat",
+  "crs/crs_o4_greenblatt.dat",
+  "crs/crs_o4_greenblatt.py",
+  "crs/crs_oclo.dat",
+  "crs/qy_hno2.dat",
+  "crs/qy_no2_004.dat",
+  "crs/qy_o3_talu.dat",
+]
