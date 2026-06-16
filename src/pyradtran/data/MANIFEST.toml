@@ -1,0 +1,6 @@
+# pyRadtran bundled-data manifest.
+# Phase A: empty (no [[assets]] entries). Data files are added in a separate,
+# user-approved commit (Phase B), at which point this file is regenerated.
+
+version = 1
+libradtran_source = "2.0.6"
