@@ -6,6 +6,7 @@ Runner executes it by building input, running uvspec, and parsing output.
 
 from __future__ import annotations
 
+import logging
 import os
 import shutil
 import subprocess
@@ -22,6 +23,9 @@ from pyradtran.data.resolver import DataResolver
 
 if TYPE_CHECKING:
     from pyradtran.scene import Scene
+
+
+_logger = logging.getLogger("pyradtran")
 
 
 @dataclass
@@ -103,6 +107,7 @@ class Runner:
         data_path: str | None = None,
         keep_temp: bool | None = None,
         timeout: int | None = None,
+        strict: bool | None = None,
         config: RunnerConfig | None = None,
     ) -> xr.Dataset:
         """Execute a single uvspec simulation.
@@ -113,6 +118,8 @@ class Runner:
             data_path: Path to libRadtran data directory. Auto-detected if None.
             keep_temp: Keep temporary files after execution.
             timeout: Maximum execution time in seconds.
+            strict: If True, raise on missing data references; if None, defaults
+                to ``bundled_only`` (warnings only otherwise).
             config: Optional ``RunnerConfig`` overriding global defaults for
                 this call only.
 
@@ -127,6 +134,18 @@ class Runner:
         )
         resolved_data_path = str(resolver.data_root)
         resolved_timeout = timeout if timeout is not None else cfg.timeout
+
+        # Pre-flight data-reference validation.
+        resolved_strict = cfg.bundled_only if strict is None else strict
+        issues = resolver.validate_scene(scene)
+        for issue in issues:
+            if resolved_strict:
+                _logger.error("%s", issue.message)
+            else:
+                _logger.warning("%s", issue.message)
+        if resolved_strict and issues:
+            missing = ", ".join(f"{i.category}/{i.name}" for i in issues)
+            raise FileNotFoundError(f"strict mode: missing required data references: {missing}")
 
         input_text = scene.build_input(data_files_path=resolved_data_path)
 
