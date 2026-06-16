@@ -18,6 +18,7 @@ from pyradtran.convenience import (
     run_with_opac_preset,
 )
 from pyradtran.core.runner import Runner, RunnerConfig
+from pyradtran.data import DataResolver
 from pyradtran.models import ThreeDConfig
 from pyradtran.models.aerosol import (
     AerosolModel,
@@ -47,6 +48,7 @@ __all__ = [
     "ThreeDConfig",
     "Runner",
     "RunnerConfig",
+    "DataResolver",
     # Aerosol classes
     "AerosolModel",
     "AerosolModifyEntry",

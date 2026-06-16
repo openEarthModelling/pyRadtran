@@ -104,3 +104,23 @@ def _bundled_root_path() -> Path:
     from pyradtran.data.resolver import _BUNDLED_ROOT
 
     return _BUNDLED_ROOT
+
+
+def test_public_api_exports():
+    import pyradtran
+
+    assert hasattr(pyradtran, "DataResolver")
+    from pyradtran.data import (
+        Asset,
+        DataResolver,
+        ValidationIssue,
+        get_data_root,
+        list_bundled,
+    )
+
+    # Importing verifies these are exported; the asserts also use the names.
+    assert Asset is not None
+    assert DataResolver is not None
+    assert ValidationIssue is not None
+    assert callable(list_bundled)
+    assert callable(get_data_root)
