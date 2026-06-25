@@ -409,3 +409,58 @@ class TestCompositeAerosol:
                 wavelength_grid_um=[0.55],
                 altitude_grid_km=[10.0, 0.0],
             )
+
+
+class TestSpeciesBlockFields:
+    """Task 1: species blocks expose ``name`` and ``mass_per_particle_kg``."""
+
+    def test_mie_species_mass_per_particle(self):
+        ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        species = MieSpecies(refractive_index=ri, size_distribution=sd,
+                             particle_density_kg_m3=1000.0)
+        # monodisperse r=0.5um, rho=1000 -> mass = rho*(4/3)*pi*r^3
+        expected = 1000.0 * (4.0 / 3.0) * np.pi * (0.5e-6) ** 3
+        assert species.mass_per_particle_kg == pytest.approx(expected, rel=0.1)
+        assert species.name == "MieSpecies"
+
+    def test_bulk_species_name_and_mass(self):
+        from pyradtran.models.aerosol_composite import BulkSpecies
+
+        class _StubSD:
+            @staticmethod
+            def moment(order):
+                return 100.0 ** order  # nm^order; moment(3) = 1e6 nm^3
+
+        class _StubBulk:
+            wavelength_nm = np.array([550.0])
+            effective_density_kg_m3 = 1800.0
+            size_distribution = _StubSD()
+
+        bs = BulkSpecies(bulk=_StubBulk())
+        assert bs.name == "BulkSpecies"
+        expected = 1800.0 * (4.0 / 3.0) * np.pi * (100.0 ** 3) * 1e-27
+        assert bs.mass_per_particle_kg == pytest.approx(expected, rel=1e-9)
+
+    def test_opac_species_mass_per_particle_unsupported(self):
+        import os
+        import tempfile
+
+        import netCDF4
+
+        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
+            path = f.name
+        try:
+            with netCDF4.Dataset(path, "w", format="NETCDF4") as ds:
+                ds.createDimension("nlyr", 1)
+                ds.createDimension("nphamat", 1)
+                ds.createDimension("nmom+1", 4)
+                ds.createVariable("output_dtauc", "f8", ("nlyr",))[:] = [0.1]
+                ds.createVariable("output_ssalb", "f8", ("nlyr",))[:] = [0.9]
+                pm = ds.createVariable("output_pmom", "f8", ("nlyr", "nphamat", "nmom+1"))
+                pm[:] = [[[1.0, 0.7, 0.0, 0.0]]]
+            sp = OPACSpecies(netcdf_path=path)
+            with pytest.raises(NotImplementedError):
+                sp.mass_per_particle_kg
+        finally:
+            os.unlink(path)

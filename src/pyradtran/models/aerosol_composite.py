@@ -179,6 +179,19 @@ class BulkSpecies(BaseModel):
     model_config = {"extra": "forbid", "frozen": True, "arbitrary_types_allowed": True}
 
     bulk: Any  # BulkAerosolOpticsData-like
+    name: str = "BulkSpecies"
+
+    @property
+    def mass_per_particle_kg(self) -> float:
+        """Volume-weighted per-particle mass from the bulk size distribution."""
+        rho = self.bulk.effective_density_kg_m3
+        if rho is None or getattr(self.bulk, "size_distribution", None) is None:
+            raise ValueError(
+                "BulkAerosolOpticsData needs effective_density_kg_m3 and size_distribution"
+            )
+        r3_nm3 = float(self.bulk.size_distribution.moment(3.0))
+        vol_m3 = (4.0 / 3.0) * np.pi * r3_nm3 * 1e-27  # nm^3 -> m^3
+        return rho * vol_m3
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
         wl = np.asarray(wl_um, dtype=float)
@@ -241,6 +254,19 @@ class MieSpecies(BaseModel):
     size_distribution: SizeDistribution
     particle_density_kg_m3: float = Field(gt=0)
     integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
+    name: str = "MieSpecies"
+
+    @property
+    def mass_per_particle_kg(self) -> float:
+        """Average particle mass = density * mean volume over the size distribution."""
+        from pyradtran.optics.mie import _mass_per_particle_avg
+
+        cfg = self.integration_config
+        r = np.logspace(
+            np.log10(cfg.radius_min_um), np.log10(cfg.radius_max_um), cfg.n_radius_grid
+        )
+        dn = self.size_distribution.evaluate(r)  # normalized PDF (~∫ dn dr = 1)
+        return _mass_per_particle_avg(r, dn, self.particle_density_kg_m3)
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
         """Compute mass-normalized intensive optical properties.
@@ -319,6 +345,14 @@ class OPACSpecies(BaseModel):
     netcdf_path: str = Field(min_length=1)
     # Optional: if the file contains multiple wavelengths, this selects one
     wavelength_nm: float | None = None
+    name: str = "OPACSpecies"
+
+    @property
+    def mass_per_particle_kg(self) -> float:
+        raise NotImplementedError(
+            "OPACSpecies (netCDF layer dump) has no well-defined per-particle mass; "
+            "place it with an explicit MassProfile instead of od_to_mass_profile."
+        )
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
         """Read netCDF and return intensive properties.
