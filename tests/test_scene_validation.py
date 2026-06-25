@@ -114,29 +114,3 @@ def test_validate_scene_checks_mol_abs_param(_clean_env, tmp_path):
     )
     issues = r.validate_scene(scene)
     assert any(i.category == "ckd" and i.name == "reptran coarse" for i in issues)
-
-
-def test_validate_scene_checks_opac_library(_clean_env, tmp_path):
-    from pyradtran.data.manifest import Asset
-    from pyradtran.models.aerosol import OpacPreset
-
-    r = DataResolver(data_root=tmp_path)
-    r._manifest = [
-        Asset(
-            category="aerosol_library",
-            name="OPAC",
-            uvspec_keyword="aerosol_species_library",
-            paths=("aerosol/OPAC/opac",),
-        )
-    ]
-    scene = (
-        Scene()
-        .set_atmosphere(profile="us")
-        .set_source_solar(sza=30.0)
-        .set_wavelength(300.0, 400.0)
-        .set_solver(method="disort", streams=16)
-        .set_output(quantities=["lambda", "edir"], format="ascii")
-        .set_aerosol(OpacPreset(name="continental_average"))
-    )
-    issues = r.validate_scene(scene)
-    assert any(i.category == "aerosol_library" for i in issues)

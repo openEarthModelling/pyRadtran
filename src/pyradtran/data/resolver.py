@@ -176,23 +176,6 @@ class DataResolver:
                     )
                 )
 
-        # OPAC aerosol library
-        aero = getattr(scene, "aerosol", None)
-        if aero is not None:
-            lib = getattr(aero, "library", None)
-            if lib and not self.is_available("aerosol_library", lib):
-                issues.append(
-                    ValidationIssue(
-                        severity="warning",
-                        category="aerosol_library",
-                        name=lib,
-                        message=(
-                            f"aerosol library {lib!r} is not available under "
-                            f"data root {self.data_root}"
-                        ),
-                    )
-                )
-
         return issues
 
 

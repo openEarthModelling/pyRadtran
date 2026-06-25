@@ -15,7 +15,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from enum import Enum
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from pyradtran.models.base import UvspecOption
 
@@ -126,22 +126,24 @@ class AerosolModel(UvspecOption):
         return items
 
 
-class OpacPreset(AerosolModel):
-    """OPAC preset mixture profile aerosol.
+class OpacPreset(BaseModel):
+    """Factory: fold an OPAC preset mixture into LEGO :class:`PlacedBlock` pieces.
 
-    Uses pre-defined aerosol species mixture profiles from the OPAC library.
-    The ``name`` selects from 10 predefined mixture profiles.
-    Optionally filter to specific species via ``species_names``.
-
-    Attributes:
-        name: Preset mixture profile name.
-        library: OPAC library path or "OPAC" for uvspec default resolution.
-        species_names: Optional species filter (e.g. ["inso", "soot"]).
+    Each species with nonzero mass in the preset profile becomes one
+    ``MieSpecies`` (OPAC refractive index + OPAC lognormal at ``rh_pct``) using
+    the real Mie phase function, placed via its preset mass column. The pieces
+    drop into ``CompositeAerosol(pieces=...)`` -- the same path as bulk/Mie
+    blocks. No precomputed OPAC tables are read; libRadtran ships only the
+    ingredients (refractive index, size distribution, mass profile).
     """
 
+    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+
     name: OpacPresetName
-    library: str = "OPAC"
+    rh_pct: float = 50.0
     species_names: list[str] | None = None
+    data_path: str | None = None
+    n_legendre: int = 32
 
     @model_validator(mode="after")
     def validate_species(self) -> OpacPreset:
@@ -149,30 +151,87 @@ class OpacPreset(AerosolModel):
             _validate_opac_species_names(self.species_names)
         return self
 
-    def to_uvspec_lines(self) -> list[str]:
-        lines = [f"aerosol_species_library {self.library}"]
-        if self.species_names:
-            names = " ".join(self.species_names)
-            lines.append(f"aerosol_species_file {self.name.value} {names}")
-        else:
-            lines.append(f"aerosol_species_file {self.name.value}")
-        return lines
+    def to_placed_blocks(self) -> list:
+        """Return one :class:`~pyradtran.models.blocks.PlacedBlock` per preset
+        species with nonzero mass."""
+        import numpy as np
+
+        from pyradtran.models.aerosol_composite import MieSpecies
+        from pyradtran.models.blocks import PlacedBlock, TabulatedProfile
+        from pyradtran.optics.opac import (
+            read_opac_preset_profile,
+            read_opac_refractive_index,
+            read_opac_size_distribution,
+        )
+
+        profile = read_opac_preset_profile(self.name.value, data_path=self.data_path)
+        chosen = self.species_names if self.species_names is not None else list(profile)
+        blocks: list[PlacedBlock] = []
+        for sp in chosen:
+            if sp not in profile:
+                continue
+            z_km, mass_g_m3 = profile[sp]
+            mass = np.asarray(mass_g_m3, dtype=float)
+            if not np.any(mass > 0):
+                continue
+            ri = read_opac_refractive_index(sp, self.rh_pct, data_path=self.data_path)
+            sd, rho_kg_m3 = read_opac_size_distribution(sp, self.rh_pct, data_path=self.data_path)
+            mie = MieSpecies(
+                refractive_index=ri,
+                size_distribution=sd,
+                particle_density_kg_m3=rho_kg_m3,
+                name=f"OPAC:{sp}",
+                phase_function="mie",
+            )
+            blocks.append(
+                PlacedBlock(
+                    block=mie,
+                    profile=TabulatedProfile(
+                        z_km=tuple(float(z) for z in np.asarray(z_km).tolist()),
+                        kg_m3=tuple(float(v) for v in (mass * 1e-3).tolist()),  # g/m^3 -> kg/m^3
+                    ),
+                )
+            )
+        if not blocks:
+            raise ValueError(f"OPAC preset {self.name.value!r} has no species with nonzero mass")
+        return blocks
+
+    def to_composite(self, wavelength_grid_um, output_dir=None):
+        """Wrap ``to_placed_blocks()`` in a
+        :class:`~pyradtran.models.aerosol_composite.CompositeAerosol` on the
+        preset grid."""
+        import numpy as np
+
+        from pyradtran.models.aerosol_composite import CompositeAerosol
+        from pyradtran.optics.opac import read_opac_preset_profile
+
+        blocks = self.to_placed_blocks()
+        profile = read_opac_preset_profile(self.name.value, data_path=self.data_path)
+        any_z = next(iter(profile.values()))[0]
+        altitude_desc = sorted((float(z) for z in np.asarray(any_z).tolist()), reverse=True)
+        return CompositeAerosol(
+            pieces=blocks,
+            wavelength_grid_um=list(wavelength_grid_um),
+            altitude_grid_km=altitude_desc,
+            n_legendre=self.n_legendre,
+            output_dir=output_dir,
+        )
 
 
-class OpacCustom(AerosolModel):
-    """OPAC custom species profile aerosol.
+class OpacCustom(BaseModel):
+    """Factory: fold a user OPAC species profile file into :class:`PlacedBlock` pieces.
 
-    Uses a user-provided mass concentration profile file with the OPAC library.
-
-    Attributes:
-        species_file: Path to an ASCII profile file.
-        library: OPAC library path or "OPAC" for default resolution.
-        species_names: Optional species filter.
+    Like :class:`OpacPreset` but the mass-concentration profile is a user-supplied
+    ASCII file (same format as ``standard_aerosol_files``).
     """
 
+    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+
     species_file: str = Field(min_length=1)
+    rh_pct: float = 50.0
     species_names: list[str] | None = None
-    library: str = "OPAC"
+    data_path: str | None = None
+    n_legendre: int = 32
 
     @model_validator(mode="after")
     def validate_species(self) -> OpacCustom:
@@ -180,14 +239,71 @@ class OpacCustom(AerosolModel):
             _validate_opac_species_names(self.species_names)
         return self
 
-    def to_uvspec_lines(self) -> list[str]:
-        lines = [f"aerosol_species_library {self.library}"]
-        if self.species_names:
-            names = " ".join(self.species_names)
-            lines.append(f"aerosol_species_file {self.species_file} {names}")
-        else:
-            lines.append(f"aerosol_species_file {self.species_file}")
-        return lines
+    def to_placed_blocks(self) -> list:
+        """Return one :class:`~pyradtran.models.blocks.PlacedBlock` per profile
+        species with nonzero mass."""
+        import numpy as np
+
+        from pyradtran.models.aerosol_composite import MieSpecies
+        from pyradtran.models.blocks import PlacedBlock, TabulatedProfile
+        from pyradtran.optics.opac import (
+            read_opac_profile_file,
+            read_opac_refractive_index,
+            read_opac_size_distribution,
+        )
+
+        profile = read_opac_profile_file(self.species_file)
+        chosen = self.species_names if self.species_names is not None else list(profile)
+        blocks: list[PlacedBlock] = []
+        for sp in chosen:
+            if sp not in profile:
+                continue
+            z_km, mass_g_m3 = profile[sp]
+            mass = np.asarray(mass_g_m3, dtype=float)
+            if not np.any(mass > 0):
+                continue
+            ri = read_opac_refractive_index(sp, self.rh_pct, data_path=self.data_path)
+            sd, rho_kg_m3 = read_opac_size_distribution(sp, self.rh_pct, data_path=self.data_path)
+            mie = MieSpecies(
+                refractive_index=ri,
+                size_distribution=sd,
+                particle_density_kg_m3=rho_kg_m3,
+                name=f"OPAC:{sp}",
+                phase_function="mie",
+            )
+            blocks.append(
+                PlacedBlock(
+                    block=mie,
+                    profile=TabulatedProfile(
+                        z_km=tuple(float(z) for z in np.asarray(z_km).tolist()),
+                        kg_m3=tuple(float(v) for v in (mass * 1e-3).tolist()),
+                    ),
+                )
+            )
+        if not blocks:
+            raise ValueError("OPAC custom profile has no species with nonzero mass")
+        return blocks
+
+    def to_composite(self, wavelength_grid_um, output_dir=None):
+        """Wrap ``to_placed_blocks()`` in a
+        :class:`~pyradtran.models.aerosol_composite.CompositeAerosol` on the
+        profile grid."""
+        import numpy as np
+
+        from pyradtran.models.aerosol_composite import CompositeAerosol
+        from pyradtran.optics.opac import read_opac_profile_file
+
+        blocks = self.to_placed_blocks()
+        profile = read_opac_profile_file(self.species_file)
+        any_z = next(iter(profile.values()))[0]
+        altitude_desc = sorted((float(z) for z in np.asarray(any_z).tolist()), reverse=True)
+        return CompositeAerosol(
+            pieces=blocks,
+            wavelength_grid_um=list(wavelength_grid_um),
+            altitude_grid_km=altitude_desc,
+            n_legendre=self.n_legendre,
+            output_dir=output_dir,
+        )
 
 
 class ExternalFile(AerosolModel):

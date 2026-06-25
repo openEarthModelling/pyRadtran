@@ -47,6 +47,7 @@ from pyradtran.models.blocks import (
     MassProfile,
     Piece,
     PlacedBlock,
+    TabulatedProfile,
     VerticalProfile,
     od_to_mass_profile,
 )
@@ -84,6 +85,7 @@ __all__ = [
     "VerticalProfile",
     "MassProfile",
     "ExponentialProfile",
+    "TabulatedProfile",
     "od_to_mass_profile",
     # Convenience functions
     "run_3d",
