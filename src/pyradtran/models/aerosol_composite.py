@@ -339,66 +339,6 @@ class MieSpecies(BaseModel):
         )
 
 
-class OPACSpecies(BaseModel):
-    """OPAC species from a pre-computed libRadtran netCDF optical-property file.
-
-    The netCDF file is expected to contain ``output_dtauc``, ``output_ssalb``,
-    and ``output_pmom`` variables (libRadtran ``write_optical_properties`` format).
-    """
-
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
-
-    netcdf_path: str = Field(min_length=1)
-    # Optional: if the file contains multiple wavelengths, this selects one
-    wavelength_nm: float | None = None
-    name: str = "OPACSpecies"
-
-    @property
-    def mass_per_particle_kg(self) -> float:
-        raise NotImplementedError(
-            "OPACSpecies (netCDF layer dump) has no well-defined per-particle mass; "
-            "place it with an explicit MassProfile instead of od_to_mass_profile."
-        )
-
-    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
-        """Read netCDF and return intensive properties.
-
-        For a netCDF with ``nlyr`` layers, the returned ``beta_ext_per_mass``
-        assumes the optical depth is distributed uniformly across layers for
-        the purpose of SpeciesOptics (the actual layer geometry is applied
-        later in LoadedSpecies).
-        """
-        from pyradtran.optics.opac_tables import read_opac_netcdf
-
-        data = read_opac_netcdf(self.netcdf_path)
-        dtauc = data["dtauc"]  # (nlyr,)
-        ssalb = data["ssalb"]  # (nlyr,)
-        pmom = data["pmom"]  # (nlyr, nmom)
-
-        # For SpeciesOptics we need per-wavelength values.
-        # If the netCDF has a single wavelength, average over layers.
-        # If it has per-layer data at one wavelength, average.
-        # The spec assumes one wavelength per netCDF file.
-        beta_ext = np.mean(dtauc)  # placeholder -- actual scaling done in LoadedSpecies
-        ssa_mean = np.mean(ssalb)
-        g_mean = np.mean(pmom[:, 1]) if pmom.shape[1] > 1 else 0.0
-
-        # Build Legendre moments: k_l = (2l+1) * g_l where g_l are expansion coefficients
-        # pmom[:, l] corresponds to moment l (0-indexed)
-        n_mom_available = pmom.shape[1]
-        n_mom = min(n_mom_available, n_legendre)
-        legendre_moments = np.zeros((1, n_legendre))
-        for l in range(n_mom):
-            legendre_moments[0, l] = np.mean(pmom[:, l])
-
-        return SpeciesOptics(
-            beta_ext_per_mass=np.array([beta_ext]),
-            ssa=np.array([ssa_mean]),
-            g=np.array([g_mean]),
-            legendre_moments=legendre_moments,
-        )
-
-
 @dataclass
 class LayerOptics:
     """Extensive optical properties per layer."""
