@@ -187,6 +187,45 @@ def bhmie(x: float, m: complex, n_angles: int = 0) -> dict:
     return result
 
 
+def phase_function_to_legendre(
+    s1: np.ndarray, s2: np.ndarray, angles_deg: np.ndarray, n_legendre: int
+) -> np.ndarray:
+    """Project the unpolarised Mie phase function onto Legendre polynomials.
+
+    ``P(mu) ∝ |S1|^2 + |S2|^2``, normalised so ``(1/2) ∫_{-1}^{1} P(mu) dmu = 1``.
+    Returns ``beta_l = (1/2) ∫_{-1}^{1} P(mu) P_l(mu) dmu`` for ``l = 0..n_legendre-1``
+    — the PMOM / ``g_l`` form (``beta_0 = 1``, ``beta_1`` = asymmetry parameter).
+    Pure numpy (no scipy): Legendre polynomials via the Bonnet recurrence.
+    """
+    mu = np.cos(np.radians(np.asarray(angles_deg, dtype=float)))
+    raw = np.abs(s1) ** 2 + np.abs(s2) ** 2
+
+    order = np.argsort(mu)  # integrate over ascending mu
+    mu, raw = mu[order], raw[order]
+
+    norm = 0.5 * _trapz(raw, mu)
+    if norm <= 0.0:
+        out = np.zeros(n_legendre)
+        out[0] = 1.0
+        return out
+    p_norm = raw / norm
+
+    out = np.zeros(n_legendre)
+    p_lm1 = np.ones_like(mu)  # P_{l-1}, seeded for the recurrence
+    p_lm2 = np.ones_like(mu)  # P_{l-2}
+    for el in range(n_legendre):
+        if el == 0:
+            p_l = np.ones_like(mu)
+        elif el == 1:
+            p_l = mu.copy()
+        else:
+            p_l = ((2 * el - 1) * mu * p_lm1 - (el - 1) * p_lm2) / el
+        out[el] = 0.5 * _trapz(p_norm * p_l, mu)
+        p_lm2 = p_lm1
+        p_lm1 = p_l
+    return out
+
+
 @dataclass
 class _SpeciesOptics:
     """Internal dataclass for mass-normalized intensive properties."""

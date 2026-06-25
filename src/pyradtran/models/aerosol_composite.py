@@ -248,6 +248,7 @@ class MieSpecies(BaseModel):
     size_distribution: SizeDistribution
     particle_density_kg_m3: float = Field(gt=0)
     integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
+    phase_function: Literal["hg", "mie"] = "hg"
     name: str = "MieSpecies"
 
     @property
@@ -265,10 +266,10 @@ class MieSpecies(BaseModel):
 
         Args:
             wl_um: Wavelengths in micrometers.
-            n_legendre: Number of Legendre moments to generate. Because the
-                bhmie() path does not compute angular scattering by default,
-                moments are derived from the Henyey-Greenstein phase function
-                rather than a full Mie phase function.
+            n_legendre: Number of Legendre moments to generate. When
+                ``phase_function='mie'``, moments are projected from the real
+                Mie phase function (S1/S2 -> Legendre); the default ``'hg'``
+                derives them from the Henyey-Greenstein approximation ``g**l``.
 
         Returns:
             SpeciesOptics with beta_ext_per_mass, ssa, g, and legendre_moments.
@@ -286,18 +287,31 @@ class MieSpecies(BaseModel):
 
         # Deferred imports avoid circular dependency:
         # mie.py imports SizeDistribution from this module.
-        from pyradtran.optics.mie import bhmie
+        from pyradtran.optics.mie import bhmie, phase_function_to_legendre
 
         Qext = np.zeros((n_wl, config.n_radius_grid))
         Qsca = np.zeros((n_wl, config.n_radius_grid))
         g = np.zeros((n_wl, config.n_radius_grid))
+        moments_grid = (
+            np.zeros((n_wl, config.n_radius_grid, n_legendre))
+            if self.phase_function == "mie"
+            else None
+        )
+        n_angles = 181
 
         m_vals = self.refractive_index.at(wl)
 
         for i_wl in range(n_wl):
             for i_r in range(config.n_radius_grid):
                 x = 2.0 * np.pi * r_dense[i_r] / wl[i_wl]
-                result = bhmie(x, m_vals[i_wl])
+                if self.phase_function == "mie":
+                    result = bhmie(x, m_vals[i_wl], n_angles=n_angles)
+                    assert moments_grid is not None  # only None when phase_function != "mie"
+                    moments_grid[i_wl, i_r, :] = phase_function_to_legendre(
+                        result["S1"], result["S2"], result["angles_deg"], n_legendre
+                    )
+                else:
+                    result = bhmie(x, m_vals[i_wl])
                 Qext[i_wl, i_r] = result["Qext"]
                 Qsca[i_wl, i_r] = result["Qsca"]
                 g[i_wl, i_r] = result["g"]
@@ -310,7 +324,7 @@ class MieSpecies(BaseModel):
             Qext=Qext,
             Qsca=Qsca,
             g=g,
-            legendre_moments=None,
+            legendre_moments=moments_grid,
             size_distribution=self.size_distribution,
             particle_density_kg_m3=self.particle_density_kg_m3,
             config=config,
@@ -322,66 +336,6 @@ class MieSpecies(BaseModel):
             ssa=internal.ssa,
             g=internal.g,
             legendre_moments=internal.legendre_moments,
-        )
-
-
-class OPACSpecies(BaseModel):
-    """OPAC species from a pre-computed libRadtran netCDF optical-property file.
-
-    The netCDF file is expected to contain ``output_dtauc``, ``output_ssalb``,
-    and ``output_pmom`` variables (libRadtran ``write_optical_properties`` format).
-    """
-
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
-
-    netcdf_path: str = Field(min_length=1)
-    # Optional: if the file contains multiple wavelengths, this selects one
-    wavelength_nm: float | None = None
-    name: str = "OPACSpecies"
-
-    @property
-    def mass_per_particle_kg(self) -> float:
-        raise NotImplementedError(
-            "OPACSpecies (netCDF layer dump) has no well-defined per-particle mass; "
-            "place it with an explicit MassProfile instead of od_to_mass_profile."
-        )
-
-    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
-        """Read netCDF and return intensive properties.
-
-        For a netCDF with ``nlyr`` layers, the returned ``beta_ext_per_mass``
-        assumes the optical depth is distributed uniformly across layers for
-        the purpose of SpeciesOptics (the actual layer geometry is applied
-        later in LoadedSpecies).
-        """
-        from pyradtran.optics.opac_tables import read_opac_netcdf
-
-        data = read_opac_netcdf(self.netcdf_path)
-        dtauc = data["dtauc"]  # (nlyr,)
-        ssalb = data["ssalb"]  # (nlyr,)
-        pmom = data["pmom"]  # (nlyr, nmom)
-
-        # For SpeciesOptics we need per-wavelength values.
-        # If the netCDF has a single wavelength, average over layers.
-        # If it has per-layer data at one wavelength, average.
-        # The spec assumes one wavelength per netCDF file.
-        beta_ext = np.mean(dtauc)  # placeholder -- actual scaling done in LoadedSpecies
-        ssa_mean = np.mean(ssalb)
-        g_mean = np.mean(pmom[:, 1]) if pmom.shape[1] > 1 else 0.0
-
-        # Build Legendre moments: k_l = (2l+1) * g_l where g_l are expansion coefficients
-        # pmom[:, l] corresponds to moment l (0-indexed)
-        n_mom_available = pmom.shape[1]
-        n_mom = min(n_mom_available, n_legendre)
-        legendre_moments = np.zeros((1, n_legendre))
-        for l in range(n_mom):
-            legendre_moments[0, l] = np.mean(pmom[:, l])
-
-        return SpeciesOptics(
-            beta_ext_per_mass=np.array([beta_ext]),
-            ssa=np.array([ssa_mean]),
-            g=np.array([g_mean]),
-            legendre_moments=legendre_moments,
         )
 
 

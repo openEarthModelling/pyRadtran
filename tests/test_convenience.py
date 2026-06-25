@@ -1,8 +1,21 @@
 """Tests for convenience functions."""
 
+import pytest
 import xarray as xr
 
 from pyradtran.convenience import _airmass_to_sza, run_solar_transmittance
+
+
+def _need_opac_data():
+    """Skip if OPAC ingredient data is not resolvable on disk."""
+    from pyradtran.optics import opac
+
+    try:
+        root = opac._opac_root(None)
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"OPAC data unavailable: {e}")
+    if not (root / "size_distr.cfg").is_file():
+        pytest.skip("OPAC data not bundled")
 
 
 class TestAirmassConversion:
@@ -134,23 +147,22 @@ def test_run_lidar_creates_scene():
 
 def test_run_polarized_creates_scene():
     """Verify run_polarized builds a valid Scene with MC polarisation."""
+    _need_opac_data()
     from unittest.mock import MagicMock, patch
 
     from pyradtran.convenience import run_polarized
+    from pyradtran.models.aerosol_composite import CompositeAerosol
 
     mock_dataset = MagicMock()
     with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
-        run_polarized(photons=50000, sza=45.0)
+        run_polarized(photons=50000, sza=45.0, wl_min=545.0, wl_max=555.0)
         scene_arg = _get_scene_arg(mock_exec)
         assert scene_arg.mc is not None
         assert scene_arg.mc.photons == 50000
         assert scene_arg.mc.polarisation is True
         assert scene_arg.mc.backward is True
         assert scene_arg.aerosol is not None
-        from pyradtran.models.aerosol import OpacPreset
-
-        assert isinstance(scene_arg.aerosol, OpacPreset)
-        assert scene_arg.aerosol.name.value == "continental_average"
+        assert isinstance(scene_arg.aerosol, CompositeAerosol)
         assert scene_arg.solver.method == "mystic"
         assert scene_arg.source.sza == 45.0
 
@@ -182,34 +194,37 @@ class TestRunSatellite:
 
 
 def test_run_with_opac_preset_creates_scene():
-    """Verify run_with_opac_preset passes OPAC config correctly."""
+    """Verify run_with_opac_preset builds a CompositeAerosol via the OPAC factory."""
+    _need_opac_data()
     from unittest.mock import MagicMock, patch
 
     from pyradtran.convenience import run_with_opac_preset
+    from pyradtran.models.aerosol_composite import CompositeAerosol
 
     mock_dataset = MagicMock()
     with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
-        run_with_opac_preset(preset="maritime_clean", sza=45.0)
+        run_with_opac_preset(preset="maritime_clean", sza=45.0, wl_min=545.0, wl_max=555.0)
         scene_arg = _get_scene_arg(mock_exec)
         assert scene_arg.aerosol is not None
-        from pyradtran.models.aerosol import OpacPreset
-
-        assert isinstance(scene_arg.aerosol, OpacPreset)
-        assert scene_arg.aerosol.name.value == "maritime_clean"
+        assert isinstance(scene_arg.aerosol, CompositeAerosol)
+        assert len(scene_arg.aerosol.pieces) >= 1
 
 
 def test_run_with_opac_custom_creates_scene():
-    """Verify run_with_opac_custom passes custom OPAC config correctly."""
+    """Verify run_with_opac_custom builds a CompositeAerosol from a profile file."""
+    _need_opac_data()
     from unittest.mock import MagicMock, patch
 
     from pyradtran.convenience import run_with_opac_custom
+    from pyradtran.models.aerosol_composite import CompositeAerosol
+    from pyradtran.optics import opac
+
+    species_file = str(opac._opac_root(None) / "standard_aerosol_files" / "continental_average.dat")
 
     mock_dataset = MagicMock()
     with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
-        run_with_opac_custom(species_file="/data/my_aerosol.dat", sza=45.0)
+        run_with_opac_custom(species_file=species_file, sza=45.0, wl_min=545.0, wl_max=555.0)
         scene_arg = _get_scene_arg(mock_exec)
         assert scene_arg.aerosol is not None
-        from pyradtran.models.aerosol import OpacCustom
-
-        assert isinstance(scene_arg.aerosol, OpacCustom)
-        assert scene_arg.aerosol.species_file == "/data/my_aerosol.dat"
+        assert isinstance(scene_arg.aerosol, CompositeAerosol)
+        assert len(scene_arg.aerosol.pieces) >= 1

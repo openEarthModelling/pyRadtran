@@ -217,6 +217,38 @@ class TestMieSpecies:
         assert optics.beta_ext_per_mass[0] > 0
         assert 0 < optics.ssa[0] <= 1
 
+    def test_mie_species_real_phase_function(self):
+        """phase_function='mie' -> real Legendre moments (beta_0=1, beta_1~g)."""
+        ri = RefractiveIndex(
+            wavelength_um=[0.55, 0.6],
+            n_real=[1.5, 1.5],
+            k_imag=[0.01, 0.01],
+        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        species = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(n_radius_grid=20),
+            phase_function="mie",
+        )
+        optics = species.intensive(np.array([0.55]), n_legendre=16)
+        assert optics.legendre_moments is not None
+        assert optics.legendre_moments.shape == (1, 16)
+        assert optics.legendre_moments[0, 0] == pytest.approx(1.0, abs=1e-3)
+        assert optics.legendre_moments[0, 1] == pytest.approx(optics.g[0], abs=2e-2)
+
+    def test_mie_species_default_is_hg(self):
+        ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        species = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(n_radius_grid=20),
+        )
+        assert species.phase_function == "hg"
+
 
 from pyradtran.models.blocks import MassProfile, PlacedBlock
 
@@ -248,46 +280,6 @@ class TestPlacedBlock:
         assert layer.g.shape == (1, 1)
         assert layer.legendre_moments.shape == (1, 1, 32)
         assert layer.tau[0, 0] > 0
-
-
-import os
-import tempfile
-
-import netCDF4
-
-from pyradtran.models.aerosol_composite import OPACSpecies
-
-
-class TestOPACSpecies:
-    def _make_synthetic_nc(self, path: str, nlyr: int = 5, nmom: int = 32):
-        with netCDF4.Dataset(path, "w", format="NETCDF4") as ds:
-            ds.createDimension("nlyr", nlyr)
-            ds.createDimension("nphamat", 1)
-            ds.createDimension("nmom+1", nmom)
-
-            dtauc = ds.createVariable("output_dtauc", "f8", ("nlyr",))
-            ssalb = ds.createVariable("output_ssalb", "f8", ("nlyr",))
-            pmom = ds.createVariable("output_pmom", "f8", ("nlyr", "nphamat", "nmom+1"))
-
-            dtauc[:] = np.linspace(0.01, 0.05, nlyr)
-            ssalb[:] = np.full(nlyr, 0.95)
-            pmom_data = np.zeros((nlyr, 1, nmom))
-            pmom_data[:, 0, 0] = 1.0
-            pmom_data[:, 0, 1] = 0.7  # g ≈ pmom[1]/3
-            pmom[:] = pmom_data
-
-    def test_read_synthetic_opac(self):
-        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
-            path = f.name
-        try:
-            self._make_synthetic_nc(path)
-            species = OPACSpecies(netcdf_path=path)
-            wl = np.array([0.55])
-            optics = species.intensive(wl)
-            assert optics.beta_ext_per_mass[0] > 0
-            assert 0 < optics.ssa[0] <= 1
-        finally:
-            os.unlink(path)
 
 
 class TestMixing:
@@ -407,8 +399,9 @@ class TestSpeciesBlockFields:
     def test_mie_species_mass_per_particle(self):
         ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
         sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
-        species = MieSpecies(refractive_index=ri, size_distribution=sd,
-                             particle_density_kg_m3=1000.0)
+        species = MieSpecies(
+            refractive_index=ri, size_distribution=sd, particle_density_kg_m3=1000.0
+        )
         # monodisperse r=0.5um, rho=1000 -> mass = rho*(4/3)*pi*r^3
         expected = 1000.0 * (4.0 / 3.0) * np.pi * (0.5e-6) ** 3
         assert species.mass_per_particle_kg == pytest.approx(expected, rel=0.1)
@@ -420,7 +413,7 @@ class TestSpeciesBlockFields:
         class _StubSD:
             @staticmethod
             def moment(order):
-                return 100.0 ** order  # nm^order; moment(3) = 1e6 nm^3
+                return 100.0**order  # nm^order; moment(3) = 1e6 nm^3
 
         class _StubBulk:
             wavelength_nm = np.array([550.0])
@@ -429,28 +422,5 @@ class TestSpeciesBlockFields:
 
         bs = BulkSpecies(bulk=_StubBulk())
         assert bs.name == "BulkSpecies"
-        expected = 1800.0 * (4.0 / 3.0) * np.pi * (100.0 ** 3) * 1e-27
+        expected = 1800.0 * (4.0 / 3.0) * np.pi * (100.0**3) * 1e-27
         assert bs.mass_per_particle_kg == pytest.approx(expected, rel=1e-9)
-
-    def test_opac_species_mass_per_particle_unsupported(self):
-        import os
-        import tempfile
-
-        import netCDF4
-
-        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
-            path = f.name
-        try:
-            with netCDF4.Dataset(path, "w", format="NETCDF4") as ds:
-                ds.createDimension("nlyr", 1)
-                ds.createDimension("nphamat", 1)
-                ds.createDimension("nmom+1", 4)
-                ds.createVariable("output_dtauc", "f8", ("nlyr",))[:] = [0.1]
-                ds.createVariable("output_ssalb", "f8", ("nlyr",))[:] = [0.9]
-                pm = ds.createVariable("output_pmom", "f8", ("nlyr", "nphamat", "nmom+1"))
-                pm[:] = [[[1.0, 0.7, 0.0, 0.0]]]
-            sp = OPACSpecies(netcdf_path=path)
-            with pytest.raises(NotImplementedError):
-                _ = sp.mass_per_particle_kg
-        finally:
-            os.unlink(path)

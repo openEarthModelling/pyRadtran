@@ -35,7 +35,6 @@ from pyradtran.models.aerosol_composite import (
     IntegrationConfig,
     LayerOptics,
     MieSpecies,
-    OPACSpecies,
     RefractiveIndex,
     SizeDistribution,
     SpeciesOptics,
@@ -47,6 +46,7 @@ from pyradtran.models.blocks import (
     MassProfile,
     Piece,
     PlacedBlock,
+    TabulatedProfile,
     VerticalProfile,
     od_to_mass_profile,
 )
@@ -72,7 +72,6 @@ __all__ = [
     "IntegrationConfig",
     "MieSpecies",
     "BulkSpecies",
-    "OPACSpecies",
     "LayerOptics",
     "SpeciesOptics",
     "CompositeAerosol",
@@ -84,6 +83,7 @@ __all__ = [
     "VerticalProfile",
     "MassProfile",
     "ExponentialProfile",
+    "TabulatedProfile",
     "od_to_mass_profile",
     # Convenience functions
     "run_3d",

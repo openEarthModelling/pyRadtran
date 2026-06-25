@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import xarray as xr
 
 from pyradtran.core.runner import Runner
@@ -235,8 +236,10 @@ def run_with_aerosol(
 
 def run_with_opac_preset(
     preset: str | OpacPresetName,
-    library: str = "OPAC",
+    rh_pct: float = 50.0,
     species_names: list[str] | None = None,
+    aerosol_wavelength_step_nm: float = 50.0,
+    output_dir: str | None = None,
     sza: float = 30.0,
     profile: str = "us",
     altitude: float | str = 0.0,
@@ -253,7 +256,9 @@ def run_with_opac_preset(
 
     Args:
         preset: OPAC preset name (e.g. "continental_average") or OpacPresetName enum.
-        library: OPAC library path or "OPAC" for default resolution.
+        rh_pct: Relative humidity (%) for hygroscopic species; snapped to nearest OPAC level.
+        aerosol_wavelength_step_nm: Spacing of the folded aerosol wavelength grid (nm).
+        output_dir: Directory for the folded explicit aerosol files (default cwd/aerosol).
         species_names: Optional species filter (e.g. ["inso", "soot"]).
         sza: Solar zenith angle in degrees.
         profile: Atmospheric profile name.
@@ -291,16 +296,25 @@ def run_with_opac_preset(
             zout=[0, "toa"],
         )
         .set_surface(albedo=albedo)
-        .set_aerosol(OpacPreset(name=preset, library=library, species_names=species_names))
     )
+
+    wl_grid_um = (
+        np.arange(wl_min, wl_max + aerosol_wavelength_step_nm, aerosol_wavelength_step_nm) / 1000.0
+    ).tolist()
+    composite = OpacPreset(
+        name=preset, rh_pct=rh_pct, species_names=species_names, data_path=data_path
+    ).to_composite(wl_grid_um, output_dir=output_dir)
+    scene = scene.set_aerosol(composite)
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
 
 
 def run_with_opac_custom(
     species_file: str,
-    library: str = "OPAC",
+    rh_pct: float = 50.0,
     species_names: list[str] | None = None,
+    aerosol_wavelength_step_nm: float = 50.0,
+    output_dir: str | None = None,
     sza: float = 30.0,
     profile: str = "us",
     altitude: float | str = 0.0,
@@ -317,7 +331,9 @@ def run_with_opac_custom(
 
     Args:
         species_file: Path to an ASCII species mass concentration profile file.
-        library: OPAC library path or "OPAC" for default resolution.
+        rh_pct: Relative humidity (%) for hygroscopic species; snapped to nearest OPAC level.
+        aerosol_wavelength_step_nm: Spacing of the folded aerosol wavelength grid (nm).
+        output_dir: Directory for the folded explicit aerosol files (default cwd/aerosol).
         species_names: Optional species filter.
         sza: Solar zenith angle in degrees.
         profile: Atmospheric profile name.
@@ -353,14 +369,15 @@ def run_with_opac_custom(
             zout=[0, "toa"],
         )
         .set_surface(albedo=albedo)
-        .set_aerosol(
-            OpacCustom(
-                species_file=species_file,
-                library=library,
-                species_names=species_names,
-            )
-        )
     )
+
+    wl_grid_um = (
+        np.arange(wl_min, wl_max + aerosol_wavelength_step_nm, aerosol_wavelength_step_nm) / 1000.0
+    ).tolist()
+    composite = OpacCustom(
+        species_file=species_file, rh_pct=rh_pct, species_names=species_names, data_path=data_path
+    ).to_composite(wl_grid_um, output_dir=output_dir)
+    scene = scene.set_aerosol(composite)
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
 
@@ -512,6 +529,7 @@ def run_polarized(
     streams: int = 16,
     uvspec_exe: str | None = None,
     data_path: str | None = None,
+    output_dir: str | None = None,
 ) -> xr.Dataset:
     """Run polarized Monte Carlo simulation.
 
@@ -531,13 +549,19 @@ def run_polarized(
     """
     from pyradtran.presets import resolve_altitude
 
+    step_nm = 100.0
+    wl_grid_um = (np.arange(wl_min, wl_max + step_nm, step_nm) / 1000.0).tolist()
+    composite = OpacPreset(
+        name=OpacPresetName.CONTINENTAL_AVERAGE, data_path=data_path
+    ).to_composite(wl_grid_um, output_dir=output_dir)
+
     scene = (
         Scene()
         .set_atmosphere(profile=profile, altitude=resolve_altitude(altitude))
         .set_source_solar(sza=sza)
         .set_wavelength(wl_min, wl_max)
         .set_solver(method="mystic", streams=streams)
-        .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
+        .set_aerosol(composite)
         .set_mc(photons=photons, backward=True, polarisation=True)
         .set_output(quantities=["lambda", "uu_pol"], quiet=True, format="netcdf")
     )

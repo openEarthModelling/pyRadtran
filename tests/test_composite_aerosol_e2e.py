@@ -63,15 +63,29 @@ class TestCompositeE2E:
             assert "aerosol_file explicit" in input_text
 
     def test_preset_baseline_builds_valid_input(self):
-        """Baseline OpacPreset still works."""
-        scene = (
-            Scene()
-            .set_atmosphere(profile="us", altitude=0.0)
-            .set_source_solar(sza=30.0)
-            .set_wavelength(550.0, 550.0)
-            .set_solver(method="disort", streams=16)
-            .set_output(quantities=["lambda", "edir"])
-            .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
-        )
-        input_text = scene.build_input()
-        assert "aerosol_species_file" in input_text
+        """Baseline OPAC preset folds into a CompositeAerosol explicit-file path."""
+        from pyradtran.optics import opac
+
+        try:
+            root = opac._opac_root(None)
+        except Exception:  # noqa: BLE001
+            pytest.skip("OPAC data unavailable")
+        if not (root / "size_distr.cfg").is_file():
+            pytest.skip("OPAC data not bundled")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            comp = OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE, rh_pct=50.0).to_composite(
+                wavelength_grid_um=[0.55], output_dir=Path(tmpdir)
+            )
+            scene = (
+                Scene()
+                .set_atmosphere(profile="us", altitude=0.0)
+                .set_source_solar(sza=30.0)
+                .set_wavelength(550.0, 550.0)
+                .set_solver(method="disort", streams=16)
+                .set_output(quantities=["lambda", "edir"])
+                .set_aerosol(comp)
+            )
+
+            input_text = scene.build_input()
+            assert "aerosol_file explicit" in input_text

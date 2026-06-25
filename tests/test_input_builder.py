@@ -1,7 +1,6 @@
 """Tests for uvspec input file generation."""
 
 from pyradtran.core.input_builder import build_input_text
-from pyradtran.models.aerosol import OpacPreset, OpacPresetName
 from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.output import OutputConfig
 from pyradtran.models.solver import SolverConfig
@@ -51,17 +50,18 @@ def test_with_raw_keywords():
 
 
 def test_with_aerosol():
+    from pyradtran.models.aerosol import ExternalFile
+
     text = build_input_text(
         atmosphere=AtmosphereConfig(profile="us"),
         source=SourceConfig(source="solar", sza=45.0),
         wavelength=WavelengthConfig(wavelength_min=300.0, wavelength_max=2500.0),
         solver=SolverConfig(method="disort", streams=16),
         output=OutputConfig(quiet=True),
-        aerosol=OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE),
+        aerosol=ExternalFile(files=[("explicit", "/data/x.dat")]),
     )
     lines = text.strip().split("\n")
-    assert "aerosol_species_library OPAC" in lines
-    assert "aerosol_species_file continental_average" in lines
+    assert "aerosol_file explicit /data/x.dat" in lines
 
 
 def test_with_data_files_path():
