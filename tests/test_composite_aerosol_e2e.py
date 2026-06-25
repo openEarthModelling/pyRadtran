@@ -12,11 +12,11 @@ from pyradtran.models.aerosol import OpacPreset, OpacPresetName
 from pyradtran.models.aerosol_composite import (
     CompositeAerosol,
     IntegrationConfig,
-    LoadedSpecies,
     MieSpecies,
     RefractiveIndex,
     SizeDistribution,
 )
+from pyradtran.models.blocks import MassProfile, PlacedBlock
 from pyradtran.scene import Scene
 
 pytestmark = pytest.mark.slow
@@ -35,15 +35,14 @@ class TestCompositeE2E:
             particle_density_kg_m3=2500.0,
             integration_config=IntegrationConfig(n_radius_grid=30),
         )
-        loaded = LoadedSpecies(
-            species=mie,
-            mass_profile_kg_m3=[1e-6],  # very small perturbation
-            altitude_km=alt,
+        loaded = PlacedBlock(
+            block=mie,
+            profile=MassProfile(kg_m3_per_layer=(1e-6,)),  # very small perturbation
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             comp = CompositeAerosol(
-                sources=[loaded],
+                pieces=[loaded],
                 wavelength_grid_um=wl,
                 altitude_grid_km=alt,
                 n_legendre=16,

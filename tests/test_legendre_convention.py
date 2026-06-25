@@ -38,8 +38,8 @@ from pyradtran.core.runner import Runner
 from pyradtran.models.aerosol_composite import (
     BulkSpecies,
     CompositeAerosol,
-    LoadedSpecies,
 )
+from pyradtran.models.blocks import MassProfile, PlacedBlock
 from pyradtran.scene import Scene
 
 # --- Gating: skip cleanly when uvspec/data unavailable ---
@@ -123,13 +123,12 @@ def _explicit_scene(moment_form: str, output_dir: Path) -> Scene:
     """Build a Scene whose explicit-aerosol .LAYER files use ``moment_form``."""
     bulk = _hg_bulk(moment_form=moment_form)
     species = BulkSpecies(bulk=bulk)
-    loaded = LoadedSpecies(
-        species=species,
-        mass_profile_kg_m3=list(_MASS_PROFILE),
-        altitude_km=[5.0, 2.5, 0.0],  # 2 layers, descending
+    loaded = PlacedBlock(
+        block=species,
+        profile=MassProfile(kg_m3_per_layer=tuple(_MASS_PROFILE)),
     )
     comp = CompositeAerosol(
-        sources=[loaded],
+        pieces=[loaded],
         wavelength_grid_um=[0.500, 0.600],
         altitude_grid_km=[5.0, 2.5, 0.0],
         n_legendre=32,
@@ -155,12 +154,13 @@ def _reference_tau() -> float:
     """
     bulk = _hg_bulk(moment_form="g_l")
     species = BulkSpecies(bulk=bulk)
-    loaded = LoadedSpecies(
-        species=species,
-        mass_profile_kg_m3=list(_MASS_PROFILE),
-        altitude_km=[5.0, 2.5, 0.0],
+    loaded = PlacedBlock(
+        block=species,
+        profile=MassProfile(kg_m3_per_layer=tuple(_MASS_PROFILE)),
     )
-    layer_optics = loaded.evaluate(np.array([0.55]), np.array([5.0, 2.5, 0.0]), n_legendre=32)
+    layer_optics = loaded.to_layer_optics(
+        np.array([0.55]), np.array([5.0, 2.5, 0.0]), n_legendre=32
+    )
     return float(np.sum(layer_optics.tau))
 
 
