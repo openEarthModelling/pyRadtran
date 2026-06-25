@@ -18,7 +18,8 @@ from typing import Protocol, runtime_checkable
 
 import numpy as np
 
-from pyradtran.models.aerosol_composite import SpeciesOptics
+from pyradtran.models.aerosol import AerosolModifyEntry
+from pyradtran.models.aerosol_composite import LayerOptics, SpeciesOptics
 
 
 @runtime_checkable
@@ -114,3 +115,90 @@ def od_to_mass_profile(
 
 
 # Piece / PlacedBlock / DirectLayerOpticsBlock are added in Tasks 3 & 4.
+
+
+@runtime_checkable
+class Piece(Protocol):
+    """The mixing contract: anything :class:`CompositeAerosol` accepts produces
+    per-layer :class:`LayerOptics` on the shared (wavelength, altitude) grid."""
+
+    name: str
+
+    def to_layer_optics(
+        self, wl_um: np.ndarray, altitude_km, n_legendre: int = 32
+    ) -> LayerOptics: ...
+
+
+@dataclass(frozen=True)
+class PlacedBlock:
+    """Intensity-route piece: a mass-normalized species placed in the column.
+
+    Ports the non-OPAC path of ``LoadedSpecies.evaluate``: the block's intensive
+    optics are weighted by the profile's per-layer mass and the layer thickness
+    to give extensive per-layer optical properties.
+    """
+
+    block: AerosolBlock
+    profile: VerticalProfile
+    modify: tuple[AerosolModifyEntry, ...] = ()
+
+    @property
+    def name(self) -> str:
+        return self.block.name
+
+    def to_layer_optics(
+        self, wl_um: np.ndarray, altitude_km, n_legendre: int = 32
+    ) -> LayerOptics:
+        wl = np.asarray(wl_um, dtype=float)
+        z = np.asarray(altitude_km, dtype=float)
+        n_wl = wl.shape[0]
+
+        intensive = self.block.intensive(wl, n_legendre=n_legendre)
+        beta_ext = intensive.beta_ext_per_mass  # (n_wl,)
+        ssa = intensive.ssa
+        g = intensive.g
+
+        dz_m = -np.diff(z) * 1000.0  # km -> m (descending grid -> positive dz)
+        n_layer = dz_m.shape[0]
+        centers = 0.5 * (z[:-1] + z[1:])
+        mass = np.clip(self.profile.evaluate(centers), 0.0, None)  # (n_layer,)
+
+        tau = np.zeros((n_wl, n_layer))
+        for i in range(n_wl):
+            tau[i, :] = beta_ext[i] * mass * dz_m
+
+        ssa_layer = np.asarray(ssa)[:, None] * np.ones((n_wl, n_layer))
+        g_layer = np.asarray(g)[:, None] * np.ones((n_wl, n_layer))
+
+        if intensive.legendre_moments is not None:
+            n_mom = intensive.legendre_moments.shape[1]
+            moments_layer = np.zeros((n_wl, n_layer, n_legendre))
+            for l in range(min(n_mom, n_legendre)):
+                moments_layer[:, :, l] = intensive.legendre_moments[:, l][:, None]
+        else:
+            # Henyey-Greenstein fill: g_l = g^l (matches LoadedSpecies / _fill_hg_moments)
+            moments_layer = np.zeros((n_wl, n_layer, n_legendre))
+            for l in range(n_legendre):
+                moments_layer[:, :, l] = g_layer ** l
+
+        # Apply per-block modify (tau / ssa / gg scale or set).
+        for entry in self.modify:
+            if entry.variable == "tau":
+                if entry.action == "scale":
+                    tau = tau * entry.value
+                else:
+                    tau = np.full_like(tau, entry.value)
+            elif entry.variable == "ssa":
+                if entry.action == "scale":
+                    ssa_layer = np.clip(ssa_layer * entry.value, 0.0, 1.0)
+                else:
+                    ssa_layer = np.full_like(ssa_layer, entry.value)
+            elif entry.variable == "gg":
+                if entry.action == "scale":
+                    g_layer = np.clip(g_layer * entry.value, -1.0, 1.0)
+                else:
+                    g_layer = np.full_like(g_layer, entry.value)
+
+        return LayerOptics(
+            tau=tau, ssa=ssa_layer, g=g_layer, legendre_moments=moments_layer
+        )

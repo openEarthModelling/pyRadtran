@@ -90,3 +90,39 @@ class TestAerosolBlockProtocol:
         assert hasattr(b, "name")
         # runtime_checkable protocol: structural isinstance
         assert isinstance(b, AerosolBlock)
+
+
+from pyradtran.models.blocks import PlacedBlock  # noqa: E402
+
+
+class TestPlacedBlock:
+    def test_to_layer_optics_matches_intensity_times_profile(self):
+        block = _mie_block()
+        alt = [10.0, 0.0]
+        pb = PlacedBlock(block=block, profile=MassProfile(kg_m3_per_layer=(1e-3,)))
+        wl = np.array([0.55])
+        layer = pb.to_layer_optics(wl, alt, n_legendre=8)
+        # tau = beta_ext * rho * dz ; dz = 10 km = 1e4 m
+        beta = block.intensive(wl, n_legendre=8).beta_ext_per_mass[0]
+        expected_tau = beta * 1e-3 * 1e4
+        assert layer.tau.shape == (1, 1)
+        assert layer.tau[0, 0] == pytest.approx(expected_tau, rel=0.01)
+        assert layer.legendre_moments.shape == (1, 1, 8)
+        assert layer.ssa[0, 0] > 0
+        assert pb.name == "MieSpecies"
+
+    def test_modify_tau_scale(self):
+        from pyradtran.models.aerosol import AerosolModifyEntry
+
+        block = _mie_block()
+        alt = [10.0, 0.0]
+        wl = np.array([0.55])
+        base = PlacedBlock(
+            block=block, profile=MassProfile(kg_m3_per_layer=(1e-3,))
+        ).to_layer_optics(wl, alt, n_legendre=8)
+        scaled = PlacedBlock(
+            block=block,
+            profile=MassProfile(kg_m3_per_layer=(1e-3,)),
+            modify=(AerosolModifyEntry(variable="tau", action="scale", value=2.0),),
+        ).to_layer_optics(wl, alt, n_legendre=8)
+        assert scaled.tau[0, 0] == pytest.approx(2.0 * base.tau[0, 0], rel=1e-9)
