@@ -202,3 +202,34 @@ class PlacedBlock:
         return LayerOptics(
             tau=tau, ssa=ssa_layer, g=g_layer, legendre_moments=moments_layer
         )
+
+
+@dataclass(frozen=True)
+class DirectLayerOpticsBlock:
+    """Direct-route piece: a pre-computed explicit aerosol file set (.master + .LAYER).
+
+    The file already contains per-layer tau/ssa/pmom, so no :class:`VerticalProfile`
+    is needed — ``to_layer_optics`` parses the file directly. Wavelength resampling
+    is not performed (v1): the requested grid must match the file's grid.
+    """
+
+    master_path: str
+    name: str = "explicit_file"
+
+    def to_layer_optics(
+        self, wl_um: np.ndarray, altitude_km, n_legendre: int = 32
+    ) -> LayerOptics:
+        from pyradtran.optics.layer_writer import read_explicit_aerosol
+
+        tau, ssa, g, moments, _wl_file, _alt_file = read_explicit_aerosol(self.master_path)
+        req_wl = np.asarray(wl_um)
+        if tau.shape[0] != req_wl.shape[0]:
+            raise ValueError(
+                f"DirectLayerOpticsBlock file has {tau.shape[0]} wavelengths but "
+                f"{req_wl.shape[0]} requested; explicit files are not auto-resampled in v1."
+            )
+        n_have = moments.shape[2]
+        out = np.zeros((tau.shape[0], tau.shape[1], n_legendre))
+        for l in range(min(n_have, n_legendre)):
+            out[:, :, l] = moments[:, :, l]
+        return LayerOptics(tau=tau, ssa=ssa, g=g, legendre_moments=out)

@@ -126,3 +126,43 @@ class TestPlacedBlock:
             modify=(AerosolModifyEntry(variable="tau", action="scale", value=2.0),),
         ).to_layer_optics(wl, alt, n_legendre=8)
         assert scaled.tau[0, 0] == pytest.approx(2.0 * base.tau[0, 0], rel=1e-9)
+
+
+class TestDirectLayerOpticsBlock:
+    def test_roundtrip_write_read(self):
+        """write_explicit_aerosol -> DirectLayerOpticsBlock recovers tau/ssa."""
+        import tempfile
+        from pathlib import Path
+
+        from pyradtran.models.blocks import DirectLayerOpticsBlock
+        from pyradtran.optics.layer_writer import write_explicit_aerosol
+
+        # Block whose refractive index covers the test wavelengths.
+        ri = RefractiveIndex(
+            wavelength_um=[0.45, 0.55, 0.65], n_real=[1.5, 1.5, 1.5], k_imag=[0.01, 0.01, 0.01]
+        )
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        block = MieSpecies(
+            refractive_index=ri, size_distribution=sd, particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(n_radius_grid=30),
+        )
+        alt = [6.0, 4.0, 2.0, 0.0]  # 3 layers
+        wl = np.array([0.45, 0.55, 0.65])
+        original = PlacedBlock(
+            block=block, profile=MassProfile(kg_m3_per_layer=(5e-4, 5e-4, 5e-4))
+        ).to_layer_optics(wl, alt, n_legendre=8)
+
+        with tempfile.TemporaryDirectory() as d:
+            master = write_explicit_aerosol(
+                tau=original.tau, ssa=original.ssa, g=original.g,
+                legendre_moments=original.legendre_moments,
+                wavelength_um=wl, altitude_km=np.asarray(alt), output_dir=Path(d),
+                source_signatures=["test"],
+            )
+            recovered = DirectLayerOpticsBlock(
+                master_path=str(master), name="testfile"
+            ).to_layer_optics(wl, alt, n_legendre=8)
+
+        assert recovered.tau.shape == original.tau.shape
+        assert np.allclose(recovered.tau, original.tau, rtol=1e-4, atol=1e-12)
+        assert np.allclose(recovered.ssa, original.ssa, atol=1e-4)

@@ -120,3 +120,56 @@ def write_explicit_aerosol(
             f.write(f"{z_boundary:.6f}  {layer_paths[i_layer]}\n")
 
     return master_path
+
+
+def read_explicit_aerosol(master_path):
+    """Read a libRadtran explicit aerosol master + per-layer files.
+
+    Inverse of :func:`write_explicit_aerosol`. Returns a 6-tuple
+    ``(tau, ssa, g, legendre_moments, wavelength_um, altitude_km)`` where
+    ``tau``/``ssa``/``g`` have shape ``(n_wl, n_layer)`` and
+    ``legendre_moments`` has shape ``(n_wl, n_layer, n_legendre)``.
+    The top NULL layer (zero optical thickness) is dropped.
+    """
+    master_path = Path(master_path)
+    rows = []
+    with open(master_path) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                parts = line.split()
+                rows.append((float(parts[0]), parts[1]))
+
+    # rows[0] is the top NULL.LAYER; rows[1:] are the real layers.
+    layer_rows = rows[1:]
+    n_layer = len(layer_rows)
+
+    def _parse_layer_file(path):
+        out = []
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    out.append([float(x) for x in line.split()])
+        return np.array(out)  # (n_wl, 3 + n_legendre): wl_nm, beta_ext_per_km, ssa, k_0..
+
+    first = _parse_layer_file(layer_rows[0][1])
+    wl_um = first[:, 0] / 1000.0
+    n_wl = wl_um.shape[0]
+    n_legendre = first.shape[1] - 3
+
+    tau = np.zeros((n_wl, n_layer))
+    ssa = np.zeros((n_wl, n_layer))
+    moments = np.zeros((n_wl, n_layer, n_legendre))
+    altitude_km = np.array([rows[0][0]] + [r[0] for r in layer_rows], dtype=float)
+
+    for j, (_, path) in enumerate(layer_rows):
+        block = _parse_layer_file(path)
+        dz_km = altitude_km[j] - altitude_km[j + 1]
+        tau[:, j] = block[:, 1] * dz_km  # beta_ext_per_km * dz_km
+        ssa[:, j] = block[:, 2]
+        moments[:, j, :] = block[:, 3:]
+
+    # PMOM g_l form: l=1 coefficient equals g (HG-exact, proxy otherwise).
+    g = moments[:, :, 1].copy()
+    return tau, ssa, g, moments, wl_um, altitude_km
