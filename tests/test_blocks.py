@@ -13,6 +13,7 @@ from pyradtran.models.blocks import (
     AerosolBlock,
     ExponentialProfile,
     MassProfile,
+    TabulatedProfile,
     VerticalProfile,
     od_to_mass_profile,
 )
@@ -166,3 +167,21 @@ class TestDirectLayerOpticsBlock:
         assert recovered.tau.shape == original.tau.shape
         assert np.allclose(recovered.tau, original.tau, rtol=1e-4, atol=1e-12)
         assert np.allclose(recovered.ssa, original.ssa, atol=1e-4)
+
+
+class TestTabulatedProfile:
+    def test_interpolates_linearly(self):
+        p = TabulatedProfile(z_km=(0.0, 1.0, 2.0), kg_m3=(0.0, 1.0, 4.0))
+        out = p.evaluate([0.5, 1.0, 1.5])
+        assert isinstance(p, VerticalProfile)
+        assert np.allclose(out, [0.5, 1.0, 2.5])
+
+    def test_accepts_descending_grid(self):
+        p = TabulatedProfile(z_km=(2.0, 1.0, 0.0), kg_m3=(4.0, 1.0, 0.0))
+        out = p.evaluate([0.5, 1.5])
+        assert np.allclose(out, [0.5, 2.5])
+
+    def test_clips_outside_range(self):
+        p = TabulatedProfile(z_km=(0.0, 1.0), kg_m3=(10.0, 20.0))
+        out = p.evaluate([-1.0, 0.0, 1.0, 2.0])
+        assert np.allclose(out, [10.0, 10.0, 20.0, 20.0])

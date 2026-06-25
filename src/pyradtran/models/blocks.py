@@ -69,6 +69,28 @@ class ExponentialProfile:
         return self.rho0_kg_m3 * np.exp(-z / self.scale_height_km)
 
 
+@dataclass(frozen=True)
+class TabulatedProfile:
+    """Mass concentration (kg/m^3) tabulated vs altitude (km).
+
+    Linear interpolation in altitude; outside ``[z_min, z_max]`` the value is
+    clipped to the nearest table entry. ``z_km`` may be ascending or descending.
+    Used to place OPAC preset mass columns, which come on the preset's own grid.
+    """
+
+    z_km: tuple[float, ...]
+    kg_m3: tuple[float, ...]
+
+    def evaluate(self, altitude_km) -> np.ndarray:
+        z = np.asarray(self.z_km, dtype=float)
+        rho = np.asarray(self.kg_m3, dtype=float)
+        if z[0] > z[-1]:  # np.interp requires ascending x
+            z = z[::-1]
+            rho = rho[::-1]
+        x = np.asarray(altitude_km, dtype=float)
+        return np.interp(x, z, rho)
+
+
 def od_to_mass_profile(
     block: AerosolBlock,
     tau_ref: float,
