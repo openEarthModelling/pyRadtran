@@ -248,6 +248,7 @@ class MieSpecies(BaseModel):
     size_distribution: SizeDistribution
     particle_density_kg_m3: float = Field(gt=0)
     integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
+    phase_function: Literal["hg", "mie"] = "hg"
     name: str = "MieSpecies"
 
     @property
@@ -265,10 +266,10 @@ class MieSpecies(BaseModel):
 
         Args:
             wl_um: Wavelengths in micrometers.
-            n_legendre: Number of Legendre moments to generate. Because the
-                bhmie() path does not compute angular scattering by default,
-                moments are derived from the Henyey-Greenstein phase function
-                rather than a full Mie phase function.
+            n_legendre: Number of Legendre moments to generate. When
+                ``phase_function='mie'``, moments are projected from the real
+                Mie phase function (S1/S2 -> Legendre); the default ``'hg'``
+                derives them from the Henyey-Greenstein approximation ``g**l``.
 
         Returns:
             SpeciesOptics with beta_ext_per_mass, ssa, g, and legendre_moments.
@@ -286,18 +287,31 @@ class MieSpecies(BaseModel):
 
         # Deferred imports avoid circular dependency:
         # mie.py imports SizeDistribution from this module.
-        from pyradtran.optics.mie import bhmie
+        from pyradtran.optics.mie import bhmie, phase_function_to_legendre
 
         Qext = np.zeros((n_wl, config.n_radius_grid))
         Qsca = np.zeros((n_wl, config.n_radius_grid))
         g = np.zeros((n_wl, config.n_radius_grid))
+        moments_grid = (
+            np.zeros((n_wl, config.n_radius_grid, n_legendre))
+            if self.phase_function == "mie"
+            else None
+        )
+        n_angles = 181
 
         m_vals = self.refractive_index.at(wl)
 
         for i_wl in range(n_wl):
             for i_r in range(config.n_radius_grid):
                 x = 2.0 * np.pi * r_dense[i_r] / wl[i_wl]
-                result = bhmie(x, m_vals[i_wl])
+                if self.phase_function == "mie":
+                    result = bhmie(x, m_vals[i_wl], n_angles=n_angles)
+                    assert moments_grid is not None  # only None when phase_function != "mie"
+                    moments_grid[i_wl, i_r, :] = phase_function_to_legendre(
+                        result["S1"], result["S2"], result["angles_deg"], n_legendre
+                    )
+                else:
+                    result = bhmie(x, m_vals[i_wl])
                 Qext[i_wl, i_r] = result["Qext"]
                 Qsca[i_wl, i_r] = result["Qsca"]
                 g[i_wl, i_r] = result["g"]
@@ -310,7 +324,7 @@ class MieSpecies(BaseModel):
             Qext=Qext,
             Qsca=Qsca,
             g=g,
-            legendre_moments=None,
+            legendre_moments=moments_grid,
             size_distribution=self.size_distribution,
             particle_density_kg_m3=self.particle_density_kg_m3,
             config=config,
