@@ -218,12 +218,12 @@ class TestMieSpecies:
         assert 0 < optics.ssa[0] <= 1
 
 
-from pyradtran.models.aerosol_composite import LoadedSpecies
+from pyradtran.models.blocks import MassProfile, PlacedBlock
 
 
-class TestLoadedSpecies:
-    def test_evaluate_uniform_layer(self):
-        """tau = beta_ext * mass * dz for uniform layer."""
+class TestPlacedBlock:
+    def test_to_layer_optics_uniform_layer(self):
+        """tau = beta_ext * mass * dz for a uniform layer."""
         ri = RefractiveIndex(
             wavelength_um=[0.55, 0.6],
             n_real=[1.5, 1.5],
@@ -236,34 +236,18 @@ class TestLoadedSpecies:
             particle_density_kg_m3=1000.0,
             integration_config=IntegrationConfig(n_radius_grid=50),
         )
-        loaded = LoadedSpecies(
-            species=species,
-            mass_profile_kg_m3=[0.001],  # kg/m^3
-            altitude_km=[10.0, 0.0],
+        placed = PlacedBlock(
+            block=species,
+            profile=MassProfile(kg_m3_per_layer=(0.001,)),  # kg/m^3
         )
         wl = np.array([0.55])
         z = np.array([10.0, 0.0])
-        layer = loaded.evaluate(wl, z)
+        layer = placed.to_layer_optics(wl, z)
         assert layer.tau.shape == (1, 1)
         assert layer.ssa.shape == (1, 1)
         assert layer.g.shape == (1, 1)
         assert layer.legendre_moments.shape == (1, 1, 32)
         assert layer.tau[0, 0] > 0
-
-    def test_altitude_must_be_descending(self):
-        ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
-        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
-        mie = MieSpecies(
-            refractive_index=ri,
-            size_distribution=sd,
-            particle_density_kg_m3=1000.0,
-        )
-        with pytest.raises(ValueError):
-            LoadedSpecies(
-                species=mie,
-                mass_profile_kg_m3=[0.001],
-                altitude_km=[0.0, 10.0],
-            )
 
 
 import os
@@ -348,64 +332,125 @@ from pyradtran.models.aerosol_composite import CompositeAerosol
 
 
 class TestCompositeAerosol:
-    def test_single_loaded_source(self):
+    def _mie_placed(self):
         ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
-        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         mie = MieSpecies(
             refractive_index=ri,
-            size_distribution=sd,
+            size_distribution=SizeDistribution(kind="monodisperse", params={"radius_um": 0.5}),
             particle_density_kg_m3=1000.0,
             integration_config=IntegrationConfig(n_radius_grid=50),
         )
-        loaded = LoadedSpecies(
-            species=mie,
-            mass_profile_kg_m3=[0.001],
-            altitude_km=[10.0, 0.0],
-        )
+        return PlacedBlock(block=mie, profile=MassProfile(kg_m3_per_layer=(0.001,)))
+
+    def test_single_piece_explicit_path(self):
         comp = CompositeAerosol(
-            sources=[loaded],
+            pieces=[self._mie_placed()],
             wavelength_grid_um=[0.55],
             altitude_grid_km=[10.0, 0.0],
             n_legendre=4,
         )
         lines = comp.to_uvspec_lines()
-        assert len(lines) == 2
+        assert lines[0] == "aerosol_default"
         assert lines[1].startswith("aerosol_file explicit ")
 
-    def test_single_preset_shortcut(self):
-        from pyradtran.models.aerosol import OpacPreset, OpacPresetName
-
-        preset = OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+    def test_any_mix_single_path(self):
+        """Two PlacedBlocks mix through the single explicit-file path."""
         comp = CompositeAerosol(
-            sources=[preset],
+            pieces=[self._mie_placed(), self._mie_placed()],
             wavelength_grid_um=[0.55],
             altitude_grid_km=[10.0, 0.0],
+            n_legendre=4,
         )
         lines = comp.to_uvspec_lines()
-        # Single preset should delegate directly, not go through explicit file
-        assert len(lines) >= 1
-        assert any("aerosol_species" in line for line in lines)
+        assert lines[1].startswith("aerosol_file explicit ")
 
-    def test_mixed_sources_raises(self):
+    def test_evaluate_doubles_tau_for_two_equal_pieces(self):
+        import tempfile
+        from pathlib import Path
+
+        comp = CompositeAerosol(
+            pieces=[self._mie_placed(), self._mie_placed()],
+            wavelength_grid_um=[0.55],
+            altitude_grid_km=[10.0, 0.0],
+            n_legendre=4,
+            output_dir=Path(tempfile.mkdtemp()),
+        )
+        wl = np.array([0.55])
+        z = np.array([10.0, 0.0])
+        mixed = comp.evaluate(wl, z, n_legendre=4)
+        single = self._mie_placed().to_layer_optics(wl, z, n_legendre=4)
+        assert np.isclose(mixed.tau[0, 0], 2.0 * single.tau[0, 0], rtol=1e-9)
+
+    def test_rejects_ascending_altitude(self):
+        with pytest.raises(ValueError):
+            CompositeAerosol(
+                pieces=[self._mie_placed()],
+                wavelength_grid_um=[0.55],
+                altitude_grid_km=[0.0, 10.0],
+            )
+
+    def test_opacpreset_is_not_a_piece(self):
+        """OpacPreset stays a standalone AerosolModel; it is not a Piece and must be rejected."""
         from pyradtran.models.aerosol import OpacPreset, OpacPresetName
-
-        ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
-        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
-        mie = MieSpecies(
-            refractive_index=ri,
-            size_distribution=sd,
-            particle_density_kg_m3=1000.0,
-        )
-        loaded = LoadedSpecies(
-            species=mie,
-            mass_profile_kg_m3=[0.001],
-            altitude_km=[10.0, 0.0],
-        )
-        preset = OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
 
         with pytest.raises(ValueError):
             CompositeAerosol(
-                sources=[loaded, preset],
+                pieces=[OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)],
                 wavelength_grid_um=[0.55],
                 altitude_grid_km=[10.0, 0.0],
             )
+
+
+class TestSpeciesBlockFields:
+    """Task 1: species blocks expose ``name`` and ``mass_per_particle_kg``."""
+
+    def test_mie_species_mass_per_particle(self):
+        ri = RefractiveIndex(wavelength_um=[0.55, 0.6], n_real=[1.5, 1.5], k_imag=[0.01, 0.01])
+        sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
+        species = MieSpecies(refractive_index=ri, size_distribution=sd,
+                             particle_density_kg_m3=1000.0)
+        # monodisperse r=0.5um, rho=1000 -> mass = rho*(4/3)*pi*r^3
+        expected = 1000.0 * (4.0 / 3.0) * np.pi * (0.5e-6) ** 3
+        assert species.mass_per_particle_kg == pytest.approx(expected, rel=0.1)
+        assert species.name == "MieSpecies"
+
+    def test_bulk_species_name_and_mass(self):
+        from pyradtran.models.aerosol_composite import BulkSpecies
+
+        class _StubSD:
+            @staticmethod
+            def moment(order):
+                return 100.0 ** order  # nm^order; moment(3) = 1e6 nm^3
+
+        class _StubBulk:
+            wavelength_nm = np.array([550.0])
+            effective_density_kg_m3 = 1800.0
+            size_distribution = _StubSD()
+
+        bs = BulkSpecies(bulk=_StubBulk())
+        assert bs.name == "BulkSpecies"
+        expected = 1800.0 * (4.0 / 3.0) * np.pi * (100.0 ** 3) * 1e-27
+        assert bs.mass_per_particle_kg == pytest.approx(expected, rel=1e-9)
+
+    def test_opac_species_mass_per_particle_unsupported(self):
+        import os
+        import tempfile
+
+        import netCDF4
+
+        with tempfile.NamedTemporaryFile(suffix=".nc", delete=False) as f:
+            path = f.name
+        try:
+            with netCDF4.Dataset(path, "w", format="NETCDF4") as ds:
+                ds.createDimension("nlyr", 1)
+                ds.createDimension("nphamat", 1)
+                ds.createDimension("nmom+1", 4)
+                ds.createVariable("output_dtauc", "f8", ("nlyr",))[:] = [0.1]
+                ds.createVariable("output_ssalb", "f8", ("nlyr",))[:] = [0.9]
+                pm = ds.createVariable("output_pmom", "f8", ("nlyr", "nphamat", "nmom+1"))
+                pm[:] = [[[1.0, 0.7, 0.0, 0.0]]]
+            sp = OPACSpecies(netcdf_path=path)
+            with pytest.raises(NotImplementedError):
+                _ = sp.mass_per_particle_kg
+        finally:
+            os.unlink(path)

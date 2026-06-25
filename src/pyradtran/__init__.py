@@ -34,12 +34,21 @@ from pyradtran.models.aerosol_composite import (
     CompositeAerosol,
     IntegrationConfig,
     LayerOptics,
-    LoadedSpecies,
     MieSpecies,
     OPACSpecies,
     RefractiveIndex,
     SizeDistribution,
     SpeciesOptics,
+)
+from pyradtran.models.blocks import (
+    AerosolBlock,
+    DirectLayerOpticsBlock,
+    ExponentialProfile,
+    MassProfile,
+    Piece,
+    PlacedBlock,
+    VerticalProfile,
+    od_to_mass_profile,
 )
 from pyradtran.scene import Scene
 
@@ -64,10 +73,18 @@ __all__ = [
     "MieSpecies",
     "BulkSpecies",
     "OPACSpecies",
-    "LoadedSpecies",
     "LayerOptics",
     "SpeciesOptics",
     "CompositeAerosol",
+    # LEGO block interface
+    "AerosolBlock",
+    "Piece",
+    "PlacedBlock",
+    "DirectLayerOpticsBlock",
+    "VerticalProfile",
+    "MassProfile",
+    "ExponentialProfile",
+    "od_to_mass_profile",
     # Convenience functions
     "run_3d",
     "run_solar_transmittance",

@@ -7,11 +7,11 @@ import pytest
 from pyradtran.models.aerosol_composite import (
     CompositeAerosol,
     IntegrationConfig,
-    LoadedSpecies,
     MieSpecies,
     RefractiveIndex,
     SizeDistribution,
 )
+from pyradtran.models.blocks import MassProfile, PlacedBlock
 from pyradtran.optics.layer_writer import write_explicit_aerosol
 
 
@@ -107,15 +107,14 @@ class TestFullPipeline:
             particle_density_kg_m3=1000.0,
             integration_config=IntegrationConfig(n_radius_grid=30),
         )
-        loaded = LoadedSpecies(
-            species=mie,
-            mass_profile_kg_m3=[0.001],
-            altitude_km=alt,
+        loaded = PlacedBlock(
+            block=mie,
+            profile=MassProfile(kg_m3_per_layer=(0.001,)),
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             comp = CompositeAerosol(
-                sources=[loaded],
+                pieces=[loaded],
                 wavelength_grid_um=wl,
                 altitude_grid_km=alt,
                 n_legendre=4,

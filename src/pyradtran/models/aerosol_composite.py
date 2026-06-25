@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -161,12 +161,6 @@ class SpeciesOptics:
     legendre_moments: NDArray | None = None
 
 
-class Species(Protocol):
-    """Protocol for Tier 2 species classes."""
-
-    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics: ...
-
-
 class BulkSpecies(BaseModel):
     """Species backed by an aerosol3D BulkAerosolOpticsData.
 
@@ -179,6 +173,19 @@ class BulkSpecies(BaseModel):
     model_config = {"extra": "forbid", "frozen": True, "arbitrary_types_allowed": True}
 
     bulk: Any  # BulkAerosolOpticsData-like
+    name: str = "BulkSpecies"
+
+    @property
+    def mass_per_particle_kg(self) -> float:
+        """Volume-weighted per-particle mass from the bulk size distribution."""
+        rho = self.bulk.effective_density_kg_m3
+        if rho is None or getattr(self.bulk, "size_distribution", None) is None:
+            raise ValueError(
+                "BulkAerosolOpticsData needs effective_density_kg_m3 and size_distribution"
+            )
+        r3_nm3 = float(self.bulk.size_distribution.moment(3.0))
+        vol_m3 = (4.0 / 3.0) * np.pi * r3_nm3 * 1e-27  # nm^3 -> m^3
+        return rho * vol_m3
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
         wl = np.asarray(wl_um, dtype=float)
@@ -241,6 +248,17 @@ class MieSpecies(BaseModel):
     size_distribution: SizeDistribution
     particle_density_kg_m3: float = Field(gt=0)
     integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
+    name: str = "MieSpecies"
+
+    @property
+    def mass_per_particle_kg(self) -> float:
+        """Average particle mass = density * mean volume over the size distribution."""
+        from pyradtran.optics.mie import _mass_per_particle_avg
+
+        cfg = self.integration_config
+        r = np.logspace(np.log10(cfg.radius_min_um), np.log10(cfg.radius_max_um), cfg.n_radius_grid)
+        dn = self.size_distribution.evaluate(r)  # normalized PDF (~∫ dn dr = 1)
+        return _mass_per_particle_avg(r, dn, self.particle_density_kg_m3)
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
         """Compute mass-normalized intensive optical properties.
@@ -319,6 +337,14 @@ class OPACSpecies(BaseModel):
     netcdf_path: str = Field(min_length=1)
     # Optional: if the file contains multiple wavelengths, this selects one
     wavelength_nm: float | None = None
+    name: str = "OPACSpecies"
+
+    @property
+    def mass_per_particle_kg(self) -> float:
+        raise NotImplementedError(
+            "OPACSpecies (netCDF layer dump) has no well-defined per-particle mass; "
+            "place it with an explicit MassProfile instead of od_to_mass_profile."
+        )
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
         """Read netCDF and return intensive properties.
@@ -369,134 +395,27 @@ class LayerOptics:
     legendre_moments: NDArray  # (n_wl, n_layer, n_legendre)
 
 
-class LoadedSpecies(BaseModel):
-    """Tier 3: extensive in-atmosphere optical properties."""
-
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
-
-    species: MieSpecies | BulkSpecies | OPACSpecies
-    mass_profile_kg_m3: list[float] = Field(min_length=1)
-    altitude_km: list[float] = Field(min_length=2)  # layer boundaries, descending
-    rh_profile: list[float] | None = None  # required for OPACSpecies
-
-    @model_validator(mode="after")
-    def validate_profiles(self) -> LoadedSpecies:
-        n_layers = len(self.altitude_km) - 1
-        if len(self.mass_profile_kg_m3) != n_layers:
-            raise ValueError(
-                f"mass_profile_kg_m3 length ({len(self.mass_profile_kg_m3)}) must equal "
-                f"number of layers ({n_layers}) from altitude_km"
-            )
-        if self.altitude_km != sorted(self.altitude_km, reverse=True):
-            raise ValueError("altitude_km must be strictly descending")
-        if isinstance(self.species, OPACSpecies) and self.rh_profile is None:
-            raise ValueError("rh_profile is required when species is OPACSpecies")
-        if self.rh_profile is not None and len(self.rh_profile) != n_layers:
-            raise ValueError(
-                f"rh_profile length ({len(self.rh_profile)}) "
-                f"must equal number of layers ({n_layers})"
-            )
-        return self
-
-    def evaluate(
-        self,
-        wl_um: np.ndarray,
-        z_km: np.ndarray,
-        n_legendre: int = 32,
-    ) -> LayerOptics:
-        """Evaluate optical properties on (wavelength, altitude) grid.
-
-        Args:
-            wl_um: Wavelength grid in um, strictly ascending.
-            z_km: Altitude grid in km, strictly descending (layer centers or boundaries).
-            n_legendre: Number of Legendre moments.
-
-        Returns:
-            LayerOptics with shape (n_wl, n_layer).
-        """
-        wl = np.asarray(wl_um)
-        z = np.asarray(z_km)
-        n_wl = len(wl)
-
-        # Get intensive properties from species
-        intensive = self.species.intensive(wl, n_legendre=n_legendre)
-        beta_ext = intensive.beta_ext_per_mass  # (n_wl,)
-        ssa = intensive.ssa  # (n_wl,)
-        g = intensive.g  # (n_wl,)
-
-        # Compute layer thicknesses from altitude grid
-        # z is descending: z[0] > z[1] > ...; thickness = z[i] - z[i+1]
-        dz_m = -np.diff(z) * 1000.0  # km -> m (np.diff gives z[i+1]-z[i], negate for descending)
-        n_layer = len(dz_m)
-
-        # Interpolate mass profile to layer centers
-        alt_centers = 0.5 * (np.array(self.altitude_km[:-1]) + np.array(self.altitude_km[1:]))
-        layer_centers = 0.5 * (z[:-1] + z[1:])
-        mass_interp = np.interp(
-            layer_centers,
-            alt_centers[::-1],  # ascending for np.interp
-            np.array(self.mass_profile_kg_m3)[::-1],
-        )
-        mass_interp = np.clip(mass_interp, 0.0, None)  # mass cannot be negative
-
-        # Compute optical depth per layer
-        tau = np.zeros((n_wl, n_layer))
-        if isinstance(self.species, OPACSpecies):
-            # OPACSpecies returns per-layer optical depth directly in
-            # beta_ext_per_mass (netCDF dtauc is already dimensionless).
-            # Interpolate to the output layer grid using the species altitude grid.
-            species_alt_centers = alt_centers
-            output_alt_centers = layer_centers
-            for i_wl in range(n_wl):
-                tau[i_wl, :] = np.interp(
-                    output_alt_centers,
-                    species_alt_centers[::-1],
-                    np.full(n_layer, beta_ext[i_wl])[::-1],
-                )
-        else:
-            # beta_ext [m^2/kg] * mass [kg/m^3] * dz [m] = dimensionless
-            for i_wl in range(n_wl):
-                tau[i_wl, :] = beta_ext[i_wl] * mass_interp * dz_m
-
-        # Broadcast ssa and g to (n_wl, n_layer)
-        ssa_layer = np.broadcast_to(ssa[:, np.newaxis], (n_wl, n_layer))
-        g_layer = np.broadcast_to(g[:, np.newaxis], (n_wl, n_layer))
-
-        # Legendre moments
-        if intensive.legendre_moments is not None:
-            n_mom = intensive.legendre_moments.shape[1]
-            legendre_layer = np.zeros((n_wl, n_layer, n_legendre))
-            for l in range(min(n_mom, n_legendre)):
-                legendre_layer[:, :, l] = np.broadcast_to(
-                    intensive.legendre_moments[:, l][:, np.newaxis],
-                    (n_wl, n_layer),
-                )
-            # Zero-pad remaining moments
-            for l in range(n_mom, n_legendre):
-                legendre_layer[:, :, l] = 0.0
-        else:
-            # Henyey-Greenstein fill: g_l = g^l (PMOM form, matches _fill_hg_moments / BulkSpecies)
-            legendre_layer = np.zeros((n_wl, n_layer, n_legendre))
-            for l in range(n_legendre):
-                legendre_layer[:, :, l] = g_layer**l
-
-        return LayerOptics(
-            tau=tau,
-            ssa=ssa_layer,
-            g=g_layer,
-            legendre_moments=legendre_layer,
-        )
-
-
-from pyradtran.models.aerosol import AerosolModel, ExternalFile, OpacCustom, OpacPreset
+from pyradtran.models.aerosol import AerosolModel
 
 
 class CompositeAerosol(AerosolModel):
-    """Tier 4: composite aerosol scene mixing multiple sources."""
+    """Externally mix any number of Piece blocks via a single explicit-file path.
 
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+    Each item in ``pieces`` is a :class:`~pyradtran.models.blocks.Piece` (e.g.
+    ``PlacedBlock`` or ``DirectLayerOpticsBlock``). They are combined with
+    scattering-optical-depth weighting and written as one explicit
+    ``.master``/``.LAYER`` set. The old mutual-exclusion rules and the
+    single-source shortcut are gone: one path regardless of piece count or type.
+    """
 
-    sources: list = Field(min_length=1)
+    model_config = {
+        "extra": "forbid",
+        "frozen": True,
+        "populate_by_name": True,
+        "arbitrary_types_allowed": True,
+    }
+
+    pieces: list = Field(min_length=1)  # list[Piece] — PlacedBlock / DirectLayerOpticsBlock
     wavelength_grid_um: list[float] = Field(min_length=1)
     altitude_grid_km: list[float] = Field(min_length=2)
     n_legendre: int = 32
@@ -508,66 +427,43 @@ class CompositeAerosol(AerosolModel):
             raise ValueError("wavelength_grid_um must be strictly ascending")
         if self.altitude_grid_km != sorted(self.altitude_grid_km, reverse=True):
             raise ValueError("altitude_grid_km must be strictly descending")
-
-        # Validate source types
-        for src in self.sources:
-            if not isinstance(src, LoadedSpecies | OpacPreset | OpacCustom | ExternalFile):
+        if not self.pieces:
+            raise ValueError("at least one Piece is required")
+        for piece in self.pieces:
+            if not hasattr(piece, "to_layer_optics"):
                 raise ValueError(
-                    f"Invalid source type: {type(src).__name__}. "
-                    f"Expected LoadedSpecies, OpacPreset, OpacCustom, or ExternalFile."
+                    f"Each piece must implement to_layer_optics (be a Piece); "
+                    f"got {type(piece).__name__}"
                 )
-
-        # Disallow mixing incompatible source types
-        preset_sources = [s for s in self.sources if isinstance(s, OpacPreset | OpacCustom)]
-        loaded_sources = [s for s in self.sources if isinstance(s, LoadedSpecies)]
-        external_sources = [s for s in self.sources if isinstance(s, ExternalFile)]
-
-        if len(preset_sources) > 1:
-            raise ValueError("Only one OpacPreset/OpacCustom source allowed in CompositeAerosol")
-        if len(loaded_sources) > 0 and len(preset_sources) > 0:
-            raise ValueError(
-                "Cannot mix LoadedSpecies with OpacPreset/OpacCustom in CompositeAerosol"
-            )
-        if len(loaded_sources) > 0 and len(external_sources) > 0:
-            raise ValueError("Cannot mix LoadedSpecies with ExternalFile in CompositeAerosol")
-        if len(preset_sources) > 0 and len(external_sources) > 0:
-            raise ValueError(
-                "Cannot mix OpacPreset/OpacCustom with ExternalFile in CompositeAerosol"
-            )
-
         return self
 
-    def to_uvspec_lines(self) -> list[str]:
-        """Generate ``aerosol_file explicit <master>`` line.
+    def evaluate(self, wl_um=None, z_km=None, n_legendre=None) -> LayerOptics:
+        """Return the mixed (externally combined) LayerOptics without writing files."""
+        from pyradtran.optics.mixing import combine_sources
 
-        For single preset/external sources, delegates directly to their
-        ``to_uvspec_lines()`` to avoid the explicit-file overhead.
-        """
+        wl = np.asarray(self.wavelength_grid_um if wl_um is None else wl_um, dtype=float)
+        z = np.asarray(self.altitude_grid_km if z_km is None else z_km, dtype=float)
+        nleg = self.n_legendre if n_legendre is None else n_legendre
+        layer_optics = [p.to_layer_optics(wl, z, n_legendre=nleg) for p in self.pieces]
+        mixed = combine_sources(layer_optics, n_legendre=nleg)
+        return LayerOptics(
+            tau=mixed["tau"],
+            ssa=mixed["ssa"],
+            g=mixed["g"],
+            legendre_moments=mixed["legendre_moments"],
+        )
+
+    def to_uvspec_lines(self) -> list[str]:
+        """Single execution path: every Piece -> LayerOptics -> combine -> explicit file."""
         from pyradtran.optics.layer_writer import write_explicit_aerosol
         from pyradtran.optics.mixing import combine_sources
 
-        # Shortcut: single non-composite source
-        if len(self.sources) == 1 and not isinstance(self.sources[0], LoadedSpecies):
-            return self.sources[0].to_uvspec_lines()
-
-        wl = np.asarray(self.wavelength_grid_um)
-        z = np.asarray(self.altitude_grid_km)
-
-        # Evaluate each LoadedSpecies
-        layer_optics_list = []
-        for src in self.sources:
-            if isinstance(src, LoadedSpecies):
-                layer_optics_list.append(src.evaluate(wl, z, n_legendre=self.n_legendre))
-
-        # Mix
-        mixed = combine_sources(layer_optics_list, n_legendre=self.n_legendre)
-
-        # Write files
-        outdir = self.output_dir
-        if outdir is None:
-            outdir = Path.cwd() / "aerosol"
-
-        source_sigs = [str(type(s).__name__) for s in self.sources]
+        wl = np.asarray(self.wavelength_grid_um, dtype=float)
+        z = np.asarray(self.altitude_grid_km, dtype=float)
+        layer_optics = [p.to_layer_optics(wl, z, n_legendre=self.n_legendre) for p in self.pieces]
+        mixed = combine_sources(layer_optics, n_legendre=self.n_legendre)
+        outdir = self.output_dir if self.output_dir is not None else Path.cwd() / "aerosol"
+        source_sigs = [getattr(p, "name", type(p).__name__) for p in self.pieces]
         master_path = write_explicit_aerosol(
             tau=mixed["tau"],
             ssa=mixed["ssa"],
@@ -578,5 +474,4 @@ class CompositeAerosol(AerosolModel):
             output_dir=outdir,
             source_signatures=source_sigs,
         )
-
         return ["aerosol_default", f"aerosol_file explicit {master_path}"]
