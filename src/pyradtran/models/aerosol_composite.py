@@ -8,7 +8,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal
 
 import numpy as np
 from numpy.typing import NDArray
@@ -58,110 +58,6 @@ class RefractiveIndex(BaseModel):
         logk_interp = np.interp(np.log(wl), np.log(wl_tab), np.log(k_tab + 1e-20))
         k_interp = np.exp(logk_interp)
         return n_interp + 1j * k_interp
-
-
-class ParticleOptics(BaseModel):
-    """Single-particle optical properties vs wavelength and radius."""
-
-    model_config = {
-        "extra": "forbid",
-        "frozen": True,
-        "populate_by_name": True,
-        "arbitrary_types_allowed": True,
-    }
-
-    wavelength_um: list[float] = Field(min_length=1)
-    radius_um: list[float] = Field(min_length=1)
-    Qext: NDArray
-    Qsca: NDArray
-    g: NDArray
-    legendre_moments: NDArray | None = None
-
-    @model_validator(mode="after")
-    def validate_shapes(self) -> ParticleOptics:
-        n_wl = len(self.wavelength_um)
-        n_r = len(self.radius_um)
-        expected = (n_wl, n_r)
-
-        if self.Qext.shape != expected:
-            raise ValueError(f"Qext shape {self.Qext.shape} != expected {expected}")
-        if self.Qsca.shape != expected:
-            raise ValueError(f"Qsca shape {self.Qsca.shape} != expected {expected}")
-        if self.g.shape != expected:
-            raise ValueError(f"g shape {self.g.shape} != expected {expected}")
-        if self.wavelength_um != sorted(self.wavelength_um):
-            raise ValueError("wavelength_um must be strictly ascending")
-        if self.radius_um != sorted(self.radius_um):
-            raise ValueError("radius_um must be strictly ascending")
-        if np.any(self.Qsca > self.Qext + 1e-12):
-            raise ValueError("Qsca must be <= Qext")
-        if np.any(np.abs(self.g) > 1.0 + 1e-12):
-            raise ValueError("|g| must be <= 1")
-
-        if self.legendre_moments is not None and self.legendre_moments.shape[:2] != expected:
-            raise ValueError(
-                f"legendre_moments leading dims {self.legendre_moments.shape[:2]} "
-                f"!= expected {expected}"
-            )
-        return self
-
-    @classmethod
-    def from_cross_sections(
-        cls,
-        *,
-        wavelength_um: list[float],
-        radius_um: list[float],
-        Cext_um2: NDArray,
-        Csca_um2: NDArray,
-        g: NDArray,
-        legendre_moments: NDArray | None = None,
-    ) -> ParticleOptics:
-        """Build from cross-sections (convert to Q-factors)."""
-        r = np.asarray(radius_um).reshape(1, -1)
-        area = np.pi * r**2
-        Qext = np.asarray(Cext_um2) / area
-        Qsca = np.asarray(Csca_um2) / area
-        return cls(
-            wavelength_um=wavelength_um,
-            radius_um=radius_um,
-            Qext=Qext,
-            Qsca=Qsca,
-            g=g,
-            legendre_moments=legendre_moments,
-        )
-
-    @classmethod
-    def from_aerosol3d(cls, data) -> ParticleOptics:
-        """Create ParticleOptics from Aerosol3D AerosolOpticsData.
-
-        Handles unit conversion (nm -> um, nm^2 -> um^2) and Legendre
-        convention (prefers beta_l, falls back to k_l conversion).
-
-        Args:
-            data: Object with wavelength_nm, C_ext, C_sca, g, r_eff_nm,
-                  n_legendre, legendre_moments_beta, legendre_moments fields.
-
-        Returns:
-            ParticleOptics ready for use in PrecomputedSpecies.
-        """
-        wavelengths_um = (data.wavelength_nm / 1000.0).tolist()
-        r_eff_um = data.r_eff_nm / 1000.0
-
-        legendre = None
-        if data.legendre_moments_beta is not None:
-            legendre = data.legendre_moments_beta.reshape((-1, 1, data.n_legendre))
-        elif data.legendre_moments is not None:
-            l = np.arange(data.n_legendre)
-            legendre = (data.legendre_moments / (2 * l + 1)).reshape((-1, 1, data.n_legendre))
-
-        return cls.from_cross_sections(
-            wavelength_um=wavelengths_um,
-            radius_um=[r_eff_um],
-            Cext_um2=(data.C_ext * 1e-6).reshape((-1, 1)),
-            Csca_um2=(data.C_sca * 1e-6).reshape((-1, 1)),
-            g=data.g.reshape((-1, 1)),
-            legendre_moments=legendre,
-        )
 
 
 class SizeDistribution(BaseModel):
@@ -265,10 +161,82 @@ class SpeciesOptics:
     legendre_moments: NDArray | None = None
 
 
-class Species(Protocol):
-    """Protocol for Tier 2 species classes."""
+class BulkSpecies(BaseModel):
+    """Species backed by an aerosol3D BulkAerosolOpticsData.
 
-    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics: ...
+    The size-distribution integration is already done in aerosol3D; this class
+    only rescales cross-sections to per-mass, resamples wavelength, and selects
+    the Legendre convention. Duck-typed: accepts any object exposing the
+    BulkAerosolOpticsData attributes (no hard aerosol3D import).
+    """
+
+    model_config = {"extra": "forbid", "frozen": True, "arbitrary_types_allowed": True}
+
+    bulk: Any  # BulkAerosolOpticsData-like
+    name: str = "BulkSpecies"
+
+    @property
+    def mass_per_particle_kg(self) -> float:
+        """Volume-weighted per-particle mass from the bulk size distribution."""
+        rho = self.bulk.effective_density_kg_m3
+        if rho is None or getattr(self.bulk, "size_distribution", None) is None:
+            raise ValueError(
+                "BulkAerosolOpticsData needs effective_density_kg_m3 and size_distribution"
+            )
+        r3_nm3 = float(self.bulk.size_distribution.moment(3.0))
+        vol_m3 = (4.0 / 3.0) * np.pi * r3_nm3 * 1e-27  # nm^3 -> m^3
+        return rho * vol_m3
+
+    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
+        wl = np.asarray(wl_um, dtype=float)
+        wl_tab_um = np.asarray(self.bulk.wavelength_nm, dtype=float) / 1000.0
+
+        def _loglog(col):
+            return np.exp(
+                np.interp(wl, wl_tab_um, np.log(np.clip(np.asarray(col) * 1e-6, 1e-30, None)))
+            )
+
+        def _lin(col):
+            return np.interp(wl, wl_tab_um, np.asarray(col, dtype=float))
+
+        C_ext_m2 = _loglog(self.bulk.C_ext)  # nm^2 -> um^2 -> m^2 (below)
+        ssa = _lin(self.bulk.SSA)
+        g = np.clip(_lin(self.bulk.g), -1.0, 1.0)
+
+        rho = self.bulk.effective_density_kg_m3
+        if rho is None:
+            raise ValueError("BulkAerosolOpticsData.effective_density_kg_m3 is required")
+        if self.bulk.size_distribution is None:
+            raise ValueError("BulkAerosolOpticsData.size_distribution is required")
+        r3_nm3 = self.bulk.size_distribution.moment(3)
+        vol_m3 = (4.0 / 3.0) * np.pi * r3_nm3 * 1e-27  # nm^3 -> m^3
+        mass_per_particle = rho * vol_m3
+        beta_ext_per_mass = C_ext_m2 * 1e-12 / mass_per_particle  # um^2 -> m^2
+
+        moments = self._select_and_resample_moments(wl, wl_tab_um, n_legendre)
+        return SpeciesOptics(
+            beta_ext_per_mass=beta_ext_per_mass,
+            ssa=ssa,
+            g=g,
+            legendre_moments=moments,
+        )
+
+    def _select_and_resample_moments(self, wl, wl_tab_um, n_legendre):
+        # Hypothesis (spec §4.5): libRadtran explicit .LAYER wants the g_l form.
+        src = getattr(self.bulk, "legendre_moments_beta", None)
+        if src is None:
+            src = getattr(self.bulk, "beta", None)
+            if src is not None:
+                l_vals = np.arange(src.shape[-1])
+                src = src / (2 * l_vals + 1)
+        if src is None:
+            return None
+        n_have = src.shape[-1]
+        n_use = min(n_have, n_legendre)
+        out = np.zeros((len(wl), n_legendre))
+        for l in range(n_use):
+            out[:, l] = np.interp(wl, wl_tab_um, src[:, l])
+        return out
 
 
 class MieSpecies(BaseModel):
@@ -280,16 +248,28 @@ class MieSpecies(BaseModel):
     size_distribution: SizeDistribution
     particle_density_kg_m3: float = Field(gt=0)
     integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
+    phase_function: Literal["hg", "mie"] = "hg"
+    name: str = "MieSpecies"
+
+    @property
+    def mass_per_particle_kg(self) -> float:
+        """Average particle mass = density * mean volume over the size distribution."""
+        from pyradtran.optics.mie import _mass_per_particle_avg
+
+        cfg = self.integration_config
+        r = np.logspace(np.log10(cfg.radius_min_um), np.log10(cfg.radius_max_um), cfg.n_radius_grid)
+        dn = self.size_distribution.evaluate(r)  # normalized PDF (~∫ dn dr = 1)
+        return _mass_per_particle_avg(r, dn, self.particle_density_kg_m3)
 
     def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
         """Compute mass-normalized intensive optical properties.
 
         Args:
             wl_um: Wavelengths in micrometers.
-            n_legendre: Number of Legendre moments to generate. Because the
-                bhmie() path does not compute angular scattering by default,
-                moments are derived from the Henyey-Greenstein phase function
-                rather than a full Mie phase function.
+            n_legendre: Number of Legendre moments to generate. When
+                ``phase_function='mie'``, moments are projected from the real
+                Mie phase function (S1/S2 -> Legendre); the default ``'hg'``
+                derives them from the Henyey-Greenstein approximation ``g**l``.
 
         Returns:
             SpeciesOptics with beta_ext_per_mass, ssa, g, and legendre_moments.
@@ -306,36 +286,45 @@ class MieSpecies(BaseModel):
         self.size_distribution.evaluate(r_dense)
 
         # Deferred imports avoid circular dependency:
-        # mie.py imports ParticleOptics/SizeDistribution from this module.
-        from pyradtran.optics.mie import bhmie
+        # mie.py imports SizeDistribution from this module.
+        from pyradtran.optics.mie import bhmie, phase_function_to_legendre
 
         Qext = np.zeros((n_wl, config.n_radius_grid))
         Qsca = np.zeros((n_wl, config.n_radius_grid))
         g = np.zeros((n_wl, config.n_radius_grid))
+        moments_grid = (
+            np.zeros((n_wl, config.n_radius_grid, n_legendre))
+            if self.phase_function == "mie"
+            else None
+        )
+        n_angles = 181
 
         m_vals = self.refractive_index.at(wl)
 
         for i_wl in range(n_wl):
             for i_r in range(config.n_radius_grid):
                 x = 2.0 * np.pi * r_dense[i_r] / wl[i_wl]
-                result = bhmie(x, m_vals[i_wl])
+                if self.phase_function == "mie":
+                    result = bhmie(x, m_vals[i_wl], n_angles=n_angles)
+                    assert moments_grid is not None  # only None when phase_function != "mie"
+                    moments_grid[i_wl, i_r, :] = phase_function_to_legendre(
+                        result["S1"], result["S2"], result["angles_deg"], n_legendre
+                    )
+                else:
+                    result = bhmie(x, m_vals[i_wl])
                 Qext[i_wl, i_r] = result["Qext"]
                 Qsca[i_wl, i_r] = result["Qsca"]
                 g[i_wl, i_r] = result["g"]
 
         from pyradtran.optics.mie import integrate_size_distribution
 
-        particle_optics = ParticleOptics(
+        internal = integrate_size_distribution(
             wavelength_um=wl.tolist(),
             radius_um=r_dense.tolist(),
             Qext=Qext,
             Qsca=Qsca,
             g=g,
-            legendre_moments=None,
-        )
-
-        internal = integrate_size_distribution(
-            particle_optics=particle_optics,
+            legendre_moments=moments_grid,
             size_distribution=self.size_distribution,
             particle_density_kg_m3=self.particle_density_kg_m3,
             config=config,
@@ -350,134 +339,6 @@ class MieSpecies(BaseModel):
         )
 
 
-class PrecomputedSpecies(BaseModel):
-    """Species from precomputed ParticleOptics + size distribution."""
-
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
-
-    particle_optics: ParticleOptics
-    size_distribution: SizeDistribution
-    particle_density_kg_m3: float = Field(gt=0)
-    integration_config: IntegrationConfig = Field(default_factory=IntegrationConfig)
-
-    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
-        """Integrate precomputed Q-factors over size distribution."""
-        from pyradtran.optics.mie import integrate_size_distribution
-
-        # Verify wavelength coverage
-        wl = np.asarray(wl_um)
-        wl_tab = np.asarray(self.particle_optics.wavelength_um)
-        if np.any(wl < wl_tab[0]) or np.any(wl > wl_tab[-1]):
-            raise ValueError(
-                f"Wavelength {wl.min():.4f}–{wl.max():.4f} um outside "
-                f"particle optics range {wl_tab[0]:.4f}–{wl_tab[-1]:.4f} um"
-            )
-
-        # Interpolate ParticleOptics to requested wavelengths (log-linear in Q)
-        n_r = len(self.particle_optics.radius_um)
-        n_req = len(wl)
-        Qext_interp = np.zeros((n_req, n_r))
-        Qsca_interp = np.zeros((n_req, n_r))
-        g_interp = np.zeros((n_req, n_r))
-
-        for i_r in range(n_r):
-            log_Qext = np.log(np.clip(self.particle_optics.Qext[:, i_r], 1e-30, None))
-            Qext_interp[:, i_r] = np.exp(np.interp(wl, wl_tab, log_Qext))
-
-            log_Qsca = np.log(np.clip(self.particle_optics.Qsca[:, i_r], 1e-30, None))
-            Qsca_interp[:, i_r] = np.exp(np.interp(wl, wl_tab, log_Qsca))
-
-            g_interp[:, i_r] = np.clip(
-                np.interp(wl, wl_tab, self.particle_optics.g[:, i_r]), -1.0, 1.0
-            )
-
-        legendre_interp = None
-        if self.particle_optics.legendre_moments is not None:
-            n_mom = self.particle_optics.legendre_moments.shape[2]
-            legendre_interp = np.zeros((n_req, n_r, n_mom))
-            for i_r in range(n_r):
-                for l in range(n_mom):
-                    legendre_interp[:, i_r, l] = np.interp(
-                        wl, wl_tab, self.particle_optics.legendre_moments[:, i_r, l]
-                    )
-
-        particle_optics_interp = ParticleOptics(
-            wavelength_um=wl.tolist(),
-            radius_um=self.particle_optics.radius_um,
-            Qext=Qext_interp,
-            Qsca=Qsca_interp,
-            g=g_interp,
-            legendre_moments=legendre_interp,
-        )
-
-        internal = integrate_size_distribution(
-            particle_optics=particle_optics_interp,
-            size_distribution=self.size_distribution,
-            particle_density_kg_m3=self.particle_density_kg_m3,
-            config=self.integration_config,
-            n_legendre=n_legendre,
-        )
-
-        return SpeciesOptics(
-            beta_ext_per_mass=internal.beta_ext_per_mass,
-            ssa=internal.ssa,
-            g=internal.g,
-            legendre_moments=internal.legendre_moments,
-        )
-
-
-class OPACSpecies(BaseModel):
-    """OPAC species from a pre-computed libRadtran netCDF optical-property file.
-
-    The netCDF file is expected to contain ``output_dtauc``, ``output_ssalb``,
-    and ``output_pmom`` variables (libRadtran ``write_optical_properties`` format).
-    """
-
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
-
-    netcdf_path: str = Field(min_length=1)
-    # Optional: if the file contains multiple wavelengths, this selects one
-    wavelength_nm: float | None = None
-
-    def intensive(self, wl_um: np.ndarray, n_legendre: int = 32) -> SpeciesOptics:
-        """Read netCDF and return intensive properties.
-
-        For a netCDF with ``nlyr`` layers, the returned ``beta_ext_per_mass``
-        assumes the optical depth is distributed uniformly across layers for
-        the purpose of SpeciesOptics (the actual layer geometry is applied
-        later in LoadedSpecies).
-        """
-        from pyradtran.optics.opac_tables import read_opac_netcdf
-
-        data = read_opac_netcdf(self.netcdf_path)
-        dtauc = data["dtauc"]  # (nlyr,)
-        ssalb = data["ssalb"]  # (nlyr,)
-        pmom = data["pmom"]  # (nlyr, nmom)
-
-        # For SpeciesOptics we need per-wavelength values.
-        # If the netCDF has a single wavelength, average over layers.
-        # If it has per-layer data at one wavelength, average.
-        # The spec assumes one wavelength per netCDF file.
-        beta_ext = np.mean(dtauc)  # placeholder -- actual scaling done in LoadedSpecies
-        ssa_mean = np.mean(ssalb)
-        g_mean = np.mean(pmom[:, 1]) if pmom.shape[1] > 1 else 0.0
-
-        # Build Legendre moments: k_l = (2l+1) * g_l where g_l are expansion coefficients
-        # pmom[:, l] corresponds to moment l (0-indexed)
-        n_mom_available = pmom.shape[1]
-        n_mom = min(n_mom_available, n_legendre)
-        legendre_moments = np.zeros((1, n_legendre))
-        for l in range(n_mom):
-            legendre_moments[0, l] = np.mean(pmom[:, l])
-
-        return SpeciesOptics(
-            beta_ext_per_mass=np.array([beta_ext]),
-            ssa=np.array([ssa_mean]),
-            g=np.array([g_mean]),
-            legendre_moments=legendre_moments,
-        )
-
-
 @dataclass
 class LayerOptics:
     """Extensive optical properties per layer."""
@@ -488,134 +349,27 @@ class LayerOptics:
     legendre_moments: NDArray  # (n_wl, n_layer, n_legendre)
 
 
-class LoadedSpecies(BaseModel):
-    """Tier 3: extensive in-atmosphere optical properties."""
-
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
-
-    species: MieSpecies | PrecomputedSpecies | OPACSpecies
-    mass_profile_kg_m3: list[float] = Field(min_length=1)
-    altitude_km: list[float] = Field(min_length=2)  # layer boundaries, descending
-    rh_profile: list[float] | None = None  # required for OPACSpecies
-
-    @model_validator(mode="after")
-    def validate_profiles(self) -> LoadedSpecies:
-        n_layers = len(self.altitude_km) - 1
-        if len(self.mass_profile_kg_m3) != n_layers:
-            raise ValueError(
-                f"mass_profile_kg_m3 length ({len(self.mass_profile_kg_m3)}) must equal "
-                f"number of layers ({n_layers}) from altitude_km"
-            )
-        if self.altitude_km != sorted(self.altitude_km, reverse=True):
-            raise ValueError("altitude_km must be strictly descending")
-        if isinstance(self.species, OPACSpecies) and self.rh_profile is None:
-            raise ValueError("rh_profile is required when species is OPACSpecies")
-        if self.rh_profile is not None and len(self.rh_profile) != n_layers:
-            raise ValueError(
-                f"rh_profile length ({len(self.rh_profile)}) "
-                f"must equal number of layers ({n_layers})"
-            )
-        return self
-
-    def evaluate(
-        self,
-        wl_um: np.ndarray,
-        z_km: np.ndarray,
-        n_legendre: int = 32,
-    ) -> LayerOptics:
-        """Evaluate optical properties on (wavelength, altitude) grid.
-
-        Args:
-            wl_um: Wavelength grid in um, strictly ascending.
-            z_km: Altitude grid in km, strictly descending (layer centers or boundaries).
-            n_legendre: Number of Legendre moments.
-
-        Returns:
-            LayerOptics with shape (n_wl, n_layer).
-        """
-        wl = np.asarray(wl_um)
-        z = np.asarray(z_km)
-        n_wl = len(wl)
-
-        # Get intensive properties from species
-        intensive = self.species.intensive(wl, n_legendre=n_legendre)
-        beta_ext = intensive.beta_ext_per_mass  # (n_wl,)
-        ssa = intensive.ssa  # (n_wl,)
-        g = intensive.g  # (n_wl,)
-
-        # Compute layer thicknesses from altitude grid
-        # z is descending: z[0] > z[1] > ...; thickness = z[i] - z[i+1]
-        dz_m = -np.diff(z) * 1000.0  # km -> m (np.diff gives z[i+1]-z[i], negate for descending)
-        n_layer = len(dz_m)
-
-        # Interpolate mass profile to layer centers
-        alt_centers = 0.5 * (np.array(self.altitude_km[:-1]) + np.array(self.altitude_km[1:]))
-        layer_centers = 0.5 * (z[:-1] + z[1:])
-        mass_interp = np.interp(
-            layer_centers,
-            alt_centers[::-1],  # ascending for np.interp
-            np.array(self.mass_profile_kg_m3)[::-1],
-        )
-        mass_interp = np.clip(mass_interp, 0.0, None)  # mass cannot be negative
-
-        # Compute optical depth per layer
-        tau = np.zeros((n_wl, n_layer))
-        if isinstance(self.species, OPACSpecies):
-            # OPACSpecies returns per-layer optical depth directly in
-            # beta_ext_per_mass (netCDF dtauc is already dimensionless).
-            # Interpolate to the output layer grid using the species altitude grid.
-            species_alt_centers = alt_centers
-            output_alt_centers = layer_centers
-            for i_wl in range(n_wl):
-                tau[i_wl, :] = np.interp(
-                    output_alt_centers,
-                    species_alt_centers[::-1],
-                    np.full(n_layer, beta_ext[i_wl])[::-1],
-                )
-        else:
-            # beta_ext [m^2/kg] * mass [kg/m^3] * dz [m] = dimensionless
-            for i_wl in range(n_wl):
-                tau[i_wl, :] = beta_ext[i_wl] * mass_interp * dz_m
-
-        # Broadcast ssa and g to (n_wl, n_layer)
-        ssa_layer = np.broadcast_to(ssa[:, np.newaxis], (n_wl, n_layer))
-        g_layer = np.broadcast_to(g[:, np.newaxis], (n_wl, n_layer))
-
-        # Legendre moments
-        if intensive.legendre_moments is not None:
-            n_mom = intensive.legendre_moments.shape[1]
-            legendre_layer = np.zeros((n_wl, n_layer, n_legendre))
-            for l in range(min(n_mom, n_legendre)):
-                legendre_layer[:, :, l] = np.broadcast_to(
-                    intensive.legendre_moments[:, l][:, np.newaxis],
-                    (n_wl, n_layer),
-                )
-            # Zero-pad remaining moments
-            for l in range(n_mom, n_legendre):
-                legendre_layer[:, :, l] = 0.0
-        else:
-            # Henyey-Greenstein fill: k_l = (2l+1) g^l
-            legendre_layer = np.zeros((n_wl, n_layer, n_legendre))
-            for l in range(n_legendre):
-                legendre_layer[:, :, l] = (2 * l + 1) * g_layer**l
-
-        return LayerOptics(
-            tau=tau,
-            ssa=ssa_layer,
-            g=g_layer,
-            legendre_moments=legendre_layer,
-        )
-
-
-from pyradtran.models.aerosol import AerosolModel, ExternalFile, OpacCustom, OpacPreset
+from pyradtran.models.aerosol import AerosolModel
 
 
 class CompositeAerosol(AerosolModel):
-    """Tier 4: composite aerosol scene mixing multiple sources."""
+    """Externally mix any number of Piece blocks via a single explicit-file path.
 
-    model_config = {"extra": "forbid", "frozen": True, "populate_by_name": True}
+    Each item in ``pieces`` is a :class:`~pyradtran.models.blocks.Piece` (e.g.
+    ``PlacedBlock`` or ``DirectLayerOpticsBlock``). They are combined with
+    scattering-optical-depth weighting and written as one explicit
+    ``.master``/``.LAYER`` set. The old mutual-exclusion rules and the
+    single-source shortcut are gone: one path regardless of piece count or type.
+    """
 
-    sources: list = Field(min_length=1)
+    model_config = {
+        "extra": "forbid",
+        "frozen": True,
+        "populate_by_name": True,
+        "arbitrary_types_allowed": True,
+    }
+
+    pieces: list = Field(min_length=1)  # list[Piece] — PlacedBlock / DirectLayerOpticsBlock
     wavelength_grid_um: list[float] = Field(min_length=1)
     altitude_grid_km: list[float] = Field(min_length=2)
     n_legendre: int = 32
@@ -627,66 +381,43 @@ class CompositeAerosol(AerosolModel):
             raise ValueError("wavelength_grid_um must be strictly ascending")
         if self.altitude_grid_km != sorted(self.altitude_grid_km, reverse=True):
             raise ValueError("altitude_grid_km must be strictly descending")
-
-        # Validate source types
-        for src in self.sources:
-            if not isinstance(src, LoadedSpecies | OpacPreset | OpacCustom | ExternalFile):
+        if not self.pieces:
+            raise ValueError("at least one Piece is required")
+        for piece in self.pieces:
+            if not hasattr(piece, "to_layer_optics"):
                 raise ValueError(
-                    f"Invalid source type: {type(src).__name__}. "
-                    f"Expected LoadedSpecies, OpacPreset, OpacCustom, or ExternalFile."
+                    f"Each piece must implement to_layer_optics (be a Piece); "
+                    f"got {type(piece).__name__}"
                 )
-
-        # Disallow mixing incompatible source types
-        preset_sources = [s for s in self.sources if isinstance(s, OpacPreset | OpacCustom)]
-        loaded_sources = [s for s in self.sources if isinstance(s, LoadedSpecies)]
-        external_sources = [s for s in self.sources if isinstance(s, ExternalFile)]
-
-        if len(preset_sources) > 1:
-            raise ValueError("Only one OpacPreset/OpacCustom source allowed in CompositeAerosol")
-        if len(loaded_sources) > 0 and len(preset_sources) > 0:
-            raise ValueError(
-                "Cannot mix LoadedSpecies with OpacPreset/OpacCustom in CompositeAerosol"
-            )
-        if len(loaded_sources) > 0 and len(external_sources) > 0:
-            raise ValueError("Cannot mix LoadedSpecies with ExternalFile in CompositeAerosol")
-        if len(preset_sources) > 0 and len(external_sources) > 0:
-            raise ValueError(
-                "Cannot mix OpacPreset/OpacCustom with ExternalFile in CompositeAerosol"
-            )
-
         return self
 
-    def to_uvspec_lines(self) -> list[str]:
-        """Generate ``aerosol_file explicit <master>`` line.
+    def evaluate(self, wl_um=None, z_km=None, n_legendre=None) -> LayerOptics:
+        """Return the mixed (externally combined) LayerOptics without writing files."""
+        from pyradtran.optics.mixing import combine_sources
 
-        For single preset/external sources, delegates directly to their
-        ``to_uvspec_lines()`` to avoid the explicit-file overhead.
-        """
+        wl = np.asarray(self.wavelength_grid_um if wl_um is None else wl_um, dtype=float)
+        z = np.asarray(self.altitude_grid_km if z_km is None else z_km, dtype=float)
+        nleg = self.n_legendre if n_legendre is None else n_legendre
+        layer_optics = [p.to_layer_optics(wl, z, n_legendre=nleg) for p in self.pieces]
+        mixed = combine_sources(layer_optics, n_legendre=nleg)
+        return LayerOptics(
+            tau=mixed["tau"],
+            ssa=mixed["ssa"],
+            g=mixed["g"],
+            legendre_moments=mixed["legendre_moments"],
+        )
+
+    def to_uvspec_lines(self) -> list[str]:
+        """Single execution path: every Piece -> LayerOptics -> combine -> explicit file."""
         from pyradtran.optics.layer_writer import write_explicit_aerosol
         from pyradtran.optics.mixing import combine_sources
 
-        # Shortcut: single non-composite source
-        if len(self.sources) == 1 and not isinstance(self.sources[0], LoadedSpecies):
-            return self.sources[0].to_uvspec_lines()
-
-        wl = np.asarray(self.wavelength_grid_um)
-        z = np.asarray(self.altitude_grid_km)
-
-        # Evaluate each LoadedSpecies
-        layer_optics_list = []
-        for src in self.sources:
-            if isinstance(src, LoadedSpecies):
-                layer_optics_list.append(src.evaluate(wl, z, n_legendre=self.n_legendre))
-
-        # Mix
-        mixed = combine_sources(layer_optics_list, n_legendre=self.n_legendre)
-
-        # Write files
-        outdir = self.output_dir
-        if outdir is None:
-            outdir = Path.cwd() / "aerosol"
-
-        source_sigs = [str(type(s).__name__) for s in self.sources]
+        wl = np.asarray(self.wavelength_grid_um, dtype=float)
+        z = np.asarray(self.altitude_grid_km, dtype=float)
+        layer_optics = [p.to_layer_optics(wl, z, n_legendre=self.n_legendre) for p in self.pieces]
+        mixed = combine_sources(layer_optics, n_legendre=self.n_legendre)
+        outdir = self.output_dir if self.output_dir is not None else Path.cwd() / "aerosol"
+        source_sigs = [getattr(p, "name", type(p).__name__) for p in self.pieces]
         master_path = write_explicit_aerosol(
             tau=mixed["tau"],
             ssa=mixed["ssa"],
@@ -697,5 +428,4 @@ class CompositeAerosol(AerosolModel):
             output_dir=outdir,
             source_signatures=source_sigs,
         )
-
         return ["aerosol_default", f"aerosol_file explicit {master_path}"]

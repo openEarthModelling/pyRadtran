@@ -18,6 +18,7 @@ from pyradtran.convenience import (
     run_with_opac_preset,
 )
 from pyradtran.core.runner import Runner, RunnerConfig
+from pyradtran.data import DataResolver
 from pyradtran.models import ThreeDConfig
 from pyradtran.models.aerosol import (
     AerosolModel,
@@ -29,17 +30,25 @@ from pyradtran.models.aerosol import (
     OpacPresetName,
 )
 from pyradtran.models.aerosol_composite import (
+    BulkSpecies,
     CompositeAerosol,
     IntegrationConfig,
     LayerOptics,
-    LoadedSpecies,
     MieSpecies,
-    OPACSpecies,
-    ParticleOptics,
-    PrecomputedSpecies,
     RefractiveIndex,
     SizeDistribution,
     SpeciesOptics,
+)
+from pyradtran.models.blocks import (
+    AerosolBlock,
+    DirectLayerOpticsBlock,
+    ExponentialProfile,
+    MassProfile,
+    Piece,
+    PlacedBlock,
+    TabulatedProfile,
+    VerticalProfile,
+    od_to_mass_profile,
 )
 from pyradtran.scene import Scene
 
@@ -48,6 +57,7 @@ __all__ = [
     "ThreeDConfig",
     "Runner",
     "RunnerConfig",
+    "DataResolver",
     # Aerosol classes
     "AerosolModel",
     "AerosolModifyEntry",
@@ -58,16 +68,23 @@ __all__ = [
     "ExternalFile",
     # Composite aerosol classes
     "RefractiveIndex",
-    "ParticleOptics",
     "SizeDistribution",
     "IntegrationConfig",
     "MieSpecies",
-    "PrecomputedSpecies",
-    "OPACSpecies",
-    "LoadedSpecies",
+    "BulkSpecies",
     "LayerOptics",
     "SpeciesOptics",
     "CompositeAerosol",
+    # LEGO block interface
+    "AerosolBlock",
+    "Piece",
+    "PlacedBlock",
+    "DirectLayerOpticsBlock",
+    "VerticalProfile",
+    "MassProfile",
+    "ExponentialProfile",
+    "TabulatedProfile",
+    "od_to_mass_profile",
     # Convenience functions
     "run_3d",
     "run_solar_transmittance",

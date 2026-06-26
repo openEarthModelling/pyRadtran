@@ -11,7 +11,7 @@ import copy
 
 from pyradtran.core.input_builder import build_input_text
 from pyradtran.models.advanced import AdvancedConfig
-from pyradtran.models.aerosol import AerosolModel, AerosolModifyEntry, OpacPreset, OpacPresetName
+from pyradtran.models.aerosol import AerosolModel, AerosolModifyEntry
 from pyradtran.models.atmosphere import AtmosphereConfig
 from pyradtran.models.cloud import CloudConfig
 from pyradtran.models.mc import McConfig
@@ -162,7 +162,7 @@ class Scene:
 
         new = self.clone()
         if new.aerosol is None:
-            new.aerosol = OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE)
+            raise ValueError("set_aerosol_modify requires an aerosol; call set_aerosol() first")
         entry = AerosolModifyEntry(variable=variable, action=action, value=value)
         modify_list = list(new.aerosol.modify) + [entry]
         new.aerosol = new.aerosol.model_copy(update={"modify": modify_list})

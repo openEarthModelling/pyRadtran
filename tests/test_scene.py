@@ -72,11 +72,11 @@ class TestSceneBuilder:
         assert scene.surface.albedo == 0.2
 
     def test_set_aerosol(self):
-        from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+        from pyradtran.models.aerosol import ExternalFile
 
-        scene = Scene().set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
+        scene = Scene().set_aerosol(ExternalFile(files=[("explicit", "/data/x.dat")]))
         assert scene.aerosol is not None
-        assert scene.aerosol.name == OpacPresetName.CONTINENTAL_AVERAGE
+        assert isinstance(scene.aerosol, ExternalFile)
 
     def test_build_input_returns_string(self):
         scene = (
@@ -125,12 +125,12 @@ class TestSceneBuilder:
 
 
 def test_set_aerosol_modify():
-    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+    from pyradtran.models.aerosol import ExternalFile
 
     scene = (
         Scene()
         .set_atmosphere(profile="us")
-        .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
+        .set_aerosol(ExternalFile(files=[("explicit", "/data/x.dat")]))
     )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     items = scene2.aerosol.to_uvspec_items()
@@ -139,12 +139,12 @@ def test_set_aerosol_modify():
 
 
 def test_set_aerosol_modify_multiple():
-    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+    from pyradtran.models.aerosol import ExternalFile
 
     scene = (
         Scene()
         .set_atmosphere(profile="us")
-        .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
+        .set_aerosol(ExternalFile(files=[("explicit", "/data/x.dat")]))
     )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     scene3 = scene2.set_aerosol_modify("gg", "set", 0.7)
@@ -177,12 +177,12 @@ def test_set_surface_brdf():
 
 
 def test_immutable_set_aerosol_modify():
-    from pyradtran.models.aerosol import OpacPreset, OpacPresetName
+    from pyradtran.models.aerosol import ExternalFile
 
     scene = (
         Scene()
         .set_atmosphere(profile="us")
-        .set_aerosol(OpacPreset(name=OpacPresetName.CONTINENTAL_AVERAGE))
+        .set_aerosol(ExternalFile(files=[("explicit", "/data/x.dat")]))
     )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     assert len(scene.aerosol.modify) == 0
@@ -316,11 +316,11 @@ class TestCompositeAerosolScene:
         from pyradtran.models.aerosol_composite import (
             CompositeAerosol,
             IntegrationConfig,
-            LoadedSpecies,
             MieSpecies,
             RefractiveIndex,
             SizeDistribution,
         )
+        from pyradtran.models.blocks import MassProfile, PlacedBlock
 
         wl = [0.55, 0.6]
         alt = [10.0, 0.0]
@@ -332,10 +332,9 @@ class TestCompositeAerosolScene:
             particle_density_kg_m3=1000.0,
             integration_config=IntegrationConfig(n_radius_grid=30),
         )
-        loaded = LoadedSpecies(
-            species=mie,
-            mass_profile_kg_m3=[0.001],
-            altitude_km=alt,
+        loaded = PlacedBlock(
+            block=mie,
+            profile=MassProfile(kg_m3_per_layer=(0.001,)),
         )
 
         import tempfile
@@ -343,7 +342,7 @@ class TestCompositeAerosolScene:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             comp = CompositeAerosol(
-                sources=[loaded],
+                pieces=[loaded],
                 wavelength_grid_um=wl,
                 altitude_grid_km=alt,
                 n_legendre=4,
