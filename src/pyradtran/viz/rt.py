@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 
 from pyradtran.core.output_parser import HEATING_RATE_COLUMN
+from pyradtran.core.postprocess import add_budget_vars
 from pyradtran.viz._style import get_palette, require_mpl, save, set_theme
 
 
@@ -117,3 +118,46 @@ def plot_heating_rate(
         ax.set_xlabel("Heating rate (all wavelengths)")
     _maybe_save(fig, save_path)
     return fig, ax
+
+
+def plot_budget(
+    ds: xr.Dataset,
+    *,
+    components=("transmittance", "reflectance", "absorptance"),
+    ax=None,
+    save_path=None,
+):
+    """Stacked-area plot of T/R/A vs wavelength. Requires a budget-enriched dataset."""
+    missing = [c for c in components if c not in ds.data_vars]
+    if missing:
+        raise ValueError(
+            f"Dataset missing budget variables {missing}; run add_budget_vars(ds) first."
+        )
+    fig, ax = _ensure_axes(ax)
+    wl = np.asarray(ds["wavelength"].values, dtype=float)
+    colors = get_palette(len(components))
+    values = np.vstack([np.asarray(ds[c].values, dtype=float) for c in components])
+    ax.stackplot(wl, values, labels=list(components), colors=colors, alpha=0.85)
+    ax.set_xlabel("Wavelength (nm)")
+    ax.set_ylabel("Fraction of incident flux")
+    ax.set_ylim(0.0, 1.0)
+    ax.legend(loc="best")
+    _maybe_save(fig, save_path)
+    return fig, ax
+
+
+def plot_rt_overview(ds: xr.Dataset, *, wavelength_nm: float = 550.0):
+    """Convenience multi-panel: spectral (surface) + flux profile + budget."""
+    require_mpl()
+    import matplotlib.pyplot as plt
+
+    set_theme()
+    fig, axes = plt.subplots(1, 3, figsize=(13, 4))
+    plot_spectral(ds, ax=axes[0])
+    if "zout" in ds.dims:
+        plot_flux_profile(ds, wavelength_nm=wavelength_nm, ax=axes[1])
+    else:
+        axes[1].text(0.5, 0.5, "no zout dim", ha="center", va="center")
+    plot_budget(add_budget_vars(ds), ax=axes[2])
+    fig.tight_layout()
+    return fig, axes
