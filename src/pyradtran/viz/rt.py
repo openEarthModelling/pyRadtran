@@ -93,8 +93,11 @@ def plot_heating_rate(
     ax=None,
     save_path=None,
 ):
-    """Plot heating rate vs altitude (km). If ``wavelength_nm`` is None, plot all
-    wavelengths as faint background lines plus the nearest-wavelength bold line."""
+    """Plot heating rate vs altitude (km).
+
+    If ``wavelength_nm`` is None, plot all wavelengths as faint background
+    lines; otherwise plot the nearest-wavelength line bold.
+    """
     if HEATING_RATE_COLUMN not in ds.data_vars:
         raise ValueError(
             f"Dataset has no '{HEATING_RATE_COLUMN}' variable; request heating-rate "

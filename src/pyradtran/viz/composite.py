@@ -15,7 +15,7 @@ _QUANTITY_LABELS = {
     "g": "Asymmetry parameter g",
 }
 _BLOCK_QUANTITY_LABELS = {
-    "tau": "Optical depth τ (column sum)",
+    "tau": "Optical depth τ (spectral sum)",
     "rho": "Mass concentration (kg/m³)",
 }
 
@@ -56,7 +56,13 @@ def plot_block_profiles(
     ax=None,
     save_path=None,
 ):
-    """Per-block τ(z) (column-summed over wavelength) or ρ(z) vs altitude."""
+    """Per-block τ(z) (spectrally summed over wavelength) or ρ(z) vs altitude.
+
+    The τ curve is ``tau.sum(axis=0)`` — the per-layer sum over wavelength, a
+    rough "spectral optical burden per layer" overview. For a physically
+    meaningful τ(z) at a specific band, slice the block dataset to that
+    wavelength before passing it in.
+    """
     fig, ax = _ensure_axes(ax)
     colors = get_palette(len(per_block_ds_dict))
     for color, (name, bds) in zip(colors, per_block_ds_dict.items(), strict=True):
