@@ -77,9 +77,7 @@ def _layer_centers(z_km: np.ndarray) -> np.ndarray:
     return 0.5 * (z[:-1] + z[1:])
 
 
-def evaluate_composite_on_grid(
-    comp, wl_um, z_km, n_legendre: int = 32
-) -> xr.Dataset:
+def evaluate_composite_on_grid(comp, wl_um, z_km, n_legendre: int = 32) -> xr.Dataset:
     """Evaluate the mixed composite optics on a (wavelength, layer) grid.
 
     Calls ``comp.evaluate(...)`` (pure analytic mixing — no RT) and wraps the
@@ -104,9 +102,7 @@ def evaluate_composite_on_grid(
     )
 
 
-def evaluate_blocks_on_grid(
-    comp, wl_um, z_km, n_legendre: int = 32
-) -> dict[str, xr.Dataset]:
+def evaluate_blocks_on_grid(comp, wl_um, z_km, n_legendre: int = 32) -> dict[str, xr.Dataset]:
     """Per-piece ``(tau, rho)`` on the grid; one dataset per block name.
 
     ``tau`` comes from each piece's ``to_layer_optics``; ``rho_kg_m3`` is added

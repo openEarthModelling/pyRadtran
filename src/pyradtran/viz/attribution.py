@@ -28,9 +28,7 @@ def _get(obj, key):
         return getattr(obj, key)
     if isinstance(obj, dict):
         return obj[key]
-    raise TypeError(
-        f"Expected an object with .{key} or ['{key}']; got {type(obj).__name__}"
-    )
+    raise TypeError(f"Expected an object with .{key} or ['{key}']; got {type(obj).__name__}")
 
 
 def plot_component_attribution(
