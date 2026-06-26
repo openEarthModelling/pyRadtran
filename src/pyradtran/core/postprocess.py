@@ -70,3 +70,65 @@ def compute_budget(ds: xr.Dataset, *, f_incident: str = "edir") -> BudgetResult:
         absorptance=absorp,
         wavelength=np.asarray(ds["wavelength"].values, dtype=float),
     )
+
+
+def _layer_centers(z_km: np.ndarray) -> np.ndarray:
+    z = np.asarray(z_km, dtype=float)
+    return 0.5 * (z[:-1] + z[1:])
+
+
+def evaluate_composite_on_grid(
+    comp, wl_um, z_km, n_legendre: int = 32
+) -> xr.Dataset:
+    """Evaluate the mixed composite optics on a (wavelength, layer) grid.
+
+    Calls ``comp.evaluate(...)`` (pure analytic mixing — no RT) and wraps the
+    resulting :class:`LayerOptics` as an :class:`xarray.Dataset` with a
+    ``layer`` dimension indexed by layer-center altitude.
+    """
+    wl = np.asarray(wl_um, dtype=float)
+    z = np.asarray(z_km, dtype=float)
+    lo = comp.evaluate(wl_um=wl, z_km=z, n_legendre=n_legendre)
+    centers = _layer_centers(z)
+    return xr.Dataset(
+        {
+            "tau": (("wavelength", "layer"), lo.tau),
+            "ssa": (("wavelength", "layer"), lo.ssa),
+            "g": (("wavelength", "layer"), lo.g),
+        },
+        coords={
+            "wavelength": wl,
+            "layer": np.arange(centers.size),
+            "altitude_km": ("layer", centers),
+        },
+    )
+
+
+def evaluate_blocks_on_grid(
+    comp, wl_um, z_km, n_legendre: int = 32
+) -> dict[str, xr.Dataset]:
+    """Per-piece ``(tau, rho)`` on the grid; one dataset per block name.
+
+    ``tau`` comes from each piece's ``to_layer_optics``; ``rho_kg_m3`` is added
+    only for pieces that carry a ``profile`` (e.g. :class:`PlacedBlock`).
+    """
+    wl = np.asarray(wl_um, dtype=float)
+    z = np.asarray(z_km, dtype=float)
+    centers = _layer_centers(z)
+    out: dict[str, xr.Dataset] = {}
+    for piece in comp.pieces:
+        lo = piece.to_layer_optics(wl, z, n_legendre=n_legendre)
+        name = getattr(piece, "name", type(piece).__name__)
+        ds = xr.Dataset(
+            {"tau": (("wavelength", "layer"), lo.tau)},
+            coords={
+                "wavelength": wl,
+                "layer": np.arange(centers.size),
+                "altitude_km": ("layer", centers),
+            },
+        )
+        profile = getattr(piece, "profile", None)
+        if profile is not None:
+            ds["rho_kg_m3"] = ("layer", np.asarray(profile.evaluate(centers), dtype=float))
+        out[name] = ds
+    return out
