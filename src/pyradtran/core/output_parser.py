@@ -6,10 +6,45 @@ and NetCDF output formats.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
 import xarray as xr
+
+#: Name of the heating-rate data variable when libRadtran's heat output is
+#: requested (e.g. via ``solver.dynamic_heat_unit``). The ASCII parser handles
+#: arbitrary column names; this constant pins the convention used across
+#: pyRadtran so callers and the viz layer agree on the variable name.
+HEATING_RATE_COLUMN = "heating_rate"
+
+
+def resolve_zout_tokens(
+    zout: Sequence[float | str], atmosphere_top_km: float = 120.0
+) -> list[float]:
+    """Resolve uvspec ``zout`` tokens (which may contain ``"toa"``/``"surface"``)
+    into numeric altitudes in km above ground level.
+
+    Args:
+        zout: Output levels as given to uvspec (floats and/or keyword strings).
+        atmosphere_top_km: Altitude (km) to which ``"toa"``/``"top"`` resolve.
+
+    Returns:
+        List of float altitudes in km, same length and order as ``zout``.
+    """
+    resolved: list[float] = []
+    for z in zout:
+        if isinstance(z, str):
+            token = z.strip().lower()
+            if token in ("toa", "top"):
+                resolved.append(float(atmosphere_top_km))
+            elif token in ("surface", "ground", "sfc", "0"):
+                resolved.append(0.0)
+            else:
+                resolved.append(float(z))
+        else:
+            resolved.append(float(z))
+    return resolved
 
 
 def parse_output(
@@ -17,6 +52,7 @@ def parse_output(
     format: str = "netcdf",
     n_zout: int = 1,
     column_names: list[str] | None = None,
+    zout_levels_km: Sequence[float] | None = None,
 ) -> xr.Dataset:
     """Parse uvspec output file into xarray.Dataset.
 
@@ -25,6 +61,8 @@ def parse_output(
         format: Output format — "netcdf" or "ascii".
         n_zout: Number of zout levels in output (for ASCII multi-level).
         column_names: Custom column names for output_user ASCII output.
+        zout_levels_km: Physical zout altitudes in km. When provided (ASCII path),
+            used as the ``zout`` coordinate instead of an integer index.
 
     Returns:
         xarray.Dataset with wavelength (and optionally zout) as coordinates.
@@ -34,7 +72,12 @@ def parse_output(
     if format == "netcdf":
         return _parse_netcdf(output_path)
     else:
-        return _parse_ascii(output_path, n_zout=n_zout, column_names=column_names)
+        return _parse_ascii(
+            output_path,
+            n_zout=n_zout,
+            column_names=column_names,
+            zout_levels_km=zout_levels_km,
+        )
 
 
 def _parse_netcdf(path: Path) -> xr.Dataset:
@@ -52,6 +95,7 @@ def _parse_ascii(
     path: Path,
     n_zout: int = 1,
     column_names: list[str] | None = None,
+    zout_levels_km: Sequence[float] | None = None,
 ) -> xr.Dataset:
     """Read ASCII uvspec output.
 
@@ -108,5 +152,8 @@ def _parse_ascii(
                 coords["wavelength"] = reshaped[:, 0, i]
             else:
                 data_vars[name] = (("wavelength", "zout"), reshaped[:, :, i])
-        coords["zout"] = np.arange(n_zout)
+        if zout_levels_km is not None:
+            coords["zout"] = np.asarray(zout_levels_km, dtype=float)
+        else:
+            coords["zout"] = np.arange(n_zout)
         return xr.Dataset(data_vars, coords=coords)

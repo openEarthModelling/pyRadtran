@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import xarray as xr
 
-from pyradtran.core.output_parser import parse_output
+from pyradtran.core.output_parser import parse_output, resolve_zout_tokens
 from pyradtran.data.resolver import DataResolver
 
 if TYPE_CHECKING:
@@ -188,11 +188,17 @@ class Runner:
             if output_format != "netcdf" and scene.output and scene.output.quantities:
                 col_names = ["wavelength" if q == "lambda" else q for q in scene.output.quantities]
 
+            # Preserve physical zout altitudes (ASCII path); "toa" -> top-of-atmosphere km.
+            zout_levels_km = None
+            if output_format != "netcdf" and scene.output and scene.output.zout:
+                zout_levels_km = resolve_zout_tokens(scene.output.zout)
+
             result = parse_output(
                 out_file,
                 format=output_format,
                 n_zout=n_zout,
                 column_names=col_names,
+                zout_levels_km=zout_levels_km,
             )
 
         result.attrs["input_config"] = input_text.strip()
