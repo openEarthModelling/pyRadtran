@@ -18,8 +18,13 @@ from pyradtran.viz._style import get_palette, require_mpl, save, set_theme
 
 @runtime_checkable
 class AttributionLike(Protocol):
-    full: xr.Dataset
-    contributions: dict[str, xr.Dataset]
+    # Read-only: consumers only read these. Declaring as properties lets a
+    # frozen dataclass (AttributionResult) satisfy the protocol.
+    @property
+    def full(self) -> xr.Dataset: ...
+
+    @property
+    def contributions(self) -> dict[str, xr.Dataset]: ...
 
 
 def _get(obj, key):
