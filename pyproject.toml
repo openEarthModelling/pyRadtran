@@ -27,6 +27,7 @@ dependencies = [
     "numpy",
     "netCDF4",
 ]
+# viz modules import matplotlib lazily; matplotlib stays in the `plot` extra (not core).
 
 [project.optional-dependencies]
 dev = [

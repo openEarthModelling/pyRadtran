@@ -234,7 +234,12 @@ class Scene:
         if new.source is not None:
             new.source = new.source.model_copy(update={**sat_updates, **source_kwargs})
         else:
-            new.source = SourceConfig(source="solar", sza=0.0, **sat_updates, **source_kwargs)
+            # Build defaults then let caller overrides win (avoids passing
+            # `source` twice when source_kwargs already supplies it).
+            defaults: dict = {"source": "solar", "sza": 0.0}
+            defaults.update(sat_updates)
+            defaults.update(source_kwargs)
+            new.source = SourceConfig(**defaults)
         return new
 
     def set_dynamic(

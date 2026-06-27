@@ -13,7 +13,7 @@ Reference: Hess et al. (1998), Bull. Amer. Meteor. Soc., 79, 831-844
 from __future__ import annotations
 
 from abc import abstractmethod
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -47,7 +47,7 @@ def _validate_opac_species_names(names: list[str]) -> None:
         )
 
 
-class OpacPresetName(str, Enum):
+class OpacPresetName(StrEnum):
     """OPAC preset mixture profile names.
 
     These correspond to files in data/aerosol/OPAC/standard_aerosol_files/.

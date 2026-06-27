@@ -7,7 +7,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-_trapz = getattr(np, "trapezoid", np.trapz)
+# numpy >=2.0 removed np.trapz in favor of np.trapezoid; import whichever exists.
+# The eager getattr(np, "trapezoid", np.trapz) default would crash on numpy 2.x.
+try:
+    from numpy import trapezoid as _trapz
+except ImportError:  # numpy < 2.0
+    from numpy import trapz as _trapz  # type: ignore[attr-defined]
 
 # Import here to avoid circular import: mie.py uses SizeDistribution
 # from this module, and aerosol_composite.py imports integrate_size_distribution.

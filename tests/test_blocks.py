@@ -55,8 +55,11 @@ class TestOdToMassProfile:
         block = _mie_block()
         alt = [4.0, 2.0, 0.0]  # 2 layers
         mp = od_to_mass_profile(
-            block, tau_ref=0.5, ref_nm=550.0,
-            altitude_km=alt, scale_height_km=2.0,
+            block,
+            tau_ref=0.5,
+            ref_nm=550.0,
+            altitude_km=alt,
+            scale_height_km=2.0,
         )
         assert isinstance(mp, MassProfile)
         dz_m = -np.diff(alt) * 1000.0  # layer thicknesses in m
@@ -70,17 +73,22 @@ class TestOdToMassProfile:
         # from MieSpecies, so check the guard via a tiny stub block.
         class _ZeroBlock:
             name = "zero"
+
             def intensive(self, wl_um, n_legendre=32):
                 from pyradtran.models.aerosol_composite import SpeciesOptics
-                return SpeciesOptics(beta_ext_per_mass=np.array([0.0]),
-                                     ssa=np.array([0.0]), g=np.array([0.0]))
+
+                return SpeciesOptics(
+                    beta_ext_per_mass=np.array([0.0]), ssa=np.array([0.0]), g=np.array([0.0])
+                )
+
             @property
             def mass_per_particle_kg(self) -> float:
                 return 1.0
 
         with pytest.raises(ValueError):
-            od_to_mass_profile(_ZeroBlock(), tau_ref=0.5, ref_nm=550.0,
-                               altitude_km=[4.0, 0.0], scale_height_km=2.0)
+            od_to_mass_profile(
+                _ZeroBlock(), tau_ref=0.5, ref_nm=550.0, altitude_km=[4.0, 0.0], scale_height_km=2.0
+            )
 
 
 class TestAerosolBlockProtocol:
@@ -144,7 +152,9 @@ class TestDirectLayerOpticsBlock:
         )
         sd = SizeDistribution(kind="monodisperse", params={"radius_um": 0.5})
         block = MieSpecies(
-            refractive_index=ri, size_distribution=sd, particle_density_kg_m3=1000.0,
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
             integration_config=IntegrationConfig(n_radius_grid=30),
         )
         alt = [6.0, 4.0, 2.0, 0.0]  # 3 layers
@@ -155,9 +165,13 @@ class TestDirectLayerOpticsBlock:
 
         with tempfile.TemporaryDirectory() as d:
             master = write_explicit_aerosol(
-                tau=original.tau, ssa=original.ssa, g=original.g,
+                tau=original.tau,
+                ssa=original.ssa,
+                g=original.g,
                 legendre_moments=original.legendre_moments,
-                wavelength_um=wl, altitude_km=np.asarray(alt), output_dir=Path(d),
+                wavelength_um=wl,
+                altitude_km=np.asarray(alt),
+                output_dir=Path(d),
                 source_signatures=["test"],
             )
             recovered = DirectLayerOpticsBlock(

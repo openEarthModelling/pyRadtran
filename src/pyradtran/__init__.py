@@ -17,6 +17,13 @@ from pyradtran.convenience import (
     run_with_opac_custom,
     run_with_opac_preset,
 )
+from pyradtran.core.postprocess import (
+    BudgetResult,
+    add_budget_vars,
+    compute_budget,
+    evaluate_blocks_on_grid,
+    evaluate_composite_on_grid,
+)
 from pyradtran.core.runner import Runner, RunnerConfig
 from pyradtran.data import DataResolver
 from pyradtran.models import ThreeDConfig
@@ -51,6 +58,7 @@ from pyradtran.models.blocks import (
     od_to_mass_profile,
 )
 from pyradtran.scene import Scene
+from pyradtran.workflow import AttributionResult, compute_component_attribution
 
 __all__ = [
     "Scene",
@@ -85,6 +93,14 @@ __all__ = [
     "ExponentialProfile",
     "TabulatedProfile",
     "od_to_mass_profile",
+    # Post-processing + workflow entry points
+    "BudgetResult",
+    "add_budget_vars",
+    "compute_budget",
+    "evaluate_composite_on_grid",
+    "evaluate_blocks_on_grid",
+    "compute_component_attribution",
+    "AttributionResult",
     # Convenience functions
     "run_3d",
     "run_solar_transmittance",

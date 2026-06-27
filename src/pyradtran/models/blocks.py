@@ -168,9 +168,7 @@ class PlacedBlock:
     def name(self) -> str:
         return self.block.name
 
-    def to_layer_optics(
-        self, wl_um: np.ndarray, altitude_km, n_legendre: int = 32
-    ) -> LayerOptics:
+    def to_layer_optics(self, wl_um: np.ndarray, altitude_km, n_legendre: int = 32) -> LayerOptics:
         wl = np.asarray(wl_um, dtype=float)
         z = np.asarray(altitude_km, dtype=float)
         n_wl = wl.shape[0]
@@ -201,7 +199,7 @@ class PlacedBlock:
             # Henyey-Greenstein fill: g_l = g^l (matches LoadedSpecies / _fill_hg_moments)
             moments_layer = np.zeros((n_wl, n_layer, n_legendre))
             for l in range(n_legendre):
-                moments_layer[:, :, l] = g_layer ** l
+                moments_layer[:, :, l] = g_layer**l
 
         # Apply per-block modify (tau / ssa / gg scale or set).
         for entry in self.modify:
@@ -221,9 +219,7 @@ class PlacedBlock:
                 else:
                     g_layer = np.full_like(g_layer, entry.value)
 
-        return LayerOptics(
-            tau=tau, ssa=ssa_layer, g=g_layer, legendre_moments=moments_layer
-        )
+        return LayerOptics(tau=tau, ssa=ssa_layer, g=g_layer, legendre_moments=moments_layer)
 
 
 @dataclass(frozen=True)
@@ -238,9 +234,7 @@ class DirectLayerOpticsBlock:
     master_path: str
     name: str = "explicit_file"
 
-    def to_layer_optics(
-        self, wl_um: np.ndarray, altitude_km, n_legendre: int = 32
-    ) -> LayerOptics:
+    def to_layer_optics(self, wl_um: np.ndarray, altitude_km, n_legendre: int = 32) -> LayerOptics:
         from pyradtran.optics.layer_writer import read_explicit_aerosol
 
         tau, ssa, g, moments, _wl_file, _alt_file = read_explicit_aerosol(self.master_path)
