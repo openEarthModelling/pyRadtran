@@ -1,4 +1,5 @@
 """Tests for budget and overview plots (headless, synthetic data)."""
+
 from __future__ import annotations
 
 import matplotlib

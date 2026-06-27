@@ -55,7 +55,7 @@ class TestSizeDistribution:
         sd = SizeDistribution(kind="lognormal", params={"r_g_um": 0.5, "sigma_g": 2.0})
         r = np.logspace(-2, 2, 10000)
         dn = sd.evaluate(r)
-        total = np.trapz(dn, r)
+        total = np.trapezoid(dn, r)
         assert np.isclose(total, 1.0, rtol=0.01)
 
     def test_monodisperse_peak_location(self):
@@ -81,7 +81,7 @@ class TestSizeDistribution:
         )
         r = np.logspace(-2, 2, 10000)
         dn = sd.evaluate(r)
-        total = np.trapz(dn, r)
+        total = np.trapezoid(dn, r)
         assert np.isclose(total, 1.0, rtol=0.01)
 
     def test_discrete_normalization(self):
@@ -91,7 +91,7 @@ class TestSizeDistribution:
         )
         r = np.logspace(-2, 2, 10000)
         dn = sd.evaluate(r)
-        total = np.trapz(dn, r)
+        total = np.trapezoid(dn, r)
         assert np.isclose(total, 1.0, rtol=0.01)
 
     def test_modified_gamma_invalid_params_raises(self):

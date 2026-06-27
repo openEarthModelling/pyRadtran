@@ -1,4 +1,5 @@
 """Tests for viz theme/palette/save (headless)."""
+
 from __future__ import annotations
 
 from pathlib import Path

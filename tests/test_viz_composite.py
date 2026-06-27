@@ -1,4 +1,5 @@
 """Tests for composite/block diagnostic plots (headless, synthetic data)."""
+
 from __future__ import annotations
 
 import matplotlib
@@ -29,16 +30,26 @@ def _block_dict() -> dict[str, xr.Dataset]:
     alt = np.array([4.0, 2.0, 0.5])
     return {
         "soot": xr.Dataset(
-            {"tau": (("wavelength", "layer"), np.full((2, 3), 0.5)),
-             "rho_kg_m3": ("layer", np.array([1e-6, 5e-7, 1e-7]))},
-            coords={"wavelength": np.array([0.3, 0.5]), "layer": np.arange(3),
-                    "altitude_km": ("layer", alt)},
+            {
+                "tau": (("wavelength", "layer"), np.full((2, 3), 0.5)),
+                "rho_kg_m3": ("layer", np.array([1e-6, 5e-7, 1e-7])),
+            },
+            coords={
+                "wavelength": np.array([0.3, 0.5]),
+                "layer": np.arange(3),
+                "altitude_km": ("layer", alt),
+            },
         ),
         "dust": xr.Dataset(
-            {"tau": (("wavelength", "layer"), np.full((2, 3), 0.2)),
-             "rho_kg_m3": ("layer", np.array([2e-6, 1e-6, 2e-7]))},
-            coords={"wavelength": np.array([0.3, 0.5]), "layer": np.arange(3),
-                    "altitude_km": ("layer", alt)},
+            {
+                "tau": (("wavelength", "layer"), np.full((2, 3), 0.2)),
+                "rho_kg_m3": ("layer", np.array([2e-6, 1e-6, 2e-7])),
+            },
+            coords={
+                "wavelength": np.array([0.3, 0.5]),
+                "layer": np.arange(3),
+                "altitude_km": ("layer", alt),
+            },
         ),
     }
 

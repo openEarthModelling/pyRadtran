@@ -1,4 +1,5 @@
 """Tests for physical zout-altitude retention and the heating-rate column."""
+
 from __future__ import annotations
 
 from pathlib import Path

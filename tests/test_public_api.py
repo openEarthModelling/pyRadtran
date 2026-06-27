@@ -2,6 +2,7 @@
 
 (`import pyradtran` must not pull matplotlib; viz symbols import lazily.)
 """
+
 from __future__ import annotations
 
 

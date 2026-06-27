@@ -1,4 +1,5 @@
 """Tests for component-attribution orchestration (no libRadtran)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -38,8 +39,8 @@ def test_attribution_contribution_is_full_minus_removed():
     # full=1.0; removing soot -> 0.7; removing dust -> 0.9
     results = {
         ("soot", "dust"): _ds(1.0),
-        ("dust",): _ds(0.7),     # soot removed
-        ("soot",): _ds(0.9),     # dust removed
+        ("dust",): _ds(0.7),  # soot removed
+        ("soot",): _ds(0.9),  # dust removed
     }
 
     def build_scene(c):

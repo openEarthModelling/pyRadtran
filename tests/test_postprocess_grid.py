@@ -1,8 +1,8 @@
 """Tests for composite/block grid evaluation helpers."""
+
 from __future__ import annotations
 
 import numpy as np
-import xarray as xr
 
 from pyradtran.core.postprocess import evaluate_blocks_on_grid, evaluate_composite_on_grid
 from pyradtran.models.aerosol_composite import LayerOptics

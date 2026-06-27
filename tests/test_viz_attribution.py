@@ -1,4 +1,5 @@
 """Tests for the component-attribution plot (headless, synthetic data)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

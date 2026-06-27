@@ -3,6 +3,9 @@
 from types import SimpleNamespace
 
 import numpy as np
+import pytest
+
+pytest.importorskip("Aerosol3D")  # needs the aerosol3d sibling repo (absent in CI)
 from Aerosol3D.bulk.datastructs import SizeDistribution
 
 from pyradtran.models.aerosol_composite import BulkSpecies
