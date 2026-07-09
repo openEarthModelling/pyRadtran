@@ -20,6 +20,14 @@ The simplest way to use pyRadtran is through the :class:`~pyradtran.Scene` build
     result = Runner.execute(scene, data_path="/usr/local/share/libRadtran/data")
     result.edir.plot()
 
+.. note::
+   Passing ``data_path=None`` (or omitting it) lets pyRadtran's
+   :class:`~pyradtran.data.DataResolver` find the data automatically — it checks
+   ``PYRADTRAN_DATA_PATH``, then ``LIBRADTRAN_DATA_FILES``, then
+   ``LIBRADTRANDIR/data``, then the subset bundled in the wheel. A portable call
+   is simply ``Runner.execute(scene, data_path=None)``. For strict offline runs,
+   force the bundled subset with ``Runner.configure(RunnerConfig(bundled_only=True))``.
+
 Global Configuration
 --------------------
 
