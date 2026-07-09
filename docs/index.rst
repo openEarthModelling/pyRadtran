@@ -13,6 +13,10 @@ pyRadtran provides a Pythonic, type-safe API for configuring and executing libRa
    guide/quickstart
    guide/scene_builder
    guide/aerosols
+   guide/blocks
+   guide/data
+   guide/visualization
+   guide/analysis
    guide/convenience
    guide/parallel
 
