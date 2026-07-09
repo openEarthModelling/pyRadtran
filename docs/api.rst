@@ -195,7 +195,7 @@ Aerosol Optics
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: pyradtran.optics.opac_tables
+.. automodule:: pyradtran.optics.opac
    :members:
    :undoc-members:
    :show-inheritance:
@@ -204,6 +204,51 @@ Presets
 -------
 
 .. automodule:: pyradtran.presets
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Data Layer
+----------
+
+.. automodule:: pyradtran.data
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: pyradtran.data.resolver
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Aerosol Building Blocks (LEGO)
+------------------------------
+
+.. automodule:: pyradtran.models.blocks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Postprocessing
+--------------
+
+.. automodule:: pyradtran.core.postprocess
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Visualization
+-------------
+
+.. automodule:: pyradtran.viz
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Workflow
+--------
+
+.. automodule:: pyradtran.workflow
    :members:
    :undoc-members:
    :show-inheritance:
