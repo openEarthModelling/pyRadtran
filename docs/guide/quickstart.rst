@@ -4,7 +4,7 @@ Quick Start
 Basic Transmittance Calculation
 -------------------------------
 
-The simplest way to use pyRadtran is through the :class:`~pyradtran.Scene` builder API::
+The simplest way to use pyRadtran is through the :class:`~pyradtran.scene.Scene` builder API::
 
     from pyradtran import Scene, Runner
 
