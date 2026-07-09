@@ -14,10 +14,15 @@ pyRadtran provides a Pythonic, type-safe API for configuring and executing libRa
 ## Features
 
 - **Scene Builder API**: Immutable, chainable configuration with type-safe Pydantic models
+- **Bundled Data Layer**: a curated libRadtran data subset (~60 MB) ships in the wheel and is resolved automatically by `DataResolver` (env var → bundled → system libRadtran)
+- **LEGO Blocks Aerosol API**: separate species optics from vertical placement; externally mix any number of blocks into one `CompositeAerosol`
 - **Multiple Solver Support**: DISORT, MYSTIC Monte Carlo, twostream, rodents, and more
-- **Aerosol Models**: OPAC presets, custom OPAC species, external optical property files, composite aerosols with Mie scattering
+- **Aerosol Models**: OPAC presets, custom OPAC species, external optical property files, Mie-species blocks, and bulk optics from Aerosol3D
 - **Atmospheric Profiles**: US standard, mid-latitude summer/winter, tropical, sub-arctic summer/winter
 - **3D and Cloud Simulations**: Support for 3D radiative transfer and cloudy scenes
+- **T/R/A Budget & Grid Diagnostics**: `add_budget_vars`/`compute_budget` and analytic composite/block evaluation without re-running RT
+- **Publication Visualization**: spectral, flux-profile, heating-rate, T/R/A budget, overview, composite-optics, block-profile, and component-attribution plots (matplotlib, optional)
+- **Component Attribution**: leave-one-out per-block RT attribution workflow
 - **High-Level Convenience Functions**: Pre-configured simulations for transmittance, radiance, thermal brightness, lidar, satellite, and more
 - **Parallel Execution**: Run multiple simulations in parallel with `Runner.execute_many()`
 - **xarray Output**: Simulation results returned as self-describing `xarray.Dataset` objects
@@ -25,7 +30,7 @@ pyRadtran provides a Pythonic, type-safe API for configuring and executing libRa
 
 ## Prerequisites
 
-pyRadtran requires **libRadtran** to be installed separately. libRadtran is not bundled with this package.
+pyRadtran requires the libRadtran **`uvspec` binary** to be installed separately (it is not bundled). A curated subset of the libRadtran **data** files (~60 MB: OPAC aerosol optics, AFGL atmospheres, reptran correlated-k, CRS cross-sections, solar flux) **is** bundled in the wheel and resolved automatically by `DataResolver`. Set `PYRADTRAN_DATA_PATH`, `LIBRADTRAN_DATA_FILES`, or `LIBRADTRANDIR` to use a full libRadtran data tree instead.
 
 ### Installing libRadtran
 
@@ -76,18 +81,17 @@ pip install pyradtran[plot]
 ```python
 from pyradtran import Scene, Runner
 
-# Configure the scene
 scene = (
     Scene()
     .set_atmosphere(profile="us", altitude=2.663)
     .set_source_solar(sza=30.0)
-    .set_wavelength(250.0, 1200.0)
+    .set_wavelength(400.0, 700.0)
     .set_solver(method="disort", streams=16)
-    .set_output(quantities=["lambda", "edir"], quantity="transmittance")
+    .set_output(quantities=["lambda", "edir"], format="ascii", zout=[0, "toa"])
 )
 
-# Execute the simulation
-result = Runner.execute(scene, data_path="/usr/local/share/libRadtran/data")
+# data_path=None -> resolve data via DataResolver (env var -> bundled -> system libRadtran)
+result = Runner.execute(scene, data_path=None)
 
 # Plot the result
 result.edir.plot()
@@ -98,12 +102,19 @@ result.edir.plot()
 Avoid repeating `data_path` and `uvspec_exe` on every call:
 
 ```python
-from pyradtran import Runner, RunnerConfig
+from pyradtran import Scene, Runner, RunnerConfig
 
-Runner.configure(
-    uvspec_exe="/usr/local/bin/uvspec",
-    data_path="/usr/local/share/libRadtran/data",
+scene = (
+    Scene()
+    .set_atmosphere(profile="us")
+    .set_source_solar(sza=30.0)
+    .set_wavelength(400.0, 700.0)
+    .set_solver(method="disort", streams=16)
+    .set_output(quantities=["lambda", "edir"], format="ascii", zout=[0, "toa"])
 )
+
+# Set global defaults once (data_path=None -> DataResolver)
+Runner.configure(RunnerConfig(data_path=None))
 
 # Now execute without repeating paths
 result = Runner.execute(scene)
@@ -114,23 +125,18 @@ result = Runner.execute(scene)
 For common tasks, use the high-level convenience API:
 
 ```python
-from pyradtran import run_solar_transmittance, run_solar_radiance
+# skip-doc-check: convenience functions emit NetCDF; the NetCDF parse path is
+# broken under the current xarray/libRadtran (tracked as a separate code bug).
+from pyradtran import run_solar_transmittance, run_with_opac_preset
 
-# Solar spectral transmittance
+# Solar spectral transmittance (data_path omitted -> DataResolver)
 transmittance = run_solar_transmittance(
-    airmass=2.0,
-    pwv=10.0,
-    ozone=300.0,
-    wl_min=300,
-    wl_max=1200,
+    airmass=2.0, pwv=10.0, ozone=300.0, wl_min=400, wl_max=700
 )
 
-# Solar spectral radiance with aerosol
+# Solar spectral radiance with an OPAC aerosol preset
 radiance = run_with_opac_preset(
-    preset="maritime_clean",
-    sza=45.0,
-    wl_min=400,
-    wl_max=800,
+    preset="continental_average", sza=45.0, wl_min=400, wl_max=700
 )
 ```
 
@@ -139,35 +145,47 @@ radiance = run_with_opac_preset(
 Run multiple scenes in parallel:
 
 ```python
-from pyradtran import Runner
+from pyradtran import Scene, Runner
 
-scenes = [scene1, scene2, scene3, scene4]
-results = Runner.execute_many(scenes, max_workers=4)
+
+def _scene(profile):
+    return (
+        Scene().set_atmosphere(profile=profile)
+        .set_source_solar(sza=30.0)
+        .set_wavelength(400.0, 700.0)
+        .set_solver(method="disort", streams=16)
+        .set_output(quantities=["lambda", "edir"], format="ascii", zout=[0, "toa"])
+    )
+
+
+scenes = [_scene(p) for p in ("us", "ms", "mw")]
+results = Runner.execute_many(scenes, max_workers=3)
+print(len(results))
 ```
 
-### Composite Aerosol with Mie Scattering
+### Composite Aerosol (LEGO blocks)
 
 ```python
-from pyradtran import CompositeAerosol, MieSpecies, SizeDistribution
-from pyradtran.models.aerosol_composite import RefractiveIndex, IntegrationConfig
-
-# Define a Mie species with log-normal size distribution
-aerosol = CompositeAerosol(
-    species=[
-        MieSpecies(
-            name="dust",
-            size_distribution=SizeDistribution.log_normal(
-                r_median=0.5,  # um
-                sigma_g=2.0,
-            ),
-            refractive_index=RefractiveIndex.from_constant(n=1.53, k=0.008),
-            density=2.6,  # g/cm3
-        )
-    ],
-    integration=IntegrationConfig(n_legendre=32),
+from pyradtran import Scene, Runner
+from pyradtran.models.aerosol_composite import (
+    CompositeAerosol, IntegrationConfig, MieSpecies, RefractiveIndex, SizeDistribution,
 )
+from pyradtran.models.blocks import PlacedBlock, od_to_mass_profile
 
-scene = Scene().set_aerosol(aerosol)
+altitude_km = [8.0, 6.0, 4.0, 2.0, 0.0]
+ri = RefractiveIndex(wavelength_um=[0.40, 0.55, 0.70], n_real=[1.53] * 3, k_imag=[0.008] * 3)
+sd = SizeDistribution(kind="lognormal", params={"r_g_um": 0.50, "sigma_g": 2.2})
+dust = MieSpecies(refractive_index=ri, size_distribution=sd,
+                  particle_density_kg_m3=2600.0, integration_config=IntegrationConfig(), name="dust")
+piece = PlacedBlock(block=dust, profile=od_to_mass_profile(
+    dust, tau_ref=0.20, ref_nm=550.0, altitude_km=altitude_km, scale_height_km=3.0))
+aerosol = CompositeAerosol(pieces=[piece], wavelength_grid_um=[0.50, 0.55, 0.60],
+                           altitude_grid_km=altitude_km, n_legendre=32, output_dir=".")
+scene = (Scene().set_atmosphere(profile="us").set_source_solar(sza=30.0)
+         .set_wavelength(500.0, 600.0).set_solver(method="disort", streams=16, disort_intcor="moments")
+         .set_output(quantities=["lambda", "edir", "edn", "eup"], format="ascii", zout=[0, 2, "toa"])
+         .set_aerosol(aerosol))
+result = Runner.execute(scene, data_path=None)
 ```
 
 ## Documentation
@@ -182,15 +200,18 @@ Full documentation is available at:
 
 ```
 pyradtran/
-├── core/               # Execution engine (Runner, input builder, output parser)
+├── core/               # Execution engine (Runner, input builder, output parser, postprocess)
+├── data/               # Bundled libRadtran data + DataResolver (tiered data-root resolution)
 ├── models/             # Configuration models (atmosphere, aerosol, solver, etc.)
-│   ├── aerosol.py      # OPAC and external aerosol models
-│   ├── aerosol_composite.py  # Composite aerosol with Mie scattering
-│   ├── atmosphere.py   # Atmospheric profile configuration
-│   ├── solver.py       # RTE solver configuration
-│   ├── source.py       # Radiation source configuration
+│   ├── aerosol.py           # OPAC and external aerosol models
+│   ├── aerosol_composite.py # CompositeAerosol, MieSpecies, BulkSpecies, SizeDistribution
+│   ├── blocks.py            # LEGO blocks: profiles, PlacedBlock, DirectLayerOpticsBlock
+│   ├── atmosphere.py        # Atmospheric profile configuration
+│   ├── solver.py            # RTE solver configuration
 │   └── ...
-├── optics/             # Mie scattering and optical property calculations
+├── optics/             # Mie scattering, mixing rules, layer writer, OPAC folding
+├── viz/                # Publication plots (RT, composite, block, attribution)
+├── workflow/           # RT orchestration (component attribution)
 ├── scene.py            # Immutable Scene builder API
 ├── convenience.py      # High-level convenience functions
 └── presets.py          # Common altitude and configuration presets
@@ -214,6 +235,11 @@ pyRadtran supports a growing subset of libRadtran's `uvspec` capabilities:
 | Lidar/SSLidar simulations | Supported |
 | Satellite geometry | Supported |
 | Polarized radiative transfer | Supported |
+| LEGO blocks aerosol API | Supported |
+| Bundled data layer (DataResolver) | Supported |
+| T/R/A budget postprocessing | Supported |
+| Publication visualization suite | Supported |
+| Component attribution workflow | Supported |
 | Output formats (netCDF, ASCII) | Supported |
 
 See the [design documents](docs/superpowers/specs/) for detailed coverage analysis and planned features.
