@@ -652,6 +652,14 @@ class TestOutputConfig:
         lines = o.to_uvspec_lines()
         assert "output_format netcdf" in lines
 
+    def test_default_format_is_ascii(self):
+        # uvspec's NetCDF output is broken in many libRadtran builds (empty .nc),
+        # so the safe default is ASCII — which works everywhere and yields an
+        # equivalent xarray.Dataset. NetCDF stays available via format="netcdf".
+        from pyradtran.models.output import OutputConfig
+
+        assert OutputConfig().format == "ascii"
+
     def test_zout(self):
         from pyradtran.models.output import OutputConfig
 

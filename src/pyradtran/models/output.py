@@ -48,7 +48,7 @@ class OutputConfig(UvspecOption):
     quantities: list[str] = Field(default_factory=list)
     quantity: str | None = None
     process: str | None = None
-    format: str = Field(default="netcdf")
+    format: str = Field(default="ascii")
     quiet: bool = True
     verbose: bool = False
     zout: list[float | str] = Field(default_factory=list)

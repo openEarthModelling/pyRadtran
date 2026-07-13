@@ -81,7 +81,21 @@ def parse_output(
 
 
 def _parse_netcdf(path: Path) -> xr.Dataset:
-    """Read NetCDF output file."""
+    """Read a NetCDF output file produced by uvspec.
+
+    libRadtran builds whose NetCDF support is broken at runtime (e.g. an ABI
+    mismatch with the system libnetcdf) write a 0-byte .nc; xarray then fails
+    with a cryptic "did not find a match in any of ... IO backends". Detect
+    empty/missing output and point the user at ``format="ascii"``, which works
+    everywhere and yields an equivalent xarray.Dataset.
+    """
+    if not path.exists() or path.stat().st_size == 0:
+        raise ValueError(
+            f"uvspec produced an empty or missing NetCDF file ({path}). The "
+            "libRadtran build may not support NetCDF output — use format='ascii' "
+            "instead (OutputConfig(format='ascii') or .set_output(format='ascii')), "
+            "which yields an equivalent xarray.Dataset."
+        )
     ds = xr.open_dataset(path)
     ds.load()
     ds.close()

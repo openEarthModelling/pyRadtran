@@ -74,7 +74,7 @@ def run_solar_transmittance(
         .set_source_solar(sza=sza)
         .set_wavelength(wl_min, wl_max)
         .set_solver(method="disort", streams=streams)
-        .set_output(quantity="transmittance", format="netcdf", quiet=True)
+        .set_output(quantity="transmittance", quiet=True)
         .set_surface(albedo=albedo)
     )
 
@@ -100,7 +100,7 @@ def run_thermal_brightness(
         .set_source_thermal()
         .set_wavelength(wl_min, wl_max)
         .set_solver(method="disort", streams=streams)
-        .set_output(quantity="brightness", format="netcdf", quiet=True)
+        .set_output(quantity="brightness", quiet=True)
     )
 
     if sur_temperature is not None:
@@ -160,7 +160,6 @@ def run_solar_radiance(
         .set_solver(method=solver, streams=streams)
         .set_output(
             quantities=["lambda", "edir", "edn", "eup"],
-            format="netcdf",
             quiet=True,
             zout=[0, "toa"],
         )
@@ -219,7 +218,6 @@ def run_with_aerosol(
         .set_solver(method="disort", streams=streams)
         .set_output(
             quantities=["lambda", "edir", "edn", "eup"],
-            format="netcdf",
             quiet=True,
             zout=[0, "toa"],
         )
@@ -291,7 +289,6 @@ def run_with_opac_preset(
         .set_solver(method="disort", streams=streams)
         .set_output(
             quantities=["lambda", "edir", "edn", "eup"],
-            format="netcdf",
             quiet=True,
             zout=[0, "toa"],
         )
@@ -364,7 +361,6 @@ def run_with_opac_custom(
         .set_solver(method="disort", streams=streams)
         .set_output(
             quantities=["lambda", "edir", "edn", "eup"],
-            format="netcdf",
             quiet=True,
             zout=[0, "toa"],
         )
@@ -438,7 +434,6 @@ def run_cloudy_scene(
         .set_solver(method="disort", streams=streams)
         .set_output(
             quantities=["lambda", "edir", "edn", "eup"],
-            format="netcdf",
             quiet=True,
             zout=[0, "toa"],
         )
@@ -513,7 +508,7 @@ def run_lidar(
             range_bin=range_bin,
             n_ranges=n_ranges,
         )
-        .set_output(format="netcdf", quiet=True)
+        .set_output(quiet=True)
     )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
@@ -563,7 +558,7 @@ def run_polarized(
         .set_solver(method="mystic", streams=streams)
         .set_aerosol(composite)
         .set_mc(photons=photons, backward=True, polarisation=True)
-        .set_output(quantities=["lambda", "uu_pol"], quiet=True, format="netcdf")
+        .set_output(quantities=["lambda", "uu_pol"], quiet=True)
     )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
@@ -607,7 +602,7 @@ def run_3d(
         .set_wavelength(wl_min, wl_max)
         .set_solver(method="mystic", streams=8)
         .set_mc(photons=photons, ipa=ipa)
-        .set_output(format="netcdf", quiet=True)
+        .set_output(quiet=True)
     )
 
     three_d_kwargs = {}
@@ -654,7 +649,7 @@ def run_satellite(
         .set_satellite(geometry=geometry, pixel=pixel, source="solar", sza=sza)
         .set_wavelength(wl_min, wl_max)
         .set_solver(method=solver, streams=streams)
-        .set_output(format="netcdf", quiet=True)
+        .set_output(quiet=True)
     )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)

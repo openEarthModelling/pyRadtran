@@ -1,6 +1,7 @@
 """Tests for uvspec output parsing (ASCII and NetCDF)."""
 
 import numpy as np
+import pytest
 import xarray as xr
 
 from pyradtran.core.output_parser import parse_output
@@ -69,3 +70,12 @@ class TestParseNetcdfOutput:
         assert isinstance(ds, xr.Dataset)
         assert len(ds.wavelength) == 3
         assert np.isclose(ds.edir.values[1], 5.67)
+
+    def test_empty_file_gives_clear_error(self, tmp_path):
+        # uvspec writes a 0-byte .nc when the libRadtran build can't emit NetCDF;
+        # surface that as a helpful error pointing at format="ascii" rather than
+        # xarray's cryptic "did not find a match in any of ... IO backends".
+        out_file = tmp_path / "uvspec.nc"
+        out_file.write_text("")
+        with pytest.raises(ValueError, match="ascii"):
+            parse_output(out_file, format="netcdf")

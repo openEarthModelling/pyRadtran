@@ -52,6 +52,7 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 ### Changed
 - `OpacPreset` / `OpacCustom` are now `PlacedBlock` factories; OPAC convenience functions expose `output_dir`.
 - Runner resolves the libRadtran data path through `DataResolver`.
+- **Default `Output.format` is now `"ascii"`** (was `"netcdf"`): uvspec's NetCDF output is broken in many libRadtran builds (a 0-byte `.nc` from a libnetcdf ABI mismatch), so the previous default crashed every simulation that omitted `format=`. ASCII works everywhere and yields an equivalent `xarray.Dataset`; NetCDF remains available via `format="netcdf"`. The convenience functions no longer hardcode `"netcdf"` — they inherit the ASCII default.
 - Distribution name corrected to `pyRadtran` (PyPI page title and `pip show` now preserve case; the project URL and wheel filename remain lowercase per PEP 503/625 normalization, which is unavoidable).
 
 ### Removed
@@ -66,6 +67,7 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 - NumPy 2.x compatibility (`np.trapz` removed; replaced with `np.trapezoid` / a `_trapz` shim).
 - `AttributionLike` made read-only so a frozen `AttributionResult` satisfies the protocol.
 - CI branch triggers, lint, and test assertions realigned for green CI.
+- Convenience functions no longer crash on the NetCDF parse path: they now use ASCII output (see **Changed**). `_parse_netcdf` raises a clear error pointing at `format='ascii'` when uvspec produces an empty/missing NetCDF file instead of xarray's cryptic backend-mismatch message.
 
 ## [0.1.0] - 2026-05-12
 
