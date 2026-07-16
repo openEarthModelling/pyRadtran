@@ -68,6 +68,7 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 - `AttributionLike` made read-only so a frozen `AttributionResult` satisfies the protocol.
 - CI branch triggers, lint, and test assertions realigned for green CI.
 - Convenience functions no longer crash on the NetCDF parse path: they now use ASCII output (see **Changed**). `_parse_netcdf` raises a clear error pointing at `format='ascii'` when uvspec produces an empty/missing NetCDF file instead of xarray's cryptic backend-mismatch message.
+- `run_with_opac_preset` / `run_with_opac_custom` now set `disort_intcor="moments"` on their DISORT solver. The OPAC folding produces Legendre-moment phase functions, which DISORT rejects without this flag (`you need to specify 'disort_intcor moments'`); these functions previously crashed at runtime.
 
 ## [0.1.0] - 2026-05-12
 

@@ -228,3 +228,34 @@ def test_run_with_opac_custom_creates_scene():
         assert scene_arg.aerosol is not None
         assert isinstance(scene_arg.aerosol, CompositeAerosol)
         assert len(scene_arg.aerosol.pieces) >= 1
+
+
+def test_run_with_opac_preset_sets_disort_intcor_moments():
+    """OPAC folded phase functions are Legendre moments; DISORT needs disort_intcor='moments'."""
+    _need_opac_data()
+    from unittest.mock import MagicMock, patch
+
+    from pyradtran.convenience import run_with_opac_preset
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_with_opac_preset(preset="maritime_clean", sza=45.0, wl_min=545.0, wl_max=555.0)
+        scene_arg = _get_scene_arg(mock_exec)
+        assert scene_arg.solver.disort_intcor == "moments"
+
+
+def test_run_with_opac_custom_sets_disort_intcor_moments():
+    """OPAC custom profile also folds Mie moments; DISORT needs disort_intcor='moments'."""
+    _need_opac_data()
+    from unittest.mock import MagicMock, patch
+
+    from pyradtran.convenience import run_with_opac_custom
+    from pyradtran.optics import opac
+
+    species_file = str(opac._opac_root(None) / "standard_aerosol_files" / "continental_average.dat")
+
+    mock_dataset = MagicMock()
+    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
+        run_with_opac_custom(species_file=species_file, sza=45.0, wl_min=545.0, wl_max=555.0)
+        scene_arg = _get_scene_arg(mock_exec)
+        assert scene_arg.solver.disort_intcor == "moments"

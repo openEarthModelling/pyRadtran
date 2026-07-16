@@ -286,7 +286,7 @@ def run_with_opac_preset(
         .set_mol_modify("O3", ozone, "DU")
         .set_source_solar(sza=sza)
         .set_wavelength(wl_min, wl_max)
-        .set_solver(method="disort", streams=streams)
+        .set_solver(method="disort", streams=streams, disort_intcor="moments")
         .set_output(
             quantities=["lambda", "edir", "edn", "eup"],
             quiet=True,
@@ -358,7 +358,7 @@ def run_with_opac_custom(
         .set_mol_modify("O3", ozone, "DU")
         .set_source_solar(sza=sza)
         .set_wavelength(wl_min, wl_max)
-        .set_solver(method="disort", streams=streams)
+        .set_solver(method="disort", streams=streams, disort_intcor="moments")
         .set_output(
             quantities=["lambda", "edir", "edn", "eup"],
             quiet=True,

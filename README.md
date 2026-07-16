@@ -125,8 +125,8 @@ result = Runner.execute(scene)
 For common tasks, use the high-level convenience API:
 
 ```python
-# skip-doc-check: convenience functions emit NetCDF; the NetCDF parse path is
-# broken under the current xarray/libRadtran (tracked as a separate code bug).
+# skip-doc-check: run_with_opac_preset works after the disort_intcor fix, but the
+# OPAC aerosol data has spline edge quirks at some wide bands (e.g. 400-700 nm).
 from pyradtran import run_solar_transmittance, run_with_opac_preset
 
 # Solar spectral transmittance (data_path omitted -> DataResolver)
