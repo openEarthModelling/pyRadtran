@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 
 from pyradtran.core.runner import Runner
-from pyradtran.models.aerosol import ExternalAerosol, OpacCustom, OpacPreset, OpacPresetName
+from pyradtran.models.aerosol import OpacCustom, OpacPreset, OpacPresetName
 from pyradtran.scene import Scene
 
 
@@ -165,69 +165,6 @@ def run_solar_radiance(
         )
         .set_surface(albedo=albedo)
     )
-
-    return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
-
-
-def run_with_aerosol(
-    aerosol_file_type: str = "explicit",
-    aerosol_file_path: str | None = None,
-    sza: float = 30.0,
-    profile: str = "us",
-    altitude: float | str = 0.0,
-    pwv: float = 5.0,
-    ozone: float = 300.0,
-    wl_min: float = 300.0,
-    wl_max: float = 2500.0,
-    albedo: float = 0.2,
-    streams: int = 16,
-    uvspec_exe: str | None = None,
-    data_path: str | None = None,
-) -> xr.Dataset:
-    """Run uvspec with external aerosol optical property file.
-
-    Args:
-        aerosol_file_type: Type of aerosol file (explicit, gg, ssa, tau, moments).
-        aerosol_file_path: Path to the aerosol file.
-        sza: Solar zenith angle in degrees.
-        profile: Atmospheric profile name.
-        altitude: Surface altitude in km.
-        pwv: Precipitable water vapor in mm.
-        ozone: Ozone column in DU.
-        wl_min: Minimum wavelength in nm.
-        wl_max: Maximum wavelength in nm.
-        albedo: Surface albedo.
-        streams: Number of DISORT streams.
-        uvspec_exe: Path to uvspec binary.
-        data_path: Path to libRadtran data directory.
-
-    Returns:
-        xarray.Dataset with irradiance vs wavelength.
-    """
-    from pyradtran.presets import resolve_altitude
-
-    resolved_altitude = resolve_altitude(altitude)
-
-    scene = (
-        Scene()
-        .set_atmosphere(profile=profile, altitude=resolved_altitude)
-        .set_mol_modify("H2O", pwv, "MM")
-        .set_mol_modify("O3", ozone, "DU")
-        .set_source_solar(sza=sza)
-        .set_wavelength(wl_min, wl_max)
-        .set_solver(method="disort", streams=streams)
-        .set_output(
-            quantities=["lambda", "edir", "edn", "eup"],
-            quiet=True,
-            zout=[0, "toa"],
-        )
-        .set_surface(albedo=albedo)
-    )
-
-    if aerosol_file_path is not None:
-        scene = scene.set_aerosol(
-            ExternalAerosol(files=[(aerosol_file_type, aerosol_file_path)]),
-        )
 
     return Runner.execute(scene, uvspec_exe=uvspec_exe, data_path=data_path)
 

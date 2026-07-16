@@ -4,7 +4,6 @@ from pyradtran.models.advanced import AdvancedConfig
 from pyradtran.models.aerosol import (
     AerosolModel,
     AerosolModifyEntry,
-    ExternalAerosol,
     OpacCustom,
     OpacPreset,
     OpacPresetName,
@@ -35,7 +34,6 @@ __all__ = [
     "OpacPreset",
     "OpacPresetName",
     "OpacCustom",
-    "ExternalAerosol",
     "CloudConfig",
     "McConfig",
     "AdvancedConfig",

@@ -13,7 +13,6 @@ from pyradtran.convenience import (
     run_solar_radiance,
     run_solar_transmittance,
     run_thermal_brightness,
-    run_with_aerosol,
     run_with_opac_custom,
     run_with_opac_preset,
 )
@@ -30,8 +29,6 @@ from pyradtran.models import ThreeDConfig
 from pyradtran.models.aerosol import (
     AerosolModel,
     AerosolModifyEntry,
-    ExternalAerosol,
-    ExternalFile,
     OpacCustom,
     OpacPreset,
     OpacPresetName,
@@ -72,8 +69,6 @@ __all__ = [
     "OpacPreset",
     "OpacPresetName",
     "OpacCustom",
-    "ExternalAerosol",
-    "ExternalFile",
     # Composite aerosol classes
     "RefractiveIndex",
     "SizeDistribution",
@@ -107,7 +102,6 @@ __all__ = [
     "run_thermal_brightness",
     "run_solar_radiance",
     "run_satellite",
-    "run_with_aerosol",
     "run_with_opac_preset",
     "run_with_opac_custom",
     "run_cloudy_scene",
