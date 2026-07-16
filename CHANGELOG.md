@@ -59,6 +59,7 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 - **Breaking:** `CompositeAerosol` now takes `pieces`; `LoadedSpecies` and `Species` are removed (`refactor(aerosol)!`).
 - Removed the `ParticleOptics.from_aerosol3d()` / `PrecomputedSpecies` coupling layer (superseded by `BulkSpecies` + blocks).
 - Removed vestigial `OPACSpecies` (netCDF layer-dump path) and `optics/opac_tables.py`.
+- **Breaking:** removed `ExternalFile` / `ExternalAerosol` and the `run_with_aerosol` convenience function — the only non-LEGO aerosol path. Pre-computed explicit files now go through `DirectLayerOpticsBlock` mixed into a `CompositeAerosol`. Also removed the unused `AerosolModel.set_tau_at_wvl` / `king_byrne` fields (never set by any code path).
 
 ### Fixed
 - libRadtran integration issues for explicit aerosol coupling.

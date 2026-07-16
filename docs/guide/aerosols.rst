@@ -43,21 +43,28 @@ Mix individual OPAC species with custom concentrations::
     )
     scene = Scene().set_aerosol(aerosol)
 
-External Aerosol Files
-----------------------
+Pre-computed layer files (DirectLayerOpticsBlock)
+-------------------------------------------------
 
-Use pre-computed aerosol optical properties from external files::
+For a pre-computed explicit aerosol file (a ``.master`` / ``.LAYER`` set),
+wrap it in a :class:`~pyradtran.models.blocks.DirectLayerOpticsBlock` and mix
+it into a :class:`~pyradtran.models.aerosol_composite.CompositeAerosol`::
 
-    from pyradtran import ExternalAerosol, ExternalFile
+    from pyradtran.models.aerosol_composite import CompositeAerosol
+    from pyradtran.models.blocks import DirectLayerOpticsBlock
 
-    aerosol = ExternalAerosol(
-        files=[
-            ExternalFile(path="aerosol_explicit.dat", type="explicit"),
-        ]
+    aerosol = CompositeAerosol(
+        pieces=[DirectLayerOpticsBlock(master_path="my_aerosol.master", name="ext")],
+        wavelength_grid_um=[0.50, 0.55, 0.60],   # must match the file's grid
+        altitude_grid_km=[8.0, 6.0, 4.0, 2.0, 0.0],
+        n_legendre=32,
+        output_dir=".",
     )
     scene = Scene().set_aerosol(aerosol)
 
-Supported file types: ``"explicit"``, ``"gg"``, ``"ssa"``, ``"tau"``, ``"moments"``.
+.. note::
+   ``DirectLayerOpticsBlock`` performs no wavelength resampling — the grids
+   passed to ``CompositeAerosol`` must match the file's grid exactly.
 
 Composite Aerosol with Mie Scattering
 -------------------------------------
