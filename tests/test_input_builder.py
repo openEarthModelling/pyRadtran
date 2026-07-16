@@ -49,21 +49,6 @@ def test_with_raw_keywords():
     assert "mc_backward" in lines
 
 
-def test_with_aerosol():
-    from pyradtran.models.aerosol import ExternalFile
-
-    text = build_input_text(
-        atmosphere=AtmosphereConfig(profile="us"),
-        source=SourceConfig(source="solar", sza=45.0),
-        wavelength=WavelengthConfig(wavelength_min=300.0, wavelength_max=2500.0),
-        solver=SolverConfig(method="disort", streams=16),
-        output=OutputConfig(quiet=True),
-        aerosol=ExternalFile(files=[("explicit", "/data/x.dat")]),
-    )
-    lines = text.strip().split("\n")
-    assert "aerosol_file explicit /data/x.dat" in lines
-
-
 def test_with_data_files_path():
     text = build_input_text(
         atmosphere=AtmosphereConfig(profile="us"),

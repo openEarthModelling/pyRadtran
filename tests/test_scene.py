@@ -5,6 +5,34 @@ import pytest
 from pyradtran.scene import Scene
 
 
+def _minimal_composite():
+    from pyradtran.models.aerosol_composite import (
+        CompositeAerosol,
+        IntegrationConfig,
+        MieSpecies,
+        RefractiveIndex,
+        SizeDistribution,
+    )
+    from pyradtran.models.blocks import MassProfile, PlacedBlock
+
+    ri = RefractiveIndex(wavelength_um=[0.40, 0.70], n_real=[1.5, 1.5], k_imag=[0.0, 0.0])
+    sd = SizeDistribution(kind="lognormal", params={"r_g_um": 0.1, "sigma_g": 1.5})
+    sp = MieSpecies(
+        refractive_index=ri,
+        size_distribution=sd,
+        particle_density_kg_m3=1000.0,
+        integration_config=IntegrationConfig(),
+        name="x",
+    )
+    return CompositeAerosol(
+        pieces=[PlacedBlock(block=sp, profile=MassProfile(kg_m3_per_layer=(1e-7,)))],
+        wavelength_grid_um=[0.40, 0.70],
+        altitude_grid_km=[1.0, 0.0],
+        n_legendre=4,
+        output_dir=".",
+    )
+
+
 class TestSceneBuilder:
     def test_empty_scene_raises_on_build(self):
         scene = Scene()
@@ -72,11 +100,10 @@ class TestSceneBuilder:
         assert scene.surface.albedo == 0.2
 
     def test_set_aerosol(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        scene = Scene().set_aerosol(ExternalFile(files=[("explicit", "/data/x.dat")]))
+        aerosol = _minimal_composite()
+        scene = Scene().set_aerosol(aerosol)
         assert scene.aerosol is not None
-        assert isinstance(scene.aerosol, ExternalFile)
+        assert scene.aerosol is aerosol
 
     def test_build_input_returns_string(self):
         scene = (
@@ -125,13 +152,7 @@ class TestSceneBuilder:
 
 
 def test_set_aerosol_modify():
-    from pyradtran.models.aerosol import ExternalFile
-
-    scene = (
-        Scene()
-        .set_atmosphere(profile="us")
-        .set_aerosol(ExternalFile(files=[("explicit", "/data/x.dat")]))
-    )
+    scene = Scene().set_atmosphere(profile="us").set_aerosol(_minimal_composite())
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     items = scene2.aerosol.to_uvspec_items()
     lines = [line for _, line in items]
@@ -139,13 +160,7 @@ def test_set_aerosol_modify():
 
 
 def test_set_aerosol_modify_multiple():
-    from pyradtran.models.aerosol import ExternalFile
-
-    scene = (
-        Scene()
-        .set_atmosphere(profile="us")
-        .set_aerosol(ExternalFile(files=[("explicit", "/data/x.dat")]))
-    )
+    scene = Scene().set_atmosphere(profile="us").set_aerosol(_minimal_composite())
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     scene3 = scene2.set_aerosol_modify("gg", "set", 0.7)
     items = scene3.aerosol.to_uvspec_items()
@@ -177,12 +192,10 @@ def test_set_surface_brdf():
 
 
 def test_immutable_set_aerosol_modify():
-    from pyradtran.models.aerosol import ExternalFile
-
     scene = (
         Scene()
         .set_atmosphere(profile="us")
-        .set_aerosol(ExternalFile(files=[("explicit", "/data/x.dat")]))
+        .set_aerosol(_minimal_composite())
     )
     scene2 = scene.set_aerosol_modify("ssa", "scale", 0.85)
     assert len(scene.aerosol.modify) == 0

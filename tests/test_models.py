@@ -4,7 +4,7 @@ Covers:
   - UvspecOption base class
   - AtmosphereConfig, SourceConfig, WavelengthConfig, SolverConfig, OutputConfig
   - SurfaceConfig
-  - AerosolModel, OpacPreset, OpacCustom, ExternalAerosol, AerosolModifyEntry
+  - AerosolModel, OpacPreset, OpacCustom, AerosolModifyEntry
   - CloudConfig, McConfig, AdvancedConfig
 """
 
@@ -951,91 +951,47 @@ class TestOpacCustom:
             OpacCustom(species_file="/data/my_profile.dat", species_names=["bogus"])
 
 
-class TestExternalAerosol:
-    def test_single_file(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(files=[("explicit", "/data/profile.dat")])
-        lines = a.to_uvspec_lines()
-        assert "aerosol_file explicit /data/profile.dat" in lines
-
-    def test_multiple_files(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(
-            files=[
-                ("tau", "/data/tau.dat"),
-                ("ssa", "/data/ssa.dat"),
-                ("moments", "/data/mom.dat"),
-            ],
-        )
-        lines = a.to_uvspec_lines()
-        assert "aerosol_file tau /data/tau.dat" in lines
-        assert "aerosol_file ssa /data/ssa.dat" in lines
-        assert "aerosol_file moments /data/mom.dat" in lines
-
-    def test_ref_file_type(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(files=[("ref", "/data/refr.dat")])
-        lines = a.to_uvspec_lines()
-        assert "aerosol_file ref /data/refr.dat" in lines
-
-    def test_siz_file_type(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(files=[("siz", "/data/sizedist.dat")])
-        lines = a.to_uvspec_lines()
-        assert "aerosol_file siz /data/sizedist.dat" in lines
-
-    def test_invalid_file_type(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        with pytest.raises(Exception):
-            ExternalFile(files=[("invalid", "/data/profile.dat")])
-
-
 class TestAerosolModel:
-    """Tests for AerosolModel base class capabilities (via ExternalFile)."""
+    """Tests for AerosolModel base-class modify emission (via CompositeAerosol/OpacPreset)."""
 
-    def test_set_tau_at_wvl(self):
-        from pyradtran.models.aerosol import ExternalFile
+    @staticmethod
+    def _composite(modify):
+        from pyradtran.models.aerosol_composite import (
+            CompositeAerosol,
+            IntegrationConfig,
+            MieSpecies,
+            RefractiveIndex,
+            SizeDistribution,
+        )
+        from pyradtran.models.blocks import MassProfile, PlacedBlock
 
-        a = ExternalFile(files=[("explicit", "/data/x.dat")], set_tau_at_wvl=(550.0, 0.3))
-        items = a.to_uvspec_items()
-        lines = [line for _, line in items]
-        assert "aerosol_file explicit /data/x.dat" in lines
-        assert "aerosol_set_tau_at_wvl 550.0 0.3" in lines
-
-    def test_king_byrne(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(files=[("explicit", "/data/x.dat")], king_byrne=(1.027, -0.25, 0.03))
-        items = a.to_uvspec_items()
-        lines = [line for _, line in items]
-        assert "aerosol_king_byrne 1.027 -0.25 0.03" in lines
+        ri = RefractiveIndex(wavelength_um=[0.40, 0.70], n_real=[1.5, 1.5], k_imag=[0.0, 0.0])
+        sd = SizeDistribution(kind="lognormal", params={"r_g_um": 0.1, "sigma_g": 1.5})
+        sp = MieSpecies(
+            refractive_index=ri,
+            size_distribution=sd,
+            particle_density_kg_m3=1000.0,
+            integration_config=IntegrationConfig(),
+            name="x",
+        )
+        return CompositeAerosol(
+            pieces=[PlacedBlock(block=sp, profile=MassProfile(kg_m3_per_layer=(1e-7,)))],
+            wavelength_grid_um=[0.40, 0.70],
+            altitude_grid_km=[1.0, 0.0],
+            n_legendre=4,
+            output_dir=".",
+            modify=modify,
+        )
 
     def test_modify_scale(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(
-            files=[("explicit", "/data/x.dat")],
-            modify=[{"variable": "ssa", "action": "scale", "value": 0.85}],
-        )
+        a = self._composite(modify=[{"variable": "ssa", "action": "scale", "value": 0.85}])
         items = a.to_uvspec_items()
-        lines = [line for _, line in items]
-        assert "aerosol_modify ssa scale 0.85" in lines
+        assert "aerosol_modify ssa scale 0.85" in [line for _, line in items]
 
     def test_modify_set(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(
-            files=[("explicit", "/data/x.dat")],
-            modify=[{"variable": "gg", "action": "set", "value": 0.7}],
-        )
+        a = self._composite(modify=[{"variable": "gg", "action": "set", "value": 0.7}])
         items = a.to_uvspec_items()
-        lines = [line for _, line in items]
-        assert "aerosol_modify gg set 0.7" in lines
+        assert "aerosol_modify gg set 0.7" in [line for _, line in items]
 
     def test_modify_invalid_variable(self):
         from pyradtran.models.aerosol import OpacPreset, OpacPresetName
@@ -1054,25 +1010,6 @@ class TestAerosolModel:
                 name=OpacPresetName.CONTINENTAL_AVERAGE,
                 modify=[{"variable": "ssa", "action": "bogus", "value": 1.0}],
             )
-
-    def test_phase_is_5(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(files=[("explicit", "/data/x.dat")])
-        items = a.to_uvspec_items()
-        assert all(phase == 5 for phase, _ in items)
-
-    def test_external_aerosol_set_tau_at_wvl(self):
-        from pyradtran.models.aerosol import ExternalFile
-
-        a = ExternalFile(
-            files=[("explicit", "/data/aerosol.dat")],
-            set_tau_at_wvl=(550.0, 0.2),
-        )
-        items = a.to_uvspec_items()
-        lines = [line for _, line in items]
-        assert "aerosol_file explicit /data/aerosol.dat" in lines
-        assert "aerosol_set_tau_at_wvl 550.0 0.2" in lines
 
 
 # ---------------------------------------------------------------------------

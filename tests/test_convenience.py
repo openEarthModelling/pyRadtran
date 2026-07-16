@@ -89,24 +89,6 @@ def test_run_solar_radiance_creates_scene():
         assert result is mock_dataset
 
 
-def test_run_with_aerosol_creates_scene():
-    """Verify run_with_aerosol passes aerosol config correctly."""
-    from unittest.mock import MagicMock, patch
-
-    from pyradtran.convenience import run_with_aerosol
-
-    mock_dataset = MagicMock()
-    with patch("pyradtran.convenience.Runner.execute", return_value=mock_dataset) as mock_exec:
-        run_with_aerosol(
-            aerosol_file_type="explicit",
-            aerosol_file_path="/data/profile.dat",
-            sza=45.0,
-        )
-        scene_arg = _get_scene_arg(mock_exec)
-        assert scene_arg.aerosol is not None
-        assert scene_arg.aerosol.files == [("explicit", "/data/profile.dat")]
-
-
 def test_run_cloudy_scene_creates_scene():
     """Verify run_cloudy_scene passes cloud config correctly."""
     from unittest.mock import MagicMock, patch
