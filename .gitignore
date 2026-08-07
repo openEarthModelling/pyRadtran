@@ -16,3 +16,11 @@ venv/
 .worktrees/
 docs/_build/
 docs/superpowers/
+
+# libRadtran/uvspec run artifacts (explicit aerosol files, MYSTIC spectral/seed)
+*.LAYER
+*.master
+/aerosol/
+*.flx.spc
+*.rad.spc
+randomseed
