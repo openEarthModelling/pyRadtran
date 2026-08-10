@@ -161,8 +161,23 @@ class TestRun3D:
         assert isinstance(result, xr.Dataset)
 
 
+def _need_mps(data_path):
+    """Skip unless libRadtran's MPS satellite-geometry netCDF is available.
+
+    MPS ships with libRadtran (not bundled here). Gate the satellite test so
+    CI without the full libRadtran data tree skips cleanly instead of failing.
+    """
+    import os
+
+    for root in (data_path, os.environ.get("PYRADTRAN_DATA_PATH")):
+        if root and os.path.isfile(os.path.join(root, "MPS")):
+            return
+    pytest.skip("libRadtran MPS satellite-geometry file not available")
+
+
 class TestRunSatellite:
     def test_returns_dataset(self, uvspec_exe, data_path):
+        _need_mps(data_path)
         from pyradtran.convenience import run_satellite
 
         result = run_satellite(

@@ -1,4 +1,11 @@
 import numpy as np
+
+# numpy >=2.0 renamed np.trapz -> np.trapezoid; env has 1.26.x. Mirror mie.py guard.
+try:
+    from numpy import trapezoid as _trapz
+except ImportError:  # numpy < 2.0
+    from numpy import trapz as _trapz  # type: ignore[attr-defined]
+
 import pytest
 
 from pyradtran.models.aerosol_composite import (
@@ -55,7 +62,7 @@ class TestSizeDistribution:
         sd = SizeDistribution(kind="lognormal", params={"r_g_um": 0.5, "sigma_g": 2.0})
         r = np.logspace(-2, 2, 10000)
         dn = sd.evaluate(r)
-        total = np.trapezoid(dn, r)
+        total = _trapz(dn, r)
         assert np.isclose(total, 1.0, rtol=0.01)
 
     def test_monodisperse_peak_location(self):
@@ -81,7 +88,7 @@ class TestSizeDistribution:
         )
         r = np.logspace(-2, 2, 10000)
         dn = sd.evaluate(r)
-        total = np.trapezoid(dn, r)
+        total = _trapz(dn, r)
         assert np.isclose(total, 1.0, rtol=0.01)
 
     def test_discrete_normalization(self):
@@ -91,7 +98,7 @@ class TestSizeDistribution:
         )
         r = np.logspace(-2, 2, 10000)
         dn = sd.evaluate(r)
-        total = np.trapezoid(dn, r)
+        total = _trapz(dn, r)
         assert np.isclose(total, 1.0, rtol=0.01)
 
     def test_modified_gamma_invalid_params_raises(self):
