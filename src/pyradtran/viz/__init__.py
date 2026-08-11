@@ -4,6 +4,7 @@ from pyradtran.viz._style import get_palette, save, set_theme
 from pyradtran.viz.attribution import AttributionLike, plot_component_attribution
 from pyradtran.viz.blocks import plot_block_spectral_optics
 from pyradtran.viz.composite import plot_block_profiles, plot_composite_optics
+from pyradtran.viz.forcing import plot_drf_spectral, plot_spectral_attribution
 from pyradtran.viz.inputs import plot_legendre_decay, plot_phase_functions, plot_size_distributions
 from pyradtran.viz.rt import (
     plot_budget,
@@ -30,4 +31,6 @@ __all__ = [
     "plot_phase_functions",
     "plot_legendre_decay",
     "plot_block_spectral_optics",
+    "plot_drf_spectral",
+    "plot_spectral_attribution",
 ]
