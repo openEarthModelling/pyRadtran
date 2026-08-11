@@ -1,21 +1,7 @@
 """Comprehensive pyRadtran demo: LEGO blocks -> DISORT -> full viz + workflow.
 
-Self-contained (pyRadtran APIs only, no aerosol3d dependency). Three aerosol
-blocks with contrasting optics are built from refractive indices + lognormal
-size distributions via ``MieSpecies``, externally mixed into one
-``CompositeAerosol``, and run through DISORT. The script then exercises the
-FULL ``pyradtran.viz`` plot surface and the component-attribution workflow.
-
-  Composite diagnostics (analytic mixing, no RT):
-    - evaluate_composite_on_grid -> plot_composite_optics (tau / ssa / g)
-    - evaluate_blocks_on_grid    -> plot_block_profiles (per-block tau(z), rho(z))
-
-  RT result plots (full composite, real DISORT):
-    - plot_spectral, plot_flux_profile, plot_budget (via add_budget_vars),
-      plot_heating_rate (if libRadtran emits it), plot_rt_overview
-
-  Workflow (component attribution, leave-one-out):
-    - compute_component_attribution -> plot_component_attribution
+Self-contained (pyRadtran APIs only, no aerosol3d dependency). Scene config +
+composite builders live in ``canonical.py`` (shared with the regression test).
 
 Requires libRadtran. Set PYRADTRAN_DATA_PATH to its data/ dir (or rely on the
 bundled resolver).
@@ -26,28 +12,27 @@ Usage:
 
 import logging
 import os
-from pathlib import Path
 
 import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from pyradtran import Runner, Scene
+from canonical import (
+    ALTITUDE_GRID_KM,
+    N_LEGENDRE,
+    OUTPUT_DIR,
+    WAVELENGTHS_UM,
+    build_composite,
+    build_scene,
+)
+from pyradtran import Runner
 from pyradtran.core.output_parser import HEATING_RATE_COLUMN
 from pyradtran.core.postprocess import (
     add_budget_vars,
     evaluate_blocks_on_grid,
     evaluate_composite_on_grid,
 )
-from pyradtran.models.aerosol_composite import (
-    CompositeAerosol,
-    IntegrationConfig,
-    MieSpecies,
-    RefractiveIndex,
-    SizeDistribution,
-)
-from pyradtran.models.blocks import PlacedBlock, od_to_mass_profile
 from pyradtran.viz import (
     plot_block_profiles,
     plot_budget,
@@ -65,74 +50,7 @@ from pyradtran.workflow import compute_component_attribution
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-EXAMPLE_DIR = Path(__file__).parent
-OUTPUT_DIR = EXAMPLE_DIR / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
-
-# --- Spectral / grid (composite optics on a coarse grid; DISORT resamples) ---
-WAVELENGTHS_UM = [0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70]
-N_LEGENDRE = 32
-ALTITUDE_GRID_KM = [10.0, 8.0, 6.0, 4.0, 2.0, 1.0, 0.0]  # descending (TOA -> surface)
-REF_NM = 550.0
-ZOUT_LEVELS = [0, 1, 2, 4, 6, 8, 10, "toa"]
-
-# --- RT scene ---
-SZA_DEG = 30.0
-ALBEDO = 0.1
-N_STREAMS = 16
-SCENE_KW = {
-    "atmosphere": {"profile": "us", "altitude": 0.0},
-    "source": {"sza": SZA_DEG},
-    "wavelength": {"min_nm": 401.0, "max_nm": 699.0},
-    "solver": {
-        "method": "disort",
-        "streams": N_STREAMS,
-        "disort_intcor": "moments",
-        "pseudospherical": True,
-    },
-    "surface": {"albedo": ALBEDO},
-    "output": {
-        "quantities": ["lambda", "edir", "edn", "eup"],
-        "format": "ascii",
-        "zout": ZOUT_LEVELS,
-        "heating_rate": "local",
-    },
-}
-
-# --- Three LEGO blocks: refractive index, lognormal size dist, placement ---
-_WL_RI = [0.30, 0.40, 0.55, 0.70, 1.00]  # µm; constant n/k across the band
-BLOCKS = [
-    {
-        "name": "black_carbon",
-        "n_real": [1.95] * 5,
-        "k_imag": [0.79] * 5,
-        "density": 1800.0,
-        "r_g_um": 0.10,
-        "sigma_g": 2.0,
-        "tau_550": 0.15,
-        "scale_height_km": 1.5,
-    },
-    {
-        "name": "sulfate",
-        "n_real": [1.53] * 5,
-        "k_imag": [0.0] * 5,
-        "density": 1770.0,
-        "r_g_um": 0.15,
-        "sigma_g": 1.7,
-        "tau_550": 0.15,
-        "scale_height_km": 2.0,
-    },
-    {
-        "name": "mineral_dust",
-        "n_real": [1.53] * 5,
-        "k_imag": [0.008] * 5,
-        "density": 2600.0,
-        "r_g_um": 0.50,
-        "sigma_g": 2.2,
-        "tau_550": 0.20,
-        "scale_height_km": 3.0,
-    },
-]
 
 _FLUX_VARS = {"edir", "edn", "eup", "udir", "udn", "uup"}
 
@@ -142,60 +60,6 @@ def _save(fig, name):
     save(fig, str(path), formats=("png",))
     plt.close(fig)
     logger.info("  saved %s", path.name)
-
-
-def build_composite() -> CompositeAerosol:
-    """Build MieSpecies for each block, invert its target OD@550 into a mass
-    profile via the API (od_to_mass_profile), and assemble the composite."""
-    pieces = []
-    for b in BLOCKS:
-        ri = RefractiveIndex(wavelength_um=_WL_RI, n_real=b["n_real"], k_imag=b["k_imag"])
-        sd = SizeDistribution(kind="lognormal", params={"r_g_um": b["r_g_um"], "sigma_g": b["sigma_g"]})
-        species = MieSpecies(
-            refractive_index=ri,
-            size_distribution=sd,
-            particle_density_kg_m3=b["density"],
-            integration_config=IntegrationConfig(),
-            name=b["name"],
-        )
-        profile = od_to_mass_profile(
-            species,
-            tau_ref=b["tau_550"],
-            ref_nm=REF_NM,
-            altitude_km=ALTITUDE_GRID_KM,
-            scale_height_km=b["scale_height_km"],
-        )
-        pieces.append(PlacedBlock(block=species, profile=profile))
-        logger.info(
-            "  block %-14s m=%.2f%+.3fi r_g=%.2fµm tau@550=%.2f H=%.1fkm",
-            b["name"], b["n_real"][0], b["k_imag"][0], b["r_g_um"], b["tau_550"], b["scale_height_km"],
-        )
-    return CompositeAerosol(
-        pieces=pieces,
-        wavelength_grid_um=list(WAVELENGTHS_UM),
-        altitude_grid_km=list(ALTITUDE_GRID_KM),
-        n_legendre=N_LEGENDRE,
-        output_dir=OUTPUT_DIR,
-    )
-
-
-def build_scene(aerosol: CompositeAerosol) -> Scene:
-    c = SCENE_KW
-    return (
-        Scene()
-        .set_atmosphere(profile=c["atmosphere"]["profile"], altitude=c["atmosphere"]["altitude"])
-        .set_source_solar(sza=c["source"]["sza"])
-        .set_wavelength(c["wavelength"]["min_nm"], c["wavelength"]["max_nm"])
-        .set_solver(
-            method=c["solver"]["method"],
-            streams=c["solver"]["streams"],
-            disort_intcor=c["solver"].get("disort_intcor"),
-            pseudospherical=c["solver"].get("pseudospherical", False),
-        )
-        .set_surface(albedo=c["surface"]["albedo"])
-        .set_output(**c["output"])
-        .set_aerosol(aerosol)
-    )
 
 
 def _resolve_heating_var(ds):
