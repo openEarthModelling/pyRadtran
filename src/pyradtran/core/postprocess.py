@@ -116,7 +116,11 @@ def evaluate_blocks_on_grid(comp, wl_um, z_km, n_legendre: int = 32) -> dict[str
         lo = piece.to_layer_optics(wl, z, n_legendre=n_legendre)
         name = getattr(piece, "name", type(piece).__name__)
         ds = xr.Dataset(
-            {"tau": (("wavelength", "layer"), lo.tau)},
+            {
+                "tau": (("wavelength", "layer"), lo.tau),
+                "ssa": (("wavelength", "layer"), lo.ssa),
+                "g": (("wavelength", "layer"), lo.g),
+            },
             coords={
                 "wavelength": wl,
                 "layer": np.arange(centers.size),
