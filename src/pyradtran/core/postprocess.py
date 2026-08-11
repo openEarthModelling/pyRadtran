@@ -72,6 +72,83 @@ def compute_budget(ds: xr.Dataset, *, f_incident: str = "edir") -> BudgetResult:
     )
 
 
+@dataclass(frozen=True)
+class EnergyBudget:
+    """Spectral column energy budget (W/m² per wavelength).
+
+    Identity holds by construction:
+    ``f_incident == f_up_toa + f_abs_surface + f_abs_atm``. ``f_abs_atm`` is the
+    atmospheric-absorption residual; physically it must be >= 0.
+    """
+
+    f_incident: np.ndarray    # edir@toa = F0 * mu0
+    f_up_toa: np.ndarray      # eup@toa (reflected + back-scattered out the top)
+    f_abs_surface: np.ndarray  # (1 - albedo) * (edir + edn)@surface
+    f_abs_atm: np.ndarray      # residual = f_incident - f_up_toa - f_abs_surface
+    wavelength: np.ndarray
+
+
+def compute_energy_budget(
+    ds: xr.Dataset, albedo: float, *, f_incident: str = "edir"
+) -> EnergyBudget:
+    """Per-wavelength column energy budget in W/m².
+
+    Convention: ``f_incident = edir @ TOA`` (the incident solar beam, = F0·μ0;
+    matches :func:`add_budget_vars`). Surface = lowest zout level, TOA = highest.
+    """
+    if "zout" not in ds.dims or ds.sizes["zout"] < 2:
+        raise ValueError(
+            "Energy budget requires a 2-D dataset (wavelength, zout) with at "
+            "least surface + TOA levels."
+        )
+    surface, toa = _boundary_indices(ds["zout"].values)
+    f_inc = ds[f_incident].isel(zout=toa).values
+    f_up_toa = ds["eup"].isel(zout=toa).values
+    f_down_sfc = (ds["edir"].isel(zout=surface) + ds["edn"].isel(zout=surface)).values
+    f_abs_surface = (1.0 - albedo) * f_down_sfc
+    f_abs_atm = f_inc - f_up_toa - f_abs_surface
+    return EnergyBudget(
+        f_incident=f_inc,
+        f_up_toa=f_up_toa,
+        f_abs_surface=f_abs_surface,
+        f_abs_atm=f_abs_atm,
+        wavelength=np.asarray(ds["wavelength"].values, dtype=float),
+    )
+
+
+def assert_energy_conservation(
+    ds: xr.Dataset, albedo: float, *, tol: float = 0.05, f_incident: str = "edir"
+) -> EnergyBudget:
+    """Compute the budget and assert physical bounds.
+
+    Hard checks (exact physics, within ``tol`` for numerical noise):
+      1. ``f_abs_atm >= -tol * f_incident``  (atmosphere cannot create energy)
+      2. ``f_up_toa <= f_incident * (1 + tol)`` (cannot reflect more than incident)
+
+    The identity ``f_inc == f_up_toa + f_abs_surface + f_abs_atm`` holds by
+    construction (f_abs_atm is defined as the residual) and is not re-asserted.
+    Returns the budget for logging / plotting. Raises AssertionError on violation.
+    """
+    b = compute_energy_budget(ds, albedo, f_incident=f_incident)
+    eps = np.maximum(tol * b.f_incident, 1e-9)
+    # Check the more specific physical impossibility first: eup@toa cannot
+    # exceed f_incident. (When it does, the residual f_abs_atm is also negative,
+    # so this must precede the absorption check to report the right root cause.)
+    if np.any(b.f_up_toa > b.f_incident + eps):
+        worst = float(np.max(b.f_up_toa - b.f_incident))
+        raise AssertionError(
+            f"TOA upwelling exceeds incident ({worst:.3f} W/m² over F_inc): "
+            "physically impossible — check eup/edir column mapping."
+        )
+    if np.any(b.f_abs_atm < -eps):
+        worst = float(np.min(b.f_abs_atm))
+        raise AssertionError(
+            f"Atmospheric absorption negative ({worst:.3f} W/m² < -{tol:.0%}·F_inc): "
+            "column creates energy — check flux parsing / zout ordering."
+        )
+    return b
+
+
 def _layer_centers(z_km: np.ndarray) -> np.ndarray:
     z = np.asarray(z_km, dtype=float)
     return 0.5 * (z[:-1] + z[1:])
