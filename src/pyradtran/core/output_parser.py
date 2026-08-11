@@ -105,6 +105,53 @@ def _parse_netcdf(path: Path) -> xr.Dataset:
 _STANDARD_COLUMNS = ["wavelength", "edir", "edn", "eup", "udir", "udn", "uup"]
 
 
+def parse_heating_ascii(
+    path: str | Path, zout_levels_km: Sequence[float]
+) -> xr.Dataset:
+    """Parse uvspec heating-rate ASCII output (wide format).
+
+    libRadtran's ``heating_rate`` mode emits a format distinct from the
+    standard 7-column flux output: one header row (``0.0`` marker followed by
+    the zout altitudes), then one row per wavelength (wavelength followed by
+    the heating rate in K/day at each zout level). With ``output_user`` set,
+    heating is computed but discarded — so this format only appears when
+    ``heating_rate`` is requested WITHOUT ``output_user``.
+
+    Args:
+        path: Path to the uvspec heating-rate output file.
+        zout_levels_km: Physical zout altitudes in km (one per heating column).
+
+    Returns:
+        Dataset with dims ``(wavelength, zout)`` and a single ``heating_rate``
+        data variable (K/day).
+    """
+    path = Path(path)
+    rows: list[list[float]] = []
+    with open(path) as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                rows.append([float(x) for x in stripped.split()])
+    if not rows:
+        raise ValueError(f"Empty heating-rate output file: {path}")
+    # Drop the header marker row (col0 == 0.0; no real wavelength is 0).
+    if abs(rows[0][0]) < 1e-9:
+        rows = rows[1:]
+    data = np.asarray(rows, dtype=float)  # (n_wavelength, 1 + n_zout)
+    wavelength = data[:, 0]
+    heating = data[:, 1:]
+    zout = np.asarray(zout_levels_km, dtype=float)
+    if heating.shape[1] != zout.size:
+        raise ValueError(
+            f"heating-rate output has {heating.shape[1]} per-level columns but "
+            f"zout_levels_km has {zout.size} entries"
+        )
+    return xr.Dataset(
+        {"heating_rate": (("wavelength", "zout"), heating)},
+        coords={"wavelength": wavelength, "zout": zout},
+    )
+
+
 def _parse_ascii(
     path: Path,
     n_zout: int = 1,

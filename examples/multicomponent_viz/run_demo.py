@@ -40,10 +40,10 @@ from canonical import (
     _WL_RI,
     build_composite,
     build_scene,
+    build_scene_heating,
     build_scene_no_aerosol,
 )
 from pyradtran import Runner
-from pyradtran.core.output_parser import HEATING_RATE_COLUMN
 from pyradtran.core.postprocess import (
     add_budget_vars,
     assert_energy_conservation,
@@ -76,23 +76,12 @@ logger = logging.getLogger(__name__)
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-_FLUX_VARS = {"edir", "edn", "eup", "udir", "udn", "uup"}
-
 
 def _save(fig, name):
     path = OUTPUT_DIR / name
     save(fig, str(path), formats=("png",))
     plt.close(fig)
     logger.info("  saved %s", path.name)
-
-
-def _resolve_heating_var(ds):
-    if HEATING_RATE_COLUMN in ds.data_vars:
-        return HEATING_RATE_COLUMN
-    extras = [v for v in ds.data_vars if v not in _FLUX_VARS and v != "wavelength"]
-    if len(extras) == 1:
-        return extras[0]
-    return None
 
 
 def main():
@@ -190,14 +179,23 @@ def main():
     fig, _ = plot_budget(rt_budget)
     _save(fig, "rt_budget.png")
 
-    hvar = _resolve_heating_var(rt)
-    if hvar is not None:
-        if hvar != HEATING_RATE_COLUMN:
-            rt = rt.rename({hvar: HEATING_RATE_COLUMN})
-        fig, _ = plot_heating_rate(rt, wavelength_nm=550.0)
-        _save(fig, "rt_heating_rate.png")
-    else:
-        logger.warning("  no heating-rate column in RT output; skipping plot_heating_rate")
+    # T1: heating rate needs its own uvspec run — libRadtran's heating_rate
+    # mode replaces flux output (wide format) rather than appending a column.
+    logger.info("=== Heating-rate run (K/day, separate invocation) ===")
+    rt_heat = Runner.execute(build_scene_heating(composite), data_path=data_path)
+    rt = rt.assign(heating_rate=rt_heat["heating_rate"])
+    logger.info(
+        "  heating@550 (K/day): %s",
+        ", ".join(
+            f"z={z:.0f}km={v:.3e}"
+            for z, v in zip(
+                rt["zout"].values,
+                rt["heating_rate"].isel(wavelength=i550).values,
+            )
+        ),
+    )
+    fig, _ = plot_heating_rate(rt, wavelength_nm=550.0)
+    _save(fig, "rt_heating_rate.png")
 
     rt.to_netcdf(str(OUTPUT_DIR / "rt_full.nc"))
     fig, _ = plot_rt_overview(rt, wavelength_nm=550.0)

@@ -11,9 +11,10 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 
 #### Example self-validation + analysis expansion
 - `compute_energy_budget` + `assert_energy_conservation` (`pyradtran.core.postprocess`): column energy identity `F_inc = eup_TOA + (1-a)(edir+edn)_surf + F_abs_atm` with hard physical-bound assertions.
+- `parse_heating_ascii` (`pyradtran.core.output_parser`): parses libRadtran's wide heating-rate format (K/day per zout per wavelength). `Runner.execute` auto-detects heating mode (scene has `heating_rate` but no `output_user` quantities) and dispatches to it.
 - Viz: `plot_size_distributions`, `plot_phase_functions`, `plot_legendre_decay`, `plot_block_spectral_optics`, `plot_drf_spectral` (direct radiative forcing), `plot_spectral_attribution`.
-- `examples/multicomponent_viz`: expanded from 10 to 22 plots (per-block spectral optics, scattering phase functions, Legendre decay, DRF via no-aerosol baseline, spectral attribution) with a hard energy-conservation assertion and a column-τ-stacking check.
-- `examples/multicomponent_viz/canonical.py`: shared scene config (used by both the demo and the regression test so they cannot drift).
+- `examples/multicomponent_viz`: expanded from 10 to 23 plots (per-block spectral optics, scattering phase functions, Legendre decay, heating-rate profile, DRF via no-aerosol baseline, spectral attribution) with a hard energy-conservation assertion and a column-τ-stacking check. Heating rates require a second uvspec invocation (libRadtran's `heating_rate` mode replaces flux output rather than appending a column); the demo runs both and merges.
+- `examples/multicomponent_viz/canonical.py`: shared scene config incl. `build_scene_heating` (used by both the demo and the regression test so they cannot drift).
 - `tests/fixtures/multicomponent_baseline.json` + `tests/test_multicomponent_regression.py` (slow/uvspec-gated): end-to-end regression baseline for the canonical 3-block scene.
 - `scripts/regen_baseline.py` to regenerate the baseline.
 

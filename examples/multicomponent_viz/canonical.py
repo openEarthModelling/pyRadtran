@@ -160,3 +160,30 @@ def build_scene_no_aerosol() -> Scene:
         .set_surface(albedo=c["surface"]["albedo"])
         .set_output(**c["output"])
     )
+
+
+def build_scene_heating(aerosol: CompositeAerosol) -> Scene:
+    """Scene variant for heating-rate output (libRadtran heating_rate mode).
+
+    Identical to build_scene() but drops ``output_user`` quantities. With
+    ``heating_rate`` set and no ``output_user``, uvspec emits heating rates
+    (K/day, wide format) instead of fluxes — a second run is required because
+    libRadtran cannot emit both in one invocation.
+    """
+    c = SCENE_KW
+    heating_output = {k: v for k, v in c["output"].items() if k != "quantities"}
+    return (
+        Scene()
+        .set_atmosphere(profile=c["atmosphere"]["profile"], altitude=c["atmosphere"]["altitude"])
+        .set_source_solar(sza=c["source"]["sza"])
+        .set_wavelength(c["wavelength"]["min_nm"], c["wavelength"]["max_nm"])
+        .set_solver(
+            method=c["solver"]["method"],
+            streams=c["solver"]["streams"],
+            disort_intcor=c["solver"].get("disort_intcor"),
+            pseudospherical=c["solver"].get("pseudospherical", False),
+        )
+        .set_surface(albedo=c["surface"]["albedo"])
+        .set_output(**heating_output)
+        .set_aerosol(aerosol)
+    )

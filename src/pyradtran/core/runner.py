@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 import xarray as xr
 
-from pyradtran.core.output_parser import parse_output, resolve_zout_tokens
+from pyradtran.core.output_parser import parse_heating_ascii, parse_output, resolve_zout_tokens
 from pyradtran.data.resolver import DataResolver
 
 if TYPE_CHECKING:
@@ -193,13 +193,31 @@ class Runner:
             if output_format != "netcdf" and scene.output and scene.output.zout:
                 zout_levels_km = resolve_zout_tokens(scene.output.zout)
 
-            result = parse_output(
-                out_file,
-                format=output_format,
-                n_zout=n_zout,
-                column_names=col_names,
-                zout_levels_km=zout_levels_km,
+            # libRadtran heating_rate mode emits a wide format (wavelength +
+            # per-zout K/day) distinct from the standard long-format flux
+            # output. When heating is requested WITHOUT output_user quantities,
+            # use the dedicated heating parser. (With output_user set, heating
+            # is computed but discarded — the standard parser handles that.)
+            is_heating_output = (
+                output_format != "netcdf"
+                and scene.output is not None
+                and scene.output.heating_rate is not None
+                and not scene.output.quantities
             )
+            if is_heating_output:
+                if not zout_levels_km:
+                    raise ValueError(
+                        "heating_rate output requires zout levels to parse the wide format"
+                    )
+                result = parse_heating_ascii(out_file, zout_levels_km=zout_levels_km)
+            else:
+                result = parse_output(
+                    out_file,
+                    format=output_format,
+                    n_zout=n_zout,
+                    column_names=col_names,
+                    zout_levels_km=zout_levels_km,
+                )
 
         result.attrs["input_config"] = input_text.strip()
         result.attrs["uvspec_exe"] = uvspec
