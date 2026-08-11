@@ -135,6 +135,11 @@ def _parse_ascii(
     if column_names is None:
         if n_cols == 7:
             column_names = _STANDARD_COLUMNS
+        elif n_cols == 8:
+            # libRadtran appends a K/day heating-rate column to the standard
+            # flux output when heating_rate is enabled. Name it explicitly so
+            # HEATING_RATE_COLUMN appears in the dataset (was col_7).
+            column_names = _STANDARD_COLUMNS + [HEATING_RATE_COLUMN]
         elif n_cols == 2:
             column_names = ["wavelength", "value"]
         else:
