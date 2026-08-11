@@ -3,7 +3,6 @@
 import matplotlib
 
 matplotlib.use("Agg")
-import numpy as np
 
 from pyradtran.models.aerosol_composite import (
     CompositeAerosol,

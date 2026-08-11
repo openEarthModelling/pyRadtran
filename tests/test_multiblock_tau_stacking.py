@@ -20,9 +20,18 @@ from pyradtran.models.blocks import PlacedBlock, od_to_mass_profile
 WL = [0.40, 0.55, 0.70]
 ALT = [10.0, 8.0, 6.0, 4.0, 2.0, 1.0, 0.0]
 _TARGETS = [
-    {"name": "bc",      "n": 1.95, "k": 0.79,  "r_g": 0.10, "sigma": 2.0, "rho": 1800.0, "H": 1.5, "tau": 0.15},
-    {"name": "sulfate", "n": 1.53, "k": 0.0,   "r_g": 0.15, "sigma": 1.7, "rho": 1770.0, "H": 2.0, "tau": 0.15},
-    {"name": "dust",    "n": 1.53, "k": 0.008, "r_g": 0.50, "sigma": 2.2, "rho": 2600.0, "H": 3.0, "tau": 0.20},
+    {
+        "name": "bc", "n": 1.95, "k": 0.79, "r_g": 0.10,
+        "sigma": 2.0, "rho": 1800.0, "H": 1.5, "tau": 0.15,
+    },
+    {
+        "name": "sulfate", "n": 1.53, "k": 0.0, "r_g": 0.15,
+        "sigma": 1.7, "rho": 1770.0, "H": 2.0, "tau": 0.15,
+    },
+    {
+        "name": "dust", "n": 1.53, "k": 0.008, "r_g": 0.50,
+        "sigma": 2.2, "rho": 2600.0, "H": 3.0, "tau": 0.20,
+    },
 ]
 
 
