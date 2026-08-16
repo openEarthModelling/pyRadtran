@@ -30,6 +30,9 @@ dependencies = [
 ]
 # viz modules import matplotlib lazily; matplotlib stays in the `plot` extra (not core).
 
+[project.scripts]
+pyradtran = "pyradtran.config.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0",

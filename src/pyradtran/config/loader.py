@@ -77,6 +77,19 @@ def load_config(source: str | Path | dict | PyRadtranConfig) -> LoadedConfig:
     return LoadedConfig(config=cfg, scene=scene, aerosol=aerosol)
 
 
+def export_config(source: dict | PyRadtranConfig, path: str | Path) -> Path:
+    """Validate and serialize a config as canonical YAML.
+
+    Accepts a raw dict (validated on the way out) or a built config; returns
+    the written path. The output re-loads identically
+    (``load_config(export_config(cfg, p))`` builds the same scene).
+    """
+    cfg = source if isinstance(source, PyRadtranConfig) else PyRadtranConfig.model_validate(source)
+    out = Path(path)
+    out.write_text(yaml.safe_dump(cfg.model_dump(mode="json"), sort_keys=False), encoding="utf-8")
+    return out
+
+
 # --- Scene assembly (mirrors examples/multicomponent_viz/canonical.py) ---
 
 
@@ -205,5 +218,6 @@ __all__ = [
     "LoadedConfig",
     "build_aerosol",
     "build_scene",
+    "export_config",
     "load_config",
 ]

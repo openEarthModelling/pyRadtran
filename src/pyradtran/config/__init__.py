@@ -9,6 +9,7 @@ from pyradtran.config.loader import (
     LoadedConfig,
     build_aerosol,
     build_scene,
+    export_config,
     load_config,
 )
 from pyradtran.config.orchestrator import DrfResult, RunResult, run_config
@@ -22,6 +23,7 @@ __all__ = [
     "RunResult",
     "build_aerosol",
     "build_scene",
+    "export_config",
     "load_config",
     "run_config",
 ]
