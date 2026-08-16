@@ -11,13 +11,17 @@ from pyradtran.config.loader import (
     build_scene,
     load_config,
 )
+from pyradtran.config.orchestrator import DrfResult, RunResult, run_config
 from pyradtran.config.schema import CONFIG_VERSION, PyRadtranConfig
 
 __all__ = [
     "CONFIG_VERSION",
+    "DrfResult",
     "LoadedConfig",
     "PyRadtranConfig",
+    "RunResult",
     "build_aerosol",
     "build_scene",
     "load_config",
+    "run_config",
 ]
