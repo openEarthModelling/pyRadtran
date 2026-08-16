@@ -259,4 +259,6 @@ code path:
 4. ``canonical.yaml`` is regenerated from ``canonical.py`` by ``make_yaml.py``
    and ``test_generated_canonical_yaml_matches_api`` fails if the two drift.
 
-All four are enforced by ``tests/test_config_roundtrip.py``.
+Guarantees 1, 2 and 4 are enforced by ``tests/test_config_roundtrip.py``;
+the export round trip (3) by ``tests/test_config_schema.py``
+(``test_export_config_round_trip``).
