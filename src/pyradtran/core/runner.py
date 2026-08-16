@@ -10,7 +10,7 @@ import logging
 import os
 import shutil
 import subprocess
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -236,6 +236,19 @@ class Runner:
     ) -> list[xr.Dataset]:
         """Execute multiple uvspec simulations in parallel.
 
+        Runs on a *thread* pool (``ThreadPoolExecutor``): uvspec executes as a
+        subprocess, so the GIL is released while each worker waits on it — the
+        threads parallelize the actual uvspec invocations, and scenes never
+        cross a process boundary. This matters because scenes may carry
+        unpicklable payloads (e.g. ``CompositeAerosol`` pieces backed by
+        aerosol3D bulk data with local closures), which a process pool cannot
+        ship to workers.
+
+        Fails fast: futures are consumed in submission order, and the first
+        failure raises ``RuntimeError(f"scene {i} failed")`` (with the original
+        exception chained) after cancelling any outstanding futures, instead of
+        being swallowed into the result list.
+
         Args:
             scenes: List of configured Scene objects.
             uvspec_exe: Path to uvspec binary. Auto-detected if None.
@@ -246,7 +259,11 @@ class Runner:
             config: Optional ``RunnerConfig`` overriding global defaults.
 
         Returns:
-            List of xarray.Dataset results, one per scene.
+            List of xarray.Dataset results, one per scene, in input order.
+
+        Raises:
+            RuntimeError: If any scene fails to execute; the original exception
+                is chained as the cause.
         """
         cfg = config or Runner._config
         resolved_max_workers = max_workers if max_workers is not None else cfg.max_workers
@@ -255,9 +272,8 @@ class Runner:
         resolved_keep_temp = keep_temp if keep_temp is not None else cfg.keep_temp
         resolved_timeout = timeout if timeout is not None else cfg.timeout
 
-        results = []
-        with ProcessPoolExecutor(max_workers=resolved_max_workers) as executor:
-            futures = {
+        with ThreadPoolExecutor(max_workers=resolved_max_workers) as executor:
+            futures = [
                 executor.submit(
                     Runner.execute,
                     scene,
@@ -265,15 +281,15 @@ class Runner:
                     data_path=resolved_data_path,
                     keep_temp=resolved_keep_temp,
                     timeout=resolved_timeout,
-                ): i
-                for i, scene in enumerate(scenes)
-            }
-            for future in as_completed(futures):
-                idx = futures[future]
+                )
+                for scene in scenes
+            ]
+            results = []
+            for i, future in enumerate(futures):
                 try:
-                    results.append((idx, future.result()))
-                except Exception as e:
-                    results.append((idx, e))
-
-        results.sort(key=lambda x: x[0])
-        return [r[1] for r in results]
+                    results.append(future.result())
+                except Exception as exc:
+                    for f in futures:
+                        f.cancel()
+                    raise RuntimeError(f"scene {i} failed") from exc
+            return results
