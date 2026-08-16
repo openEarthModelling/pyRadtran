@@ -42,7 +42,7 @@ def _baseline():
 def test_scalar_baseline_matches(canonical_rt):
     rt = canonical_rt
     base = _baseline()
-    i550 = int(np.argmin(np.abs(rt["wavelength"].values - 0.55)))
+    i550 = int(np.argmin(np.abs(rt["wavelength"].values - 550.0)))
     surf_idx = int(np.argmin(rt["zout"].values))
     toa_idx = int(np.argmax(rt["zout"].values))
     checks = {
@@ -65,7 +65,7 @@ def test_atmospheric_absorption_matches(canonical_rt):
     rt = canonical_rt
     base = _baseline()
     budget = compute_energy_budget(rt, albedo=0.1)
-    i550 = int(np.argmin(np.abs(budget.wavelength - 0.55)))
+    i550 = int(np.argmin(np.abs(budget.wavelength - 550.0)))
     got = float(budget.f_abs_atm[i550])
     expected = float(base["F_abs_atm_550nm"])
     assert np.isclose(got, expected, rtol=_TOL), (

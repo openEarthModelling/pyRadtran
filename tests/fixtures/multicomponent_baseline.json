@@ -3,10 +3,10 @@
     "scene": "multicomponent_viz",
     "note": "regenerate via run_demo.py --dump-baseline"
   },
-  "edir_surf_550nm": 613.4457,
-  "edn_surf_550nm": 510.151,
-  "eup_surf_550nm": 112.3596,
-  "eup_toa_550nm": 361.4059,
+  "edir_surf_550nm": 798.7457,
+  "edn_surf_550nm": 442.3922,
+  "eup_surf_550nm": 124.1138,
+  "eup_toa_550nm": 194.7893,
   "column_tau_550nm": 0.5,
-  "F_abs_atm_550nm": 293.8480699999999
+  "F_abs_atm_550nm": 336.9375899999998
 }

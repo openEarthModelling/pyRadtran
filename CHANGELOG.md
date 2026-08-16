@@ -83,6 +83,7 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 - CI branch triggers, lint, and test assertions realigned for green CI.
 - Convenience functions no longer crash on the NetCDF parse path: they now use ASCII output (see **Changed**). `_parse_netcdf` raises a clear error pointing at `format='ascii'` when uvspec produces an empty/missing NetCDF file instead of xarray's cryptic backend-mismatch message.
 - `run_with_opac_preset` / `run_with_opac_custom` now set `disort_intcor="moments"` on their DISORT solver. The OPAC folding produces Legendre-moment phase functions, which DISORT rejects without this flag (`you need to specify 'disort_intcor moments'`); these functions previously crashed at runtime.
+- **i550 wavelength-index bug** in the multicomponent demo and its regression test: `argmin(|wavelength - 0.55|)` compared an nm grid against 0.55 µm, silently selecting 401 nm everywhere a 550 nm scalar was labeled (energy log, heating log, baseline fixture). Also removed a spurious `× 1000` on the DRF wavelength axis (same µm/nm confusion) that made `np.interp(550, ...)` clamp to the 401 nm endpoint. The committed baseline now holds true 550 nm values (edir_surf 798.75, eup_toa 194.79 W/m², F_abs_atm 336.94 W/m²).
 
 ## [0.1.0] - 2026-05-12
 

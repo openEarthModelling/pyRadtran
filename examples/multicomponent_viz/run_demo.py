@@ -158,7 +158,7 @@ def main():
 
     # B2: column energy conservation (hard assertion).
     budget = assert_energy_conservation(rt, albedo=ALBEDO, tol=0.05)
-    i550 = int(np.argmin(np.abs(budget.wavelength - 0.55)))
+    i550 = int(np.argmin(np.abs(budget.wavelength - 550.0)))
     logger.info(
         "  energy@550: F_inc=%.1f  up_TOA=%.1f  abs_surf=%.1f  abs_atm=%.1f  (W/m²)",
         budget.f_incident[i550],
@@ -204,7 +204,7 @@ def main():
     # --- T3: direct radiative forcing (with aerosol - without aerosol) ---
     logger.info("=== DRF baseline (no aerosol) ===")
     rt_noaer = Runner.execute(build_scene_no_aerosol(), data_path=data_path)
-    wl_nm = rt["wavelength"].values * 1000.0
+    wl_nm = rt["wavelength"].values
     surf_idx = int(np.argmin(rt["zout"].values))
     toa_idx = int(np.argmax(rt["zout"].values))
     net_toa_aer = rt["edir"].isel(zout=toa_idx).values - rt["eup"].isel(zout=toa_idx).values
@@ -251,7 +251,7 @@ def main():
 
     # --- B3: optional scalar baseline dump ---
     if args.dump_baseline:
-        i550_rt = int(np.argmin(np.abs(rt["wavelength"].values - 0.55)))
+        i550_rt = int(np.argmin(np.abs(rt["wavelength"].values - 550.0)))
         scalars = {
             "_meta": {
                 "scene": "multicomponent_viz",
