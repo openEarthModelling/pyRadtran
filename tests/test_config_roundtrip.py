@@ -116,6 +116,16 @@ def test_load_from_yaml_file_roundtrip(tmp_path):
     assert _mask_paths(from_dict.scene.build_input()) == _mask_paths(from_file.scene.build_input())
 
 
+def test_generated_canonical_yaml_matches_api(monkeypatch):
+    """The committed canonical.yaml (written by make_yaml.py) reproduces the
+    canonical.py-built scene: identical uvspec input text modulo the
+    explicit-aerosol file path (relative `output` vs absolute OUTPUT_DIR)."""
+    monkeypatch.chdir(_EXAMPLES_DIR)
+    loaded = load_config("canonical.yaml")
+    api_text = canonical.build_scene(canonical.build_composite()).build_input()
+    assert _mask_paths(loaded.scene.build_input()) == _mask_paths(api_text)
+
+
 def test_unknown_block_kind_rejected(tmp_path):
     cfg = _config_dict(tmp_path)
     cfg["aerosol"]["blocks"][0]["kind"] = "miee"  # typo
