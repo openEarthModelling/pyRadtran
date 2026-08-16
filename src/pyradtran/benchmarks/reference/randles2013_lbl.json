@@ -1,0 +1,42 @@
+{
+  "_meta": {
+    "paper": "Randles, C. A. et al. (2013): Intercomparison of shortwave radiative transfer schemes to improve the aerosol and surface albedo treatment in climate models. Atmospheric Chemistry and Physics, 13, 2347-2362.",
+    "tables": ["Table 3", "Table 5", "Table A3", "Table A4"],
+    "protocol": "Case 1 Rayleigh-only; Case 2a AOD550 0.2, Angstroem 1, SSA 1.0, g 0.7; Case 2b SSA 0.8 (rest same as 2a). Surface albedo 0.2 Lambert. SZA 30/75 deg. AFGL subarctic winter (saw) + tropics (trop). Aerosol confined to lowest 2 km, linearly decreasing to zero at 2 km. No clouds.",
+    "units": "W/m2 (absorptance: dimensionless)",
+    "normalization": "Each model divides its own band TOA incident flux and multiplies by the LBL median constants (removes the solar-constant choice).",
+    "normalization_constants_w_m2": {
+      "bb": {"sza30": 1189.28, "sza75": 355.43},
+      "uvvis": {"sza30": 563.38, "sza75": 168.37}
+    },
+    "thresholds": {
+      "flux": {"pass_pct": 8, "warn_pct": 12},
+      "rf": {"pass_rel_pct": 15, "pass_abs_w_m2": 1.5},
+      "case2a_atmospheric_rf": "report-only (<1 W/m2; RSD invalid per paper)"
+    },
+    "quantity_naming": "Quantities tagged bb refer to the 0.2-4.0 um broadband, uvvis to 0.2-0.7 um. toa_rf/sfc_rf are broadband case-2 minus case-1 differences. Config keys: {saw,trop}{30,75}.",
+    "value_count": 64
+  },
+  "case1": {
+    "direct_bb_sfc_down": {"saw30": 942.4, "saw75": 216.2, "trop30": 844.5, "trop75": 179.6},
+    "diffuse_bb_sfc_down": {"saw30": 64.4, "saw75": 37.2, "trop30": 64.0, "trop75": 36.8},
+    "diffuse_bb_toa_up": {"saw30": 227.6, "saw75": 82.6, "trop30": 204.7, "trop75": 75.2},
+    "uvvis_sfc_down": {"saw30": 489.2, "saw75": 115.8, "trop30": 489.1, "trop75": 115.7},
+    "nir_sfc_down": {"saw30": 519.1, "saw75": 138.0, "trop30": 421.1, "trop75": 101.1},
+    "absorptance": {"saw30": 0.134, "saw75": 0.201, "trop30": 0.221, "trop75": 0.307}
+  },
+  "case2a": {
+    "total_bb_sfc_down": {"saw30": 994.6, "saw75": 226.5, "trop30": 896.0, "trop75": 192.8},
+    "diffuse_bb_toa_up": {"saw30": 236.3, "saw75": 102.9, "trop30": 212.9, "trop75": 93.2},
+    "uvvis_sfc_down": {"saw30": 480.6, "saw75": 101.5, "trop30": 480.2, "trop75": 101.5},
+    "toa_rf": {"saw30": -8.6, "saw75": -20.3, "trop30": -8.2, "trop75": -18.0},
+    "sfc_rf": {"saw30": -9.7, "saw75": -21.5, "trop30": -10.0, "trop75": -18.9}
+  },
+  "case2b": {
+    "total_bb_sfc_down": {"saw30": 954.1, "saw75": 206.2, "trop30": 857.7, "trop75": 174.5},
+    "diffuse_bb_toa_up": {"saw30": 216.1, "saw75": 89.8, "trop30": 194.4, "trop75": 81.7},
+    "uvvis_sfc_down": {"saw30": 452.4, "saw75": 89.0, "trop30": 452.0, "trop75": 89.0},
+    "toa_rf": {"saw30": 11.6, "saw75": -7.2, "trop30": 10.3, "trop75": -6.5},
+    "sfc_rf": {"saw30": -42.1, "saw75": -37.8, "trop30": -40.6, "trop75": -33.6}
+  }
+}
