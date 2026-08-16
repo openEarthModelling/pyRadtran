@@ -2,11 +2,18 @@
 
 Currently ships the Randles et al. (2013) shortwave benchmark
 (:mod:`pyradtran.benchmarks.randles2013`) with its bundled LBL reference
-values.
+values, plus comparison/report/plot tooling
+(:mod:`pyradtran.benchmarks.compare`).
 """
 
 from __future__ import annotations
 
+from pyradtran.benchmarks.compare import (
+    compare_benchmark,
+    format_report,
+    plot_benchmark_overlay,
+    write_report,
+)
 from pyradtran.benchmarks.randles2013 import (
     CASES,
     RandlesAerosol,
@@ -17,6 +24,10 @@ from pyradtran.benchmarks.randles2013 import (
 __all__ = [
     "CASES",
     "RandlesAerosol",
+    "compare_benchmark",
+    "format_report",
     "load_reference",
+    "plot_benchmark_overlay",
     "run_randles2013",
+    "write_report",
 ]
