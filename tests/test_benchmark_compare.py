@@ -295,6 +295,25 @@ class TestOverlayPlot:
         with pytest.raises(ValueError, match="row"):
             plot_benchmark_overlay([], tmp_path / "empty.png")
 
+    def test_partial_config_rows_skip_missing_pairs(self, tmp_path):
+        # One config of one quantity missing (nir_sfc_down @ trop30 only):
+        # the overlay must skip the absent pair instead of raising KeyError,
+        # like format_report renders it as "—".
+        results = build_results()
+        del results["case1"]["bb"]["trop"][30]["nir_sfc_down"]
+        rows = compare_benchmark(results)
+        assert any(
+            r["quantity"] == "nir_sfc_down" and f"{r['atm']}{r['sza']}" == "trop75" for r in rows
+        )
+        assert not any(
+            r["quantity"] == "nir_sfc_down" and f"{r['atm']}{r['sza']}" == "trop30" for r in rows
+        )
+        out = tmp_path / "partial.png"
+        returned = plot_benchmark_overlay(rows, out)
+        assert Path(returned) == out
+        assert out.is_file()
+        assert out.stat().st_size > 10_000
+
 
 def _find(rows, case, quantity, atm, sza):
     return next(

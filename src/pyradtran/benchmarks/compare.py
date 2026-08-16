@@ -417,7 +417,15 @@ def plot_benchmark_overlay(rows: list[dict], path: str | Path) -> Path:
             if not quantities:
                 ax.set_visible(False)
                 continue
-            positions = [(config, quantity) for config in CONFIGS for quantity in quantities]
+            # Subset runs may cover only part of CONFIGS: skip absent
+            # (config, quantity) pairs — like format_report's "—" cells —
+            # so x positions stay contiguous instead of raising KeyError.
+            positions = [
+                (config, quantity)
+                for config in CONFIGS
+                for quantity in quantities
+                if (case, quantity, config) in by_key
+            ]
             left = [by_key[(case, quantity, config)]["lbl"] for config, quantity in positions]
             right = [by_key[(case, quantity, config)]["ours"] for config, quantity in positions]
             x = range(len(positions))
