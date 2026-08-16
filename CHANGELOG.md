@@ -67,6 +67,7 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 - Randles et al. (2013) AeroCom shortwave RT intercomparison replication: `run_randles2013` (3 cases × 2 AFGL atmospheres × 2 SZAs × 2 bands = 24 uvspec runs; Å=1 power law, 0–2 km linear taper, HG phase function as PMOM `beta_l = g**l`, LBL-median normalization constants).
 - Bundled reference `reference/randles2013_lbl.json`: 64 tabulated LBL values plus a `_meta` block (thresholds: fluxes ±8% PASS / ±12% WARN; RF ≤15% or ≤1.5 W/m²).
 - `compare_benchmark` / `format_report` / `write_report` / `plot_benchmark_overlay`: per-row status classification, Markdown + CSV report, LBL-overlay PNG.
+- Ready-to-run example `examples/randles2013_benchmark/run_benchmark.py`: matrix -> report + overlay PNG in one command; `--from-json` regenerates reports offline; non-zero exit on any FAIL (CI gate).
 - Regression test `tests/test_benchmark_randles.py` (slow, uvspec-gated): real run vs libRadtran 2.0.6 — 68 comparison rows, 64 PASS / 0 WARN / 0 FAIL (+4 report-only n/a).
 - Ratified deviation: benchmark results persist as JSON, not NetCDF (nested ragged dict).
 ### Changed

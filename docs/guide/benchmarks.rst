@@ -149,6 +149,13 @@ automatically when uvspec or the libRadtran data directory are not found:
    $ python -m pytest tests/test_benchmark_randles.py -v -s   # ~25 s, real uvspec runs
    $ python -m pytest -q -m "not slow"                        # the rest of the suite
 
+A ready-to-run driver for the whole workflow lives at
+``examples/randles2013_benchmark/run_benchmark.py``: it runs the matrix,
+compares against the reference and writes the Markdown/CSV report and the
+overlay PNG to its ``output/`` directory. ``--from-json`` regenerates the
+report from an earlier results JSON without re-running uvspec; the exit
+code is non-zero if any row FAILs.
+
 Outputs
 -------
 
