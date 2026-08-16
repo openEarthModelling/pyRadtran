@@ -58,6 +58,17 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 - Comprehensive viz + workflow demo: `MieSpecies` → DISORT → all plots + attribution.
 - Sphinx user guide, expanded API reference, and rewritten README.
 
+#### YAML configuration front-end (`pyradtran.config`)
+- `config_version: 1` YAML schema (strict: scene / aerosol / analysis; block kinds `mie`/`bulk`/`opac_preset`/`explicit_layer`; placements `od_inversion`/`mass`/`exponential`/`tabulated`), `load_config` / `export_config`, and the `run_config` orchestrator (energy-conservation assertion, heating second run, DRF baseline, leave-one-out attribution, plot registry, NetCDF export).
+- CLI `pyradtran run|validate|export-config` (also `python -m pyradtran`): `validate` checks a config without invoking uvspec; `export-config` writes canonical YAML.
+- Hard round-trip guarantee, enforced by `tests/test_config_roundtrip.py`: a YAML config and its API-built twin emit byte-identical uvspec input and byte-identical `.master` layer files; `export_config` output re-loads identically.
+- `examples/multicomponent_viz/canonical.yaml` — YAML twin of the canonical scene, generated from `canonical.py` by `make_yaml.py`.
+#### Benchmarks (`pyradtran.benchmarks`)
+- Randles et al. (2013) AeroCom shortwave RT intercomparison replication: `run_randles2013` (3 cases × 2 AFGL atmospheres × 2 SZAs × 2 bands = 24 uvspec runs; Å=1 power law, 0–2 km linear taper, HG phase function as PMOM `beta_l = g**l`, LBL-median normalization constants).
+- Bundled reference `reference/randles2013_lbl.json`: 64 tabulated LBL values plus a `_meta` block (thresholds: fluxes ±8% PASS / ±12% WARN; RF ≤15% or ≤1.5 W/m²).
+- `compare_benchmark` / `format_report` / `write_report` / `plot_benchmark_overlay`: per-row status classification, Markdown + CSV report, LBL-overlay PNG.
+- Regression test `tests/test_benchmark_randles.py` (slow, uvspec-gated): real run vs libRadtran 2.0.6 — 68 comparison rows, 64 PASS / 0 WARN / 0 FAIL (+4 report-only n/a).
+- Ratified deviation: benchmark results persist as JSON, not NetCDF (nested ragged dict).
 ### Changed
 - `evaluate_blocks_on_grid` (`pyradtran.core.postprocess`) now also returns per-block `ssa` and `g` (was `tau`/`rho_kg_m3` only).
 - `OpacPreset` / `OpacCustom` are now `PlacedBlock` factories; OPAC convenience functions expose `output_dir`.
@@ -85,6 +96,8 @@ Highlights: new `pyradtran.data` data layer with bundled libRadtran data, a LEGO
 - `run_with_opac_preset` / `run_with_opac_custom` now set `disort_intcor="moments"` on their DISORT solver. The OPAC folding produces Legendre-moment phase functions, which DISORT rejects without this flag (`you need to specify 'disort_intcor moments'`); these functions previously crashed at runtime.
 - **i550 wavelength-index bug** in the multicomponent demo and its regression test: `argmin(|wavelength - 0.55|)` compared an nm grid against 0.55 µm, silently selecting 401 nm everywhere a 550 nm scalar was labeled (energy log, heating log, baseline fixture). Also removed a spurious `× 1000` on the DRF wavelength axis (same µm/nm confusion) that made `np.interp(550, ...)` clamp to the 401 nm endpoint. The committed baseline now holds true 550 nm values (edir_surf 798.75, eup_toa 194.79 W/m², F_abs_atm 336.94 W/m²).
 
+- `Runner.execute_many` no longer swallows worker failures: failing scenes were silently returned to callers as `(idx, exception)` result entries; the first failure now raises `RuntimeError(f"scene {i} failed")` chained to the original exception, after cancelling outstanding futures.
+- `Runner.execute_many` uses a thread pool instead of a process pool: scenes carrying `CompositeAerosol` can hold unpicklable payloads (aerosol3D bulk size distributions store local closures), which crashed `ProcessPoolExecutor` pickling; uvspec runs as a subprocess and releases the GIL while waiting, so threads parallelize the invocations just as well and nothing needs pickling.
 ## [0.1.0] - 2026-05-12
 
 ### Added

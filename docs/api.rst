@@ -253,3 +253,67 @@ Workflow
    :members:
    :undoc-members:
    :show-inheritance:
+
+YAML Configuration Front-end
+----------------------------
+
+.. automodule:: pyradtran.config
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Configuration Schema
+^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: pyradtran.config.schema
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Configuration Loader
+^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: pyradtran.config.loader
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Config Orchestrator
+^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: pyradtran.config.orchestrator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Command Line
+^^^^^^^^^^^^
+
+.. automodule:: pyradtran.config.cli
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Benchmarks
+----------
+
+.. automodule:: pyradtran.benchmarks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Randles et al. (2013)
+^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: pyradtran.benchmarks.randles2013
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Benchmark Comparison and Reporting
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: pyradtran.benchmarks.compare
+   :members:
+   :undoc-members:
+   :show-inheritance:
